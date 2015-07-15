@@ -1,3 +1,11 @@
+### 0.1.2 (2015-07-15)
+
+
+#### Bug Fixes
+
+* **gulp:** Fixes some build issues ([55c1045c](https://github.com/TomNeyland/modash.js/commit/55c1045cd8c3f22eee06c0ecb1c152e52a99f431))
+
+
 ### 0.1.1 (2015-07-15)
 
 
