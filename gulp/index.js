@@ -7,4 +7,3 @@ require('./tasks/enforce');
 require('./tasks/jshint');
 require('./tasks/release');
 require('./tasks/test');
-require('./tasks/uglify');

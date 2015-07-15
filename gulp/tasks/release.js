@@ -18,16 +18,11 @@ function release() {
         'test:once',
         'jshint',
         'clean',
-        'copy:build',
         'browserify:build',
-        'scss:build',
-        'cachebust',
-        'handlebars:build',
-        'generate-service-worker',
-        'uglify',
         'dobump',
         'changelog',
-        'commit-release');
+        'commit-release'
+    );
 }
 
 gulp.task('dobump', function() {
@@ -39,11 +34,11 @@ gulp.task('dobump', function() {
 });
 
 gulp.task('commit-release', function() {
-    return gulp.src(['./bower.json', './package.json', './CHANGELOG.md', './build', './build/*.*', './build/*'])
+    return gulp.src(['./bower.json', './package.json', './CHANGELOG.md', './dist', './dist/*.*', './dist/*'])
         .pipe(git.add({
             args: '-f -A'
         }))
-        .pipe(git.commit('chore(release): Bumps package version'))
+        .pipe(git.commit('chore(release): New'))
         .pipe(filter('bower.json'))
         .pipe(tag());
 });

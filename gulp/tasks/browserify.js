@@ -42,9 +42,6 @@ gulp.task('browserify:dev', function() {
             .pipe(gulp.dest(config.build));
     };
 
-    // bundler.transform(babelify);
-    // bundler.transform(partialify);
-
     bundler.on('error', gutil.log.bind(gutil, 'Browserify Error'));
 
     bundler.on('update', bundle);
@@ -71,10 +68,6 @@ gulp.task('browserify:build', function() {
             .pipe(uglify())
             .pipe(gulp.dest(config.build));
     };
-
-    // bundler.transform(babelify);
-    // bundler.transform(partialify);
-    // bundler.transform(stripify);
 
     return bundle();
 });
