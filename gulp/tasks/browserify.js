@@ -23,10 +23,12 @@ var stripify = require('stripify');
 gulp.task('browserify:dev', function() {
     var bundler = watchify(browserify({
         entries: [config.browserify.in],
+        exclude: ['lodash'],
         cache: {},
         packageCache: {},
         fullPaths: true
-    }));
+    }))
+    .exclude('lodash');
 
     var bundle = function() {
         return bundler.bundle()
@@ -56,8 +58,10 @@ gulp.task('browserify:dev', function() {
 gulp.task('browserify:build', function() {
 
     var bundler = browserify({
-        entries: [config.browserify.in]
-    });
+        entries: [config.browserify.in],
+        
+    })
+    .exclude('lodash');
 
     var bundle = function() {
         bundler
