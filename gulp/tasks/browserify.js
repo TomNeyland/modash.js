@@ -60,11 +60,17 @@ gulp.task('browserify:build', function() {
     });
 
     var bundle = function() {
-        return bundler
+        bundler
             .bundle()
             .pipe(source(config.browserify.out))
             .pipe(buffer())
-            // Add transformation tasks to the pipeline here.
+            .pipe(gulp.dest(config.build));
+        // Add transformation tasks to the pipeline here.
+
+        return bundler
+            .bundle()
+            .pipe(source(config.browserify.minOut))
+            .pipe(buffer())
             .pipe(uglify())
             .pipe(gulp.dest(config.build));
     };

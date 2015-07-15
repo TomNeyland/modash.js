@@ -13,7 +13,8 @@ module.exports = {
     },
     browserify: { 
         in : './src/modash.js',
-        out: 'modash.min.js'
+        out: 'modash.js',
+        minOut: 'modash.min.js'
     },
     test: {
         karma: karmaConfigPath
