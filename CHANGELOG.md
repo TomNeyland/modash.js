@@ -1,3 +1,11 @@
+### 0.1.1 (2015-07-15)
+
+
+#### Bug Fixes
+
+* **git:** Adds missing gitignore lines ([5ae2a217](https://github.com/TomNeyland/modash.js/commit/5ae2a2172aa5aa2995c74979ad686d5a3de3367d))
+
+
 ## 0.1.0 (2015-07-15)
 
 
