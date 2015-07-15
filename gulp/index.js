@@ -1,0 +1,10 @@
+require('./tasks/browserify');
+require('./tasks/build');
+require('./tasks/changelog');
+require('./tasks/clean');
+require('./tasks/default');
+require('./tasks/enforce');
+require('./tasks/jshint');
+require('./tasks/release');
+require('./tasks/test');
+require('./tasks/uglify');
