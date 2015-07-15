@@ -39,7 +39,8 @@ export default ExampleClass;
 
 ### Commit Message Format
 
-**[Follow the angular conventional changelog format](https://github.com/ajoslin/conventional-changelog/blob/master/conventions/angular.md)**
+* [Follow the angular conventional changelog format](https://github.com/ajoslin/conventional-changelog/blob/master/conventions/angular.md)**
+* Run the gulp task ```gulp enforce``` to install a pre-commit hook that will validate your commit messages
 
 Each commit message consists of a **header**, a **body** and a **footer**.  The header has a special
 format that includes a **type**, a **scope** and a **subject**:
