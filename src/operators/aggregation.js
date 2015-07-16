@@ -16,7 +16,7 @@ Stage Operators
 
 
 /**
- * Reshapes each document in the stream, such as by adding new fields or 
+ * Reshapes each document in the stream, such as by adding new fields or
  * removing existing fields. For each input document, outputs one document.
  * @param  {[Array]} collection     [description]
  * @param  {[Object]} specifications [description]
@@ -54,7 +54,7 @@ function $project(collection, specifications) {
 
 
 /**
- * Filters the document stream to allow only matching documents to pass 
+ * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
  * @param  {[Array]} collection [description]
  * @param  {[type]} query      [description]
@@ -66,7 +66,7 @@ function $match(collection, query) {
 
 
 /**
- * Reshapes each document in the stream by restricting the content for each 
+ * Reshapes each document in the stream by restricting the content for each
  * document based on information stored in the documents themselves.
  * @param  {[Array]} collection [description]
  * @param  {[type]} expression [description]
@@ -89,7 +89,7 @@ function $limit(collection, count) {
 
 
 /**
- * Skips the first n documents where n is the specified skip number and passes 
+ * Skips the first n documents where n is the specified skip number and passes
  * the remaining documents unmodified to the pipeline
  * @param  {[Array]} collection [description]
  * @param  {[type]} count      [description]
@@ -101,7 +101,7 @@ function $skip(collection, count) {
 
 
 /**
- * Deconstructs an array field from the input documents to output a document 
+ * Deconstructs an array field from the input documents to output a document
  * for each element.
  * @param  {[Array]} collection [description]
  * @param  {[type]} fieldPath  [description]
@@ -113,7 +113,7 @@ function $unwind(collection, fieldPath) {
 
 
 /**
- * Groups input documents by a specified identifier expression and applies the 
+ * Groups input documents by a specified identifier expression and applies the
  * accumulator expression(s), if specified, to each group.
  * @param  {[Array]} collection     [description]
  * @param  {[Object]} specifications [description]
@@ -136,7 +136,7 @@ function $sort(collection, specifications) {
 
 
 /**
- * Returns an ordered stream of documents based on the proximity to a geospatial point. 
+ * Returns an ordered stream of documents based on the proximity to a geospatial point.
  * @param  {[Array]} collection [description]
  * @param  {[type]} options    [description]
  * @return {[Array]}            [description]
@@ -166,7 +166,7 @@ function $out(collection, outputCollection) {
 
 
 /**
- * Performs aggregation operation using the aggregation pipeline. The pipeline allows users 
+ * Performs aggregation operation using the aggregation pipeline. The pipeline allows users
  * to process data from a collection with a sequence of stage-based manipulations.
  * @param  {[Array]}  collection    [description]
  * @param  {[Array|Object]}  pipeline     [description]

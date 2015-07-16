@@ -1,9 +1,11 @@
-var config = require('../config');
+import config from '../config';
 
-var gulp = require('gulp');
+import gulp from 'gulp';
+
+import del from 'del';
 
 gulp.task('clean', function(cb) {
-    require('del')([config.build], {
+    del([config.build], {
         force: true
     }, cb);
 });

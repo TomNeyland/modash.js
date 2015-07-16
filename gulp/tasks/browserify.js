@@ -1,23 +1,23 @@
-var config = require('../config');
+import config from '../config';
 
-var gulp = require('gulp');
-var gutil = require('gulp-util');
+import gulp from 'gulp';
+import gutil from 'gulp-util';
 
-var filter = require('gulp-filter');
-var sourcemaps = require('gulp-sourcemaps');
-var plumber = require('gulp-plumber');
-var uglify = require('gulp-uglify');
+import filter from 'gulp-filter';
+import sourcemaps from 'gulp-sourcemaps';
+import plumber from 'gulp-plumber';
+import uglify from 'gulp-uglify';
 
-var source = require('vinyl-source-stream');
-var buffer = require('vinyl-buffer');
+import source from 'vinyl-source-stream';
+import buffer from 'vinyl-buffer';
 
-var watchify = require('watchify');
-var browserify = require('browserify');
+import watchify from 'watchify';
+import browserify from 'browserify';
 
 // transforms
-var babelify = require('babelify');
-var partialify = require('partialify');
-var stripify = require('stripify');
+import babelify from 'babelify';
+import partialify from 'partialify';
+import stripify from 'stripify';
 
 
 gulp.task('browserify:dev', function() {
@@ -58,8 +58,7 @@ gulp.task('browserify:dev', function() {
 gulp.task('browserify:build', function() {
 
     var bundler = browserify({
-        entries: [config.browserify.in],
-        
+        entries: [config.browserify.in]
     })
     .exclude('lodash');
 
@@ -69,7 +68,6 @@ gulp.task('browserify:build', function() {
             .pipe(source(config.browserify.out))
             .pipe(buffer())
             .pipe(gulp.dest(config.build));
-        // Add transformation tasks to the pipeline here.
 
         return bundler
             .bundle()

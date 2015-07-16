@@ -1,19 +1,17 @@
-var config = require('../config');
+import config from '../config';
 
-var gulp = require('gulp');
+import gulp from 'gulp';
 
-var karma = require('karma').server;
+import {server} from 'karma';
 
 gulp.task('test:once', function(done) {
-    karma.start({
+    server.start({
         configFile: config.test.karma
     }, done);
 });
 
-
-
 gulp.task('test:watch', function(done) {
-    karma.start({
+    server.start({
         configFile: config.test.karma,
         singleRun: false,
         autoWatch: true

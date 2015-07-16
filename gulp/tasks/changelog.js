@@ -1,8 +1,8 @@
-var fs = require('fs');
+import fs from 'fs';
 
-var gulp = require('gulp');
+import gulp from 'gulp';
 
-var changelog = require('conventional-changelog');
+import changelog from 'conventional-changelog';
 
 gulp.task('changelog', function(done) {
     function changeParsed(err, log) {
@@ -11,10 +11,14 @@ gulp.task('changelog', function(done) {
         }
         fs.writeFile('CHANGELOG.md', log, done);
     }
+
     fs.readFile('./package.json', 'utf8', function(err, data) {
-        var ref$ = JSON.parse(data);
-        var repository = ref$.repository;
-        var version = ref$.version;
+        if (err) {
+            return done(err);
+        }
+
+        let ref = JSON.parse(data);
+        let {repository, version} = ref;
 
         changelog({
             repository: repository.url,
