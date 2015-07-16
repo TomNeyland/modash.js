@@ -3,7 +3,10 @@ import {
 }
 from 'lodash';
 
-import {$expression} from '../expression';
+import {
+    $expression
+}
+from '../expression';
 
 
 

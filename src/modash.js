@@ -3,7 +3,7 @@ import count from './count';
 import distinct from './distinct';
 import group from './group';
 import mapReduce from './mapReduce';
-import {$expression} from './expression';
+import {$expression} from './expressions';
 
 
 /*
