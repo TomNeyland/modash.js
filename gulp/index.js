@@ -1,9 +1,9 @@
-require('./tasks/browserify');
-require('./tasks/build');
-require('./tasks/changelog');
-require('./tasks/clean');
-require('./tasks/default');
-require('./tasks/enforce');
-require('./tasks/jshint');
-require('./tasks/release');
-require('./tasks/test');
+import './tasks/browserify';
+import './tasks/build';
+import './tasks/changelog';
+import './tasks/clean';
+import './tasks/default';
+import './tasks/enforce';
+import './tasks/lint';
+import './tasks/release';
+import './tasks/test';

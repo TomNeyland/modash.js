@@ -1,9 +1,11 @@
-var gulp = require('gulp');
-var runSequence = require('run-sequence');
+import gulp from 'gulp';
+import runSequence from 'run-sequence';
 
 gulp.task('build', function() {
-    return runSequence('test:once', 'jshint', 'clean',
-        // these are done async
-        'browserify:build',
-        'uglify');
+    return runSequence(
+        'test:once',
+        'lint',
+        'clean',
+        'browserify:build'
+    );
 });

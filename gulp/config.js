@@ -1,23 +1,22 @@
 // this is needed because it *looks* like karma wants an absolute
 // path to the conf file
-var karmaConfigPath = require('path').resolve('.') + '/karma.conf.js';
+import {resolve} from 'path';
 
-module.exports = {
+export default {
     app: './src',
     build: './dist',
     js: {
         files: [
             './src/**/*.js',
-            '!./tests/**/*.spec.js',
+            '!./tests/**/*.spec.js'
         ]
     },
-    browserify: { 
-        in : './src/modash.js',
+    browserify: {
+        in: './src/modash.js',
         out: 'modash.js',
         minOut: 'modash.min.js'
     },
     test: {
-        karma: karmaConfigPath
+        karma: `${resolve('.')}/karma.conf.js`
     }
-
 };
