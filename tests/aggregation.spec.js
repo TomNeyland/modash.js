@@ -5,61 +5,73 @@ import {
 }
 from '../src/modash/aggregation';
 
+import testData from './test-data';
+
 
 describe('Modash Aggregation', function() {
 
-    const sampleData = [{
-        "_id": 1,
-        title: "abc123",
-        isbn: "0001122223334",
-        author: {
-            last: "zzz",
-            first: "aaa"
-        },
-        copies: 5
-    }];
+
+
 
     describe('$project', function() {
 
-        it('should include the _id and city fields', function() {
-            var projection = $project(sampleData, {
-                _id: 1,
-                city: 1,
-            }).value();
+        it('should include specific fields in output documents', function() {
+            var projection = $project(testData.BOOKS, {
+                title: 1,
+                author: 1
+            }).first().value();
 
-            expect(projection[0]).to.deep.equal({
-                '_id': '01001',
-                'city': 'AGAWAM'
+            expect(projection).to.deep.equal({
+                "_id": 1,
+                "title": "abc123",
+                "author": {
+                    "last": "zzz",
+                    "first": "aaa"
+                }
             });
 
 
         });
 
-        it('should project values into subobjects', function() {
-            var projection = $project(sampleData, {
-                'stats': {
-                    'loc': '$loc',
-                    'fake': 1,
-                    'locObj.lat': 1 // technically not valid...
-                },
-                'stats.locObj.lng': 1,
+        it('should suppress _id field in the output documents', function() {
+            var projection = $project(testData.BOOKS, {
+                _id: 0,
+                title: 1,
+                author: 1
             }).first().value();
 
-            console.log(projection[0].stats);
-
-            expect(projection[0]).to.deep.equal({
-                'stats' {
-                    'fake': 'value',
-                    'loc': [-72.622739, 42.070206],
-                    'locObj': {
-                        lat: -72.622739,
-                        lng: 42.070206
-                    }
+            expect(projection).to.deep.equal({
+                "title": "abc123",
+                "author": {
+                    "last": "zzz",
+                    "first": "aaa"
                 }
             });
         });
 
     });
+
+    // it('should include specific fields from embedded documents', function() {
+    //     var projection = $project(testData.BOOKMARKS, {
+    //         "stop.title": 1
+    //     }).value();
+
+    //     console.debug(projection)
+
+    //     expect(projection).to.deep.equal([{
+    //         "_id": 1,
+    //         "stop": {
+    //             "title": "book1"
+    //         }
+    //     }, {
+    //         "_id": 2,
+    //         "stop": [{
+    //             "title": "book2"
+    //         }, {
+    //             "title": "book3"
+    //         }]
+    //     }]);
+    // });
 
 
 

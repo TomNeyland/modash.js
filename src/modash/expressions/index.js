@@ -1,5 +1,5 @@
 import {
-    isArray, isObject, get, set, merge, size, keys
+    isArray, isObject, get, set, merge, size, keys, pluck
 }
 from 'lodash';
 
@@ -59,7 +59,13 @@ function $expression(obj, expression, root) {
 function $fieldPath(obj, path) {
     // slice the $ and use the regular get
     // this will need additional tweaks later
-    return get(obj, path.slice(1));
+    path = path.slice(1);
+
+    if (isArray(obj)) {
+        return pluck(obj, path);
+    }
+
+    return get(obj, path);
 }
 
 
