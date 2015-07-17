@@ -1,4 +1,4 @@
-import count from '../src/count';
+import {count} from '../src/modash/count';
 
 describe('Modash Count', function() {
 
