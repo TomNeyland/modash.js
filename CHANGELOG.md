@@ -1,3 +1,16 @@
+## 0.2.0 (2015-07-17)
+
+
+#### Bug Fixes
+
+* **release:** Use lint task ([e4a79d63](https://github.com/TomNeyland/modash.js/commit/e4a79d63857b8e729ccc7a2030ce2c444d5f2a86))
+
+
+#### Features
+
+* **aggregation:** Adds WIP projection support ([759ca190](https://github.com/TomNeyland/modash.js/commit/759ca190b21d95924718e9967c37d6bd1d3b1bf8))
+
+
 ### 0.1.2 (2015-07-15)
 
 
