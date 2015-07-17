@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/TomNeyland/modash.js"
   },
-  "main": "src/modash.js",
+  "main": "src/modash",
   "author": "Tom Neyland",
   "license": "MIT",
   "bugs": {

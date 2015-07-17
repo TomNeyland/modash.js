@@ -12,7 +12,7 @@ export default {
         ]
     },
     browserify: {
-        in: './src/modash.js',
+        in: './src/modash',
         out: 'modash.js',
         minOut: 'modash.min.js'
     },
