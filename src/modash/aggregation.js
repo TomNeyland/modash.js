@@ -1,10 +1,10 @@
 import {
-    chain, extend, isArray, isObject, get, set, merge
+    chain, isArray
 }
 from 'lodash';
 
 import {
-    $expression, $expressionObject
+    $expressionObject
 }
 from './expressions';
 
@@ -32,12 +32,12 @@ function $project(collection, specifications) {
 	}
 
     return chain(collection)
-        .map(function(obj, key, list) {
+        .map(function(obj) {
             return $expressionObject(obj, specifications, obj);
         });
 }
 
-
+/*eslint-disable */
 /**
  * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
@@ -140,7 +140,7 @@ function $geoNear(collection, options) {
 function $out(collection, outputCollection) {
     throw Error('Not Implemented');
 }
-
+/*eslint-enable */
 
 
 
@@ -160,13 +160,13 @@ function $out(collection, outputCollection) {
  * @param  {Boolean} cursor       Not Implemented
  * @return {[Array]}               [description]
  */
-function aggregate(collection, pipeline, explain = false, allowDiskUse = false, cursor = false) {
+function aggregate(collection, pipeline) {
 
     if (!isArray(pipeline)) {
         pipeline = [pipeline];
     }
 
-    collection = chain(collection)
+    collection = chain(collection);
 
     for (let i = pipeline.length - 1; i < pipeline.length; i++) {
         let stage = pipeline[i];
@@ -175,7 +175,7 @@ function aggregate(collection, pipeline, explain = false, allowDiskUse = false, 
 			collection = $project(collection, stage.$project);
         }
 
-    };
+    }
 
     return collection;
 }

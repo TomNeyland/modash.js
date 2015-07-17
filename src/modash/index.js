@@ -13,6 +13,7 @@ import {$expression} from './expressions';
 const Modash = {
     aggregate,
     count,
+    $expression
     // distinct,
     // group,
     // mapReduce
