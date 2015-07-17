@@ -18,7 +18,7 @@ function getImportance() {
 function release() {
     return runSequence(
         'test:once',
-        'jshint',
+        'lint',
         'clean',
         'browserify:build',
         'dobump',
