@@ -3,13 +3,7 @@ import {
 }
 from 'lodash';
 
-
-const EXPRESSION_OPERATORS = {
-    $substr: function(string, start, len) {
-        console.log('substr', string, start, start + len);
-        return string.slice(start, start + len);
-    }
-};
+import EXPRESSION_OPERATORS from '../operators';
 
 
 function isFieldPath(expression) {
