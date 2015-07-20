@@ -344,11 +344,11 @@ var _expressions = require('./expressions');
 var Modash = {
     aggregate: _aggregation.aggregate,
     count: _count.count,
-    $expression: _expressions.$expression
+    $expression
     // distinct,
     // group,
     // mapReduce
-};
+    : _expressions.$expression };
 
 // Export the module
 exports['default'] = Modash;

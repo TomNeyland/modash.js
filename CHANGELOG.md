@@ -1,3 +1,11 @@
+### 0.3.2 (2015-07-20)
+
+
+#### Bug Fixes
+
+* **package:** Fixes version conflicts ([f89d08a0](https://github.com/TomNeyland/modash.js/commit/f89d08a0bc992514cd17d0d4f12be5ee9a8e899a))
+
+
 ### 0.3.1 (2015-07-20)
 
 
