@@ -35,13 +35,10 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    console.debug('obj', obj);
-    console.debug('expression', expression);
-
-    if (isFieldPath(expression)) {
-        result = $fieldPath(obj, expression);
-    } else if (isExpressionOperator(EXPRESSION_OPERATORS)) {
+    if (isExpressionOperator(EXPRESSION_OPERATORS)) {
         result = $expressionOperator(obj, expression, root);
+    } else if (isFieldPath(expression)) {
+        result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
         result = $expressionObject(obj, expression, root);
     } else if (isSystemVariable(expression)) {
@@ -49,8 +46,6 @@ function $expression(obj, expression, root) {
     } else {
         throw Error('Invalid Expression: ' + JSON.stringify(expression));
     }
-
-    console.debug('result', result);
 
     return result;
 
@@ -61,9 +56,21 @@ function $fieldPath(obj, path) {
     // this will need additional tweaks later
     path = path.slice(1);
 
-    if (isArray(obj)) {
-        return pluck(obj, path);
+    if (path.indexOf('.') !== -1) {
+        path = path.split('.');
+        let headPath = path.shift();
+        let head = get(obj, headPath);
+
+        if (isArray(head)) {
+
+
+            return pluck(head, path);
+        } else {
+            return get(head, path);
+        }
+
     }
+
 
     return get(obj, path);
 }
@@ -83,26 +90,60 @@ function $expressionObject(obj, specifications, root) {
     }
 
 
-    for (let field in specifications) {
+    for (let path in specifications) {
 
         let target = root,
-            expression = specifications[field];
+            expression = specifications[path];
 
-        if (expression === true || expression === 1) {
-            // Simple passthrough of obj's field/path values
-            target = obj;
-            expression = '$' + field;
-        } else if (expression === false || expression === 0) {
-            // we can go ahead and skip this all together
-            continue;
-        } else if (typeof expression === 'string') {
-            // Assume a pathspec for now, meaning we use root as the target
-            target = root;
-        } else if (typeof expression === 'object') {
-            target = get(obj, field);
+
+
+
+
+        if (path.indexOf('.') !== -1) {
+
+            var pathParts = path.split('.');
+            let headPath = pathParts.shift();
+            let head = get(obj, headPath);
+
+            if (isArray(head)) {
+                set(result, headPath, head.map(function(subtarget) {
+                    return $expression(subtarget, {
+                        [pathParts.join('.')]: expression
+                    }, root);
+                }));
+            } else {
+                merge(result, set({}, headPath, $expression(head, {
+                    [pathParts.join('.')]: expression
+                }, root)));
+            }
+
+        } else {
+
+            if (expression === true || expression === 1) {
+                // Simple passthrough of obj's path/field values
+                target = obj;
+                expression = '$' + path;
+            } else if (expression === false || expression === 0) {
+                // we can go ahead and skip this all together
+                continue;
+            } else if (typeof expression === 'string') {
+                // Assume a pathspec for now, meaning we use root as the target
+                target = root;
+            } else if (typeof expression === 'object') {
+                target = get(obj, path);
+            }
+            if (isArray(target)) {
+                merge(result, set({}, path, target.map(function(subtarget) {
+                    return $expression(subtarget, expression, root);
+                })));
+
+            } else {
+                merge(result, set({}, path, $expression(target, expression, root)));
+
+            }
         }
 
-        merge(result, set({}, field, $expression(target, expression, root)));
+
 
     }
 
