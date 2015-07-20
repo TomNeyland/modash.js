@@ -35,7 +35,7 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    if (isExpressionOperator(EXPRESSION_OPERATORS)) {
+    if (isExpressionOperator(expression)) {
         result = $expressionOperator(obj, expression, root);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
