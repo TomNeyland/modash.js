@@ -41,7 +41,7 @@ function $setEquals(...arrays) {
 
     head = sets[0];
 
-    return all(sets, partial(isEqual, head)).value();
+    return all(sets, partial(isEqual, [head])).value();
 
 }
 
@@ -95,7 +95,7 @@ export default {
     $not,
     // Set Operators
     $setEquals,
-    $setIntersetion,
+    $setIntersection,
     $setUnion,
     $setDifference,
     $setIsSubset,
