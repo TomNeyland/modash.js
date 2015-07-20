@@ -1,3 +1,16 @@
+## 0.3.0 (2015-07-20)
+
+
+#### Bug Fixes
+
+* **test-data:** Fixed an error in the BOOKMARKS collection ([6f74ad0a](https://github.com/TomNeyland/modash.js/commit/6f74ad0a798b86aa33476e186b313b5bb98fec9c))
+
+
+#### Features
+
+* **aggregation:** Adds support for $project on embedded arrays ([5913c347](https://github.com/TomNeyland/modash.js/commit/5913c34749e4895214174e09ac5a2eab104f76cf))
+
+
 ## 0.2.0 (2015-07-17)
 
 

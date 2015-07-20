@@ -175,6 +175,8 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 var _lodash = require('lodash');
 
 var EXPRESSION_OPERATORS = {};
@@ -203,13 +205,10 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    console.debug('obj', obj);
-    console.debug('expression', expression);
-
-    if (isFieldPath(expression)) {
-        result = $fieldPath(obj, expression);
-    } else if (isExpressionOperator(EXPRESSION_OPERATORS)) {
+    if (isExpressionOperator(EXPRESSION_OPERATORS)) {
         result = $expressionOperator(obj, expression, root);
+    } else if (isFieldPath(expression)) {
+        result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
         result = $expressionObject(obj, expression, root);
     } else if (isSystemVariable(expression)) {
@@ -217,8 +216,6 @@ function $expression(obj, expression, root) {
     } else {
         throw Error('Invalid Expression: ' + JSON.stringify(expression));
     }
-
-    console.debug('result', result);
 
     return result;
 }
@@ -228,8 +225,17 @@ function $fieldPath(obj, path) {
     // this will need additional tweaks later
     path = path.slice(1);
 
-    if ((0, _lodash.isArray)(obj)) {
-        return (0, _lodash.pluck)(obj, path);
+    if (path.indexOf('.') !== -1) {
+        path = path.split('.');
+        var headPath = path.shift();
+        var head = (0, _lodash.get)(obj, headPath);
+
+        if ((0, _lodash.isArray)(head)) {
+
+            return (0, _lodash.pluck)(head, path);
+        } else {
+            return (0, _lodash.get)(head, path);
+        }
     }
 
     return (0, _lodash.get)(obj, path);
@@ -245,26 +251,61 @@ function $expressionObject(obj, specifications, root) {
         root = obj;
     }
 
-    for (var field in specifications) {
+    var _loop = function (path) {
 
         var target = root,
-            expression = specifications[field];
+            expression = specifications[path];
 
-        if (expression === true || expression === 1) {
-            // Simple passthrough of obj's field/path values
-            target = obj;
-            expression = '$' + field;
-        } else if (expression === false || expression === 0) {
-            // we can go ahead and skip this all together
-            continue;
-        } else if (typeof expression === 'string') {
-            // Assume a pathspec for now, meaning we use root as the target
-            target = root;
-        } else if (typeof expression === 'object') {
-            target = (0, _lodash.get)(obj, field);
+        if (path.indexOf('.') !== -1) {
+            pathParts = path.split('.');
+
+            var headPath = pathParts.shift();
+            var head = (0, _lodash.get)(obj, headPath);
+
+            if ((0, _lodash.isArray)(head)) {
+                /*eslint-disable */
+                // refactor this part soon...
+                (0, _lodash.set)(result, headPath, head.map(function (subtarget) {
+                    return $expression(subtarget, _defineProperty({}, pathParts.join('.'), expression), root);
+                }));
+                /*eslint-enable */
+            } else {
+                (0, _lodash.merge)(result, (0, _lodash.set)({}, headPath, $expression(head, _defineProperty({}, pathParts.join('.'), expression), root)));
+            }
+        } else {
+
+            if (expression === true || expression === 1) {
+                // Simple passthrough of obj's path/field values
+                target = obj;
+                expression = '$' + path;
+            } else if (expression === false || expression === 0) {
+                // we can go ahead and skip this all together
+                return 'continue';
+            } else if (typeof expression === 'string') {
+                // Assume a pathspec for now, meaning we use root as the target
+                target = root;
+            } else if (typeof expression === 'object') {
+                target = (0, _lodash.get)(obj, path);
+            }
+            if ((0, _lodash.isArray)(target)) {
+                /*eslint-disable */
+                // refactor this part soon...
+                (0, _lodash.merge)(result, (0, _lodash.set)({}, path, target.map(function (subtarget) {
+                    return $expression(subtarget, expression, root);
+                })));
+                /*eslint-enable */
+            } else {
+                (0, _lodash.merge)(result, (0, _lodash.set)({}, path, $expression(target, expression, root)));
+            }
         }
+    };
 
-        (0, _lodash.merge)(result, (0, _lodash.set)({}, field, $expression(target, expression, root)));
+    for (var path in specifications) {
+        var pathParts;
+
+        var _ret = _loop(path);
+
+        if (_ret === 'continue') continue;
     }
 
     return result;
