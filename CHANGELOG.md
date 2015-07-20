@@ -1,3 +1,11 @@
+### 0.3.1 (2015-07-20)
+
+
+#### Bug Fixes
+
+* **lint:** Adds temporary eslint disables ([56c7c569](https://github.com/TomNeyland/modash.js/commit/56c7c569055fe3c6901dff533c985011a7c2a34d))
+
+
 ## 0.3.0 (2015-07-20)
 
 
