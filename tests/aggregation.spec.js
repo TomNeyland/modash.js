@@ -10,9 +10,6 @@ import testData from './test-data';
 
 describe('Modash Aggregation', function() {
 
-
-
-
     describe('$project', function() {
 
         it('should include specific fields in output documents', function() {
@@ -49,30 +46,54 @@ describe('Modash Aggregation', function() {
             });
         });
 
+
+        it('should include specific fields from embedded documents using dot notation', function() {
+            var projection = $project(testData.BOOKMARKS, {
+                "stop.title": 1
+            }).value();
+
+            console.debug(JSON.stringify(projection))
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "stop": {
+                    "title": "book1"
+                }
+            }, {
+                "_id": 2,
+                "stop": [{
+                    "title": "book2"
+                }, {
+                    "title": "book3"
+                }]
+            }]);
+        });
+
+        it('should include specific fields from embedded documents using object notation', function() {
+            var projection = $project(testData.BOOKMARKS, {
+                "stop": {
+                    "title": 1
+                }
+            }).value();
+
+            console.debug(JSON.stringify(projection))
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "stop": {
+                    "title": "book1"
+                }
+            }, {
+                "_id": 2,
+                "stop": [{
+                    "title": "book2"
+                }, {
+                    "title": "book3"
+                }]
+            }]);
+        });
+
+
     });
-
-    // it('should include specific fields from embedded documents', function() {
-    //     var projection = $project(testData.BOOKMARKS, {
-    //         "stop.title": 1
-    //     }).value();
-
-    //     console.debug(projection)
-
-    //     expect(projection).to.deep.equal([{
-    //         "_id": 1,
-    //         "stop": {
-    //             "title": "book1"
-    //         }
-    //     }, {
-    //         "_id": 2,
-    //         "stop": [{
-    //             "title": "book2"
-    //         }, {
-    //             "title": "book3"
-    //         }]
-    //     }]);
-    // });
-
-
 
 });
