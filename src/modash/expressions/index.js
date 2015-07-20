@@ -89,15 +89,10 @@ function $expressionObject(obj, specifications, root) {
         root = obj;
     }
 
-
     for (let path in specifications) {
 
         let target = root,
             expression = specifications[path];
-
-
-
-
 
         if (path.indexOf('.') !== -1) {
 
