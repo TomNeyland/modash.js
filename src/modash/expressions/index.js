@@ -106,11 +106,14 @@ function $expressionObject(obj, specifications, root) {
             let head = get(obj, headPath);
 
             if (isArray(head)) {
+                /*eslint-disable */
+                // refactor this part soon...
                 set(result, headPath, head.map(function(subtarget) {
                     return $expression(subtarget, {
                         [pathParts.join('.')]: expression
                     }, root);
                 }));
+                /*eslint-enable */
             } else {
                 merge(result, set({}, headPath, $expression(head, {
                     [pathParts.join('.')]: expression
@@ -133,9 +136,12 @@ function $expressionObject(obj, specifications, root) {
                 target = get(obj, path);
             }
             if (isArray(target)) {
+                /*eslint-disable */
+                // refactor this part soon...
                 merge(result, set({}, path, target.map(function(subtarget) {
                     return $expression(subtarget, expression, root);
                 })));
+                /*eslint-enable */
 
             } else {
                 merge(result, set({}, path, $expression(target, expression, root)));
