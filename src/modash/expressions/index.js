@@ -5,7 +5,10 @@ from 'lodash';
 
 
 const EXPRESSION_OPERATORS = {
-
+    $substr: function(string, start, len) {
+        console.log('substr', string, start, start + len);
+        return string.slice(start, start + len);
+    }
 };
 
 
@@ -36,7 +39,8 @@ function $expression(obj, expression, root) {
     }
 
     if (isExpressionOperator(expression)) {
-        result = $expressionOperator(obj, expression, root);
+        result = $expressionOperator(root, expression, root);
+        console.log('expression operator result', result);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
@@ -44,7 +48,7 @@ function $expression(obj, expression, root) {
     } else if (isSystemVariable(expression)) {
         throw Error('System Variables are not currently supported');
     } else {
-        throw Error('Invalid Expression: ' + JSON.stringify(expression));
+        return expression;
     }
 
     return result;
@@ -56,14 +60,13 @@ function $fieldPath(obj, path) {
     // this will need additional tweaks later
     path = path.slice(1);
 
+    // remove?
     if (path.indexOf('.') !== -1) {
         path = path.split('.');
         let headPath = path.shift();
         let head = get(obj, headPath);
 
         if (isArray(head)) {
-
-
             return pluck(head, path);
         } else {
             return get(head, path);
@@ -76,8 +79,24 @@ function $fieldPath(obj, path) {
 }
 
 
-function $expressionOperator() {
+function $expressionOperator(obj, operatorExpression, root) {
 
+    var operator = keys(operatorExpression)[0],
+        args = operatorExpression[operator],
+        operatorFunction = EXPRESSION_OPERATORS[operator],
+        result;
+
+    if (!isArray(args)) {
+        args = [args];
+    }
+
+
+    args = args.map(function(argExpression) {
+        return $expression(obj, argExpression, root);
+    });
+
+    result = operatorFunction(...args)
+    return result;
 }
 
 
@@ -139,6 +158,7 @@ function $expressionObject(obj, specifications, root) {
                 /*eslint-enable */
 
             } else {
+
                 merge(result, set({}, path, $expression(target, expression, root)));
 
             }
