@@ -149,7 +149,7 @@ describe('Modash Set Operator', function() {
                 _id: 0
             }).value();
 
-            console.log(projection[0]);
+            console.log(projection);
 
             expect(projection).to.deep.equal([{
                 "A": ["red", "blue"],
@@ -192,6 +192,250 @@ describe('Modash Set Operator', function() {
                 "A": [],
                 "B": ["red"],
                 "sameElements": false
+            }]);
+        });
+    });
+
+    describe('$setIntersection', function() {
+
+        it('should correctly intersect sets', function() {
+
+            var projection = $project(testData.experiments, {
+                A: 1,
+                B: 1,
+                commonToBoth: {
+                    $setIntersection: ["$A", "$B"]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection[0]);
+
+            expect(projection).to.deep.equal([{
+                "A": ["red", "blue"],
+                "B": ["red", "blue"],
+                "commonToBoth": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["blue", "red", "blue"],
+                "commonToBoth": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["red", "blue", "green"],
+                "commonToBoth": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["green", "red"],
+                "commonToBoth": ["red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": [],
+                "commonToBoth": []
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red"],
+                    ["blue"]
+                ],
+                "commonToBoth": []
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red", "blue"]
+                ],
+                "commonToBoth": []
+            }, {
+                "A": [],
+                "B": [],
+                "commonToBoth": []
+            }, {
+                "A": [],
+                "B": ["red"],
+                "commonToBoth": []
+            }]);
+        });
+    });
+
+
+    describe('$setUnion', function() {
+
+        it('should correctly union sets', function() {
+
+            var projection = $project(testData.experiments, {
+                A: 1,
+                B: 1,
+                allValues: {
+                    $setUnion: ["$A", "$B"]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "A": ["red", "blue"],
+                "B": ["red", "blue"],
+                "allValues": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["blue", "red", "blue"],
+                "allValues": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["red", "blue", "green"],
+                "allValues": ["blue", "red", "green"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["green", "red"],
+                "allValues": ["blue", "red", "green"]
+            }, {
+                "A": ["red", "blue"],
+                "B": [],
+                "allValues": ["blue", "red"]
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red"],
+                    ["blue"]
+                ],
+                "allValues": ["blue", "red", ["red"],
+                    ["blue"]
+                ]
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red", "blue"]
+                ],
+                "allValues": ["blue", "red", ["red", "blue"]]
+            }, {
+                "A": [],
+                "B": [],
+                "allValues": []
+            }, {
+                "A": [],
+                "B": ["red"],
+                "allValues": ["red"]
+            }]);
+        });
+    });
+
+
+    describe('$setDifference', function() {
+
+        it('should correctly difference sets', function() {
+
+            var projection = $project(testData.experiments, {
+                A: 1,
+                B: 1,
+                inBOnly: {
+                    $setDifference: ["$B", "$A"]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "A": ["red", "blue"],
+                "B": ["red", "blue"],
+                "inBOnly": []
+            }, {
+                "A": ["red", "blue"],
+                "B": ["blue", "red", "blue"],
+                "inBOnly": []
+            }, {
+                "A": ["red", "blue"],
+                "B": ["red", "blue", "green"],
+                "inBOnly": ["green"]
+            }, {
+                "A": ["red", "blue"],
+                "B": ["green", "red"],
+                "inBOnly": ["green"]
+            }, {
+                "A": ["red", "blue"],
+                "B": [],
+                "inBOnly": []
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red"],
+                    ["blue"]
+                ],
+                "inBOnly": [
+                    ["red"],
+                    ["blue"]
+                ]
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red", "blue"]
+                ],
+                "inBOnly": [
+                    ["red", "blue"]
+                ]
+            }, {
+                "A": [],
+                "B": [],
+                "inBOnly": []
+            }, {
+                "A": [],
+                "B": ["red"],
+                "inBOnly": ["red"]
+            }]);
+        });
+    });
+
+
+    describe('$setIsSubset', function() {
+
+        it('should correctly detect subsets', function() {
+
+            var projection = $project(testData.experiments, {
+                A: 1,
+                B: 1,
+                AisSubset: {
+                    $setIsSubset: ["$A", "$B"]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "A": ["red", "blue"],
+                "B": ["red", "blue"],
+                "AisSubset": true
+            }, {
+                "A": ["red", "blue"],
+                "B": ["blue", "red", "blue"],
+                "AisSubset": true
+            }, {
+                "A": ["red", "blue"],
+                "B": ["red", "blue", "green"],
+                "AisSubset": true
+            }, {
+                "A": ["red", "blue"],
+                "B": ["green", "red"],
+                "AisSubset": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [],
+                "AisSubset": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red"],
+                    ["blue"]
+                ],
+                "AisSubset": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red", "blue"]
+                ],
+                "AisSubset": false
+            }, {
+                "A": [],
+                "B": [],
+                "AisSubset": true
+            }, {
+                "A": [],
+                "B": ["red"],
+                "AisSubset": true
             }]);
         });
     });
