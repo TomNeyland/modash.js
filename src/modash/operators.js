@@ -1,5 +1,5 @@
 import {
-    all, any, partial, isEqual, intersection, union, difference, gt, gte, lt, lte
+    every, some, partial, isEqual, isMatch, intersection, union, difference, gt, gte, lt, lte, chain
 }
 from 'lodash';
 
@@ -13,17 +13,17 @@ Boolean Operators
 
 function $and(...values) {
     console.log('$and', values);
-    return all(values);
+    return every(values);
 }
 
 
 function $or(...values) {
-    return any(values);
+    return some(values);
 }
 
 
 function $not(...values) {
-    return !any(values);
+    return !some(values);
 }
 
 
@@ -37,12 +37,14 @@ Set Operators
 function $setEquals(...arrays) {
 
     var sets = arrays.map(function(array) {
-        return _(array).sortBy().uniq(true).value()
+        return chain(array).sortBy().uniq(true).value()
     });
 
-    head = sets[0];
+    var head = sets[0];
 
-    return all(sets, partial(isEqual, [head])).value();
+    return every(sets, function(obj) {
+    	return $eq(head, obj);
+    });
 
 }
 
