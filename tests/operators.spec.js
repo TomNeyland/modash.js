@@ -10,7 +10,6 @@ describe('Modash Boolean Operator', function() {
 
     describe('$and', function() {
 
-
         it('should apply a boolean AND to its arguments', function() {
 
             var projection = $project(testData.inventory, {
@@ -44,7 +43,7 @@ describe('Modash Boolean Operator', function() {
                 "_id": 5,
                 "item": "VWZ2",
                 "result": true
-            }])
+            }]);
         });
 
     });
@@ -84,7 +83,7 @@ describe('Modash Boolean Operator', function() {
                 "_id": 5,
                 "item": "VWZ2",
                 "result": true
-            }])
+            }]);
         });
 
     });
@@ -123,12 +122,78 @@ describe('Modash Boolean Operator', function() {
                 "_id": 5,
                 "item": "VWZ2",
                 "result": true
-            }])
+            }]);
         });
 
     });
 
 
 
+
+});
+
+
+
+describe('Modash Set Operator', function() {
+
+    describe('$setEquals', function() {
+
+        it('should correctly compare sets', function() {
+
+            var projection = $project(testData.experiments, {
+                A: 1,
+                B: 1,
+                sameElements: {
+                    $setEquals: ["$A", "$B"]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection[0]);
+
+            expect(projection).to.deep.equal([{
+                "A": ["red", "blue"],
+                "B": ["red", "blue"],
+                "sameElements": true
+            }, {
+                "A": ["red", "blue"],
+                "B": ["blue", "red", "blue"],
+                "sameElements": true
+            }, {
+                "A": ["red", "blue"],
+                "B": ["red", "blue", "green"],
+                "sameElements": false
+            }, {
+                "A": ["red", "blue"],
+                "B": ["green", "red"],
+                "sameElements": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [],
+                "sameElements": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red"],
+                    ["blue"]
+                ],
+                "sameElements": false
+            }, {
+                "A": ["red", "blue"],
+                "B": [
+                    ["red", "blue"]
+                ],
+                "sameElements": false
+            }, {
+                "A": [],
+                "B": [],
+                "sameElements": true
+            }, {
+                "A": [],
+                "B": ["red"],
+                "sameElements": false
+            }]);
+        });
+    });
 
 });
