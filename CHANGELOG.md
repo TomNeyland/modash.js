@@ -1,3 +1,18 @@
+## 0.5.0 (2015-07-21)
+
+
+#### Bug Fixes
+
+* **expressions:** Fixes isExpressionObject edge case ([8b130793](https://github.com/TomNeyland/modash.js/commit/8b130793a185cfd16fc1b971a0b05135838d2cf9))
+* **tests:** Remove debug logging statements ([dbe91409](https://github.com/TomNeyland/modash.js/commit/dbe91409623991f99b2b9bc584bb6d670003688c))
+
+
+#### Features
+
+* **operators:** Adds Arithmetic Operators ([9edced6a](https://github.com/TomNeyland/modash.js/commit/9edced6af87e6f0ee9fce58e1125e003c9ec5df7))
+* **tests:** Adds more test datasets ([37ee2d29](https://github.com/TomNeyland/modash.js/commit/37ee2d29c12c25e240b0094a6e9fdd0b1db03ca5))
+
+
 ### 0.4.3 (2015-07-21)
 
 

@@ -196,7 +196,7 @@ function isSystemVariable(expression) {
 }
 
 function isExpressionObject(expression) {
-    return (0, _lodash.isObject)(expression) && !isExpressionOperator(expression) && !(0, _lodash.isArray)(expression);
+    return (0, _lodash.isObject)(expression) && !isExpressionOperator(expression) && !(0, _lodash.isArray)(expression) && !(0, _lodash.isDate)(expression);
 }
 
 function isExpressionOperator(expression) {
@@ -220,7 +220,7 @@ function $expression(obj, expression, root) {
     } else if (isSystemVariable(expression)) {
         throw Error('System Variables are not currently supported');
     } else {
-        return expression;
+        result = expression;
     }
 
     return result;
@@ -230,19 +230,6 @@ function $fieldPath(obj, path) {
     // slice the $ and use the regular get
     // this will need additional tweaks later
     path = path.slice(1);
-
-    // remove?
-    if (path.indexOf('.') !== -1) {
-        path = path.split('.');
-        var headPath = path.shift();
-        var head = (0, _lodash.get)(obj, headPath);
-
-        if ((0, _lodash.isArray)(head)) {
-            return (0, _lodash.pluck)(head, path);
-        } else {
-            return (0, _lodash.get)(head, path);
-        }
-    }
 
     return (0, _lodash.get)(obj, path);
 }
@@ -401,9 +388,9 @@ function $setEquals() {
     }
 
     var sets = arrays.map($asSet),
-        head = sets[0];
+        firstSet = sets.shift();
 
-    return (0, _lodash.every)(sets, (0, _lodash.partial)(_lodash.isEqual, head));
+    return (0, _lodash.every)(sets, (0, _lodash.partial)(_lodash.isEqual, firstSet));
 }
 
 function $setIntersection() {
@@ -522,6 +509,61 @@ function $ne(value1, value2) {
 
 /*
 
+Arithmetic Operators
+
+*/
+
+function $add() {
+    for (var _len7 = arguments.length, values = Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+        values[_key7] = arguments[_key7];
+    }
+
+    var result = values.shift(),
+        resultAsDate = false;
+
+    if ((0, _lodash.isDate)(result)) {
+        resultAsDate = true;
+        result = result.getTime();
+    }
+
+    for (var i = values.length - 1; i >= 0; i--) {
+        var value = values[i];
+        if ((0, _lodash.isDate)(value)) {
+            resultAsDate = true;
+            value = value.getTime();
+        }
+        result += value;
+    }
+
+    return resultAsDate ? new Date(result) : result;
+}
+
+function $subtract(value1, value2) {
+    if ((0, _lodash.isDate)(value1) && (0, _lodash.isDate)(value2)) {
+        return value1.getTime() - value2.getTime();
+    } else if ((0, _lodash.isDate)(value1) && !(0, _lodash.isDate)(value2)) {
+        return new Date(value1.getTime() - value2);
+    } else if (!(0, _lodash.isDate)(value1) && (0, _lodash.isDate)(value2)) {
+        return new Date(value1 - value2.getTime());
+    } else {
+        return value1 - value2;
+    }
+}
+
+function $multiply(value1, value2) {
+    return value1 * value2;
+}
+
+function $divide(value1, value2) {
+    return value1 / value2;
+}
+
+function $mod(value1, value2) {
+    return value1 % value2;
+}
+
+/*
+
 String Operators
 
 */
@@ -551,9 +593,14 @@ exports['default'] = {
     $lt: $lt,
     $lte: $lte,
     $ne: $ne,
+    // Arithmetic Operators
+    $add: $add,
+    $subtract: $subtract,
+    $divide: $divide,
+    $multiply: $multiply,
+    $mod: $mod,
     // String Operators
     $substr: $substr
-
 };
 module.exports = exports['default'];
 
