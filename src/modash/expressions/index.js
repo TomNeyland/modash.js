@@ -1,5 +1,5 @@
 import {
-    isArray, isObject, get, set, merge, size, keys, pluck
+    isArray, isObject, isDate, get, set, merge, size, keys, pluck
 }
 from 'lodash';
 
@@ -15,7 +15,7 @@ function isSystemVariable(expression) {
 }
 
 function isExpressionObject(expression) {
-    return isObject(expression) && !(isExpressionOperator(expression)) && !(isArray(expression));
+    return isObject(expression) && !(isExpressionOperator(expression)) && !(isArray(expression)) && !(isDate(expression));
 }
 
 function isExpressionOperator(expression) {
@@ -41,7 +41,7 @@ function $expression(obj, expression, root) {
     } else if (isSystemVariable(expression)) {
         throw Error('System Variables are not currently supported');
     } else {
-        return expression;
+        result = expression;
     }
 
     return result;
@@ -52,21 +52,6 @@ function $fieldPath(obj, path) {
     // slice the $ and use the regular get
     // this will need additional tweaks later
     path = path.slice(1);
-
-    // remove?
-    if (path.indexOf('.') !== -1) {
-        path = path.split('.');
-        let headPath = path.shift();
-        let head = get(obj, headPath);
-
-        if (isArray(head)) {
-            return pluck(head, path);
-        } else {
-            return get(head, path);
-        }
-
-    }
-
 
     return get(obj, path);
 }
@@ -82,7 +67,6 @@ function $expressionOperator(obj, operatorExpression, root) {
     if (!isArray(args)) {
         args = [args];
     }
-
 
     args = args.map(function(argExpression) {
         return $expression(obj, argExpression, root);
