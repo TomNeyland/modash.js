@@ -177,6 +177,7 @@ export default {
     $allElementsTrue,
     // Comparison Operators
     $cmp,
+    $eq,
     $gt,
     $gte,
     $lt,
