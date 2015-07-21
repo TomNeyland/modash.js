@@ -440,4 +440,113 @@ describe('Modash Set Operator', function() {
         });
     });
 
+
+    describe('$anyElementTrue', function() {
+
+        it('should correctly OR the elements of an array', function() {
+
+            var projection = $project(testData.survey, {
+                responses: 1,
+                isAnyTrue: {
+                    $anyElementTrue: ["$responses"]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection);
+
+            expect(projection).to.deep.equal([{
+                "responses": [true],
+                "isAnyTrue": true
+            }, {
+                "responses": [true, false],
+                "isAnyTrue": true
+            }, {
+                "responses": [],
+                "isAnyTrue": false
+            }, {
+                "responses": [1, true, "seven"],
+                "isAnyTrue": true
+            }, {
+                "responses": [0],
+                "isAnyTrue": false
+            }, {
+                "responses": [
+                    []
+                ],
+                "isAnyTrue": true
+            }, {
+                "responses": [
+                    [0]
+                ],
+                "isAnyTrue": true
+            }, {
+                "responses": [
+                    [false]
+                ],
+                "isAnyTrue": true
+            }, {
+                "responses": [null],
+                "isAnyTrue": false
+            }, {
+                "responses": [undefined],
+                "isAnyTrue": false
+            }]);
+        });
+    });
+
+    describe('$allElementsTrue', function() {
+
+        it('should correctly AND the elements of an array', function() {
+
+            var projection = $project(testData.survey, {
+                responses: 1,
+                isAllTrue: {
+                    $allElementsTrue: ["$responses"]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection);
+
+            expect(projection).to.deep.equal([{
+                "responses": [true],
+                "isAllTrue": true
+            }, {
+                "responses": [true, false],
+                "isAllTrue": false
+            }, {
+                "responses": [],
+                "isAllTrue": true
+            }, {
+                "responses": [1, true, "seven"],
+                "isAllTrue": true
+            }, {
+                "responses": [0],
+                "isAllTrue": false
+            }, {
+                "responses": [
+                    []
+                ],
+                "isAllTrue": true
+            }, {
+                "responses": [
+                    [0]
+                ],
+                "isAllTrue": true
+            }, {
+                "responses": [
+                    [false]
+                ],
+                "isAllTrue": true
+            }, {
+                "responses": [null],
+                "isAllTrue": false
+            }, {
+                "responses": [undefined],
+                "isAllTrue": false
+            }]);
+        });
+    });
+
 });
