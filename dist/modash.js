@@ -433,7 +433,7 @@ function $setIsSubset(subset, superset) {
 function $anyElementTrue(values) {
 
     if (!(0, _lodash.isArray)(values)) {
-        throw TypeError('values must be an array, got ' + typeof values);
+        throw Error('values must be an array, got ' + typeof values);
     }
 
     return $or.apply(undefined, _toConsumableArray(values));
@@ -442,7 +442,7 @@ function $anyElementTrue(values) {
 function $allElementsTrue(values) {
 
     if (!(0, _lodash.isArray)(values)) {
-        throw TypeError('values must be an array, got ' + typeof values);
+        throw Error('values must be an array, got ' + typeof values);
     }
 
     return $and.apply(undefined, _toConsumableArray(values));
@@ -545,6 +545,7 @@ exports['default'] = {
     $allElementsTrue: $allElementsTrue,
     // Comparison Operators
     $cmp: $cmp,
+    $eq: $eq,
     $gt: $gt,
     $gte: $gte,
     $lt: $lt,

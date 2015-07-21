@@ -1,3 +1,11 @@
+### 0.4.3 (2015-07-21)
+
+
+#### Bug Fixes
+
+* **operators:** Fixes $eq missing from module export ([ee20c88e](https://github.com/TomNeyland/modash.js/commit/ee20c88e2c3497d57c07ddc60d7c9ccba38c6ccb))
+
+
 ### 0.4.2 (2015-07-21)
 
 
