@@ -1,5 +1,5 @@
 import {
-    every, some, partial, isArray, isEqual, isMatch, intersection, union, difference, gt, gte, lt, lte, chain, unique
+    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique
 }
 from 'lodash';
 
@@ -34,7 +34,7 @@ Set Operators
 */
 
 function $asSet(array) {
-    return chain(array).unique(false).value().sort($cmp);
+    return unique(array).sort($cmp);
 }
 
 
@@ -88,7 +88,7 @@ function $cmp(value1, value2) {
     console.log('cmp', value1, value2);
 
     if (isArray(value1) && isArray(value2)) {
-    	return 0;
+        return 0;
     }
 
     if ($lt(value1, value2)) {
@@ -201,4 +201,4 @@ export default {
     // String Operators
     $substr
 
-}
+};

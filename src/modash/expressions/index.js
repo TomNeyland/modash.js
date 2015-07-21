@@ -88,7 +88,7 @@ function $expressionOperator(obj, operatorExpression, root) {
         return $expression(obj, argExpression, root);
     });
 
-    result = operatorFunction(...args)
+    result = operatorFunction(...args);
     return result;
 }
 
