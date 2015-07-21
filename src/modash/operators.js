@@ -1,5 +1,5 @@
 import {
-    every, some, partial, isEqual, isMatch, intersection, union, difference, gt, gte, lt, lte, chain
+    every, some, partial, isArray, isEqual, isMatch, intersection, union, difference, gt, gte, lt, lte, chain, unique
 }
 from 'lodash';
 
@@ -33,39 +33,40 @@ Set Operators
 
 */
 
+function $asSet(array) {
+    return chain(array).unique(false).value().sort($cmp);
+}
+
 
 function $setEquals(...arrays) {
 
-    var sets = arrays.map(function(array) {
-        return chain(array).sortBy().uniq(true).value()
+    var sets = arrays.map($asSet),
+        head = sets[0];
+
+    return every(sets, function(obj){
+    	console.log('obj eq head?', obj, head);
+    	return isEqual(head, obj);
     });
-
-    var head = sets[0];
-
-    return every(sets, function(obj) {
-    	return $eq(head, obj);
-    });
-
 }
 
 
 function $setIntersection(...arrays) {
-    return intersection(...arrays);
+    return $asSet(intersection(...arrays));
 }
 
 
 function $setUnion(...arrays) {
-    return union(...arrays);
+    return union(...arrays.map($asSet));
 }
 
 
 function $setDifference(...arrays) {
-    return difference(...arrays);
+    return difference(...arrays.map($asSet));
 }
 
 
 function $setIsSubset(subset, superset) {
-    return isEqual(intersection(subset, superset), subset);
+    return isEqual($asSet(intersection(subset, superset)), $asSet(subset));
 }
 
 
@@ -87,48 +88,83 @@ Comparison Operators
 
 
 function $cmp(value1, value2) {
-	console.log('cmp', value1, value2);
-	if ($lt(value1, value2)) {
-		return -1;
-	} else if ($gt(value1, value2)) {
-		return 1;
-	} else if ($eq(value1, value2)) {
-		return 0;
-	} else {
-		throw Error('Bad comparison?', value1, value2);
-	}
+    console.log('cmp', value1, value2);
+
+    if (isArray(value1) && isArray(value2)) {
+    	return 0;
+    }
+
+    if ($lt(value1, value2)) {
+        return -1;
+    } else if ($gt(value1, value2)) {
+        return 1;
+    }
+    return 0;
 }
 
 
 function $eq(value1, value2) {
-	return isEqual(value1, value2);
+    console.log('$eq', arguments[0], arguments[1]);
+    return isEqual(value1, value2);
 }
 
 
 function $gt(value1, value2) {
-	return gt(value1, value2);
+    console.log('$gt', arguments[0], arguments[1]);
+
+    if (isArray(value2) && !isArray(value1)) {
+        return false;
+    } else if (isArray(value1) && !isArray(value2)) {
+        return true;
+    }
+
+    return gt(value1, value2);
 }
 
 
 function $gte(value1, value2) {
-	return gte(value1, value2);
+    console.log('$gte', arguments[0], arguments[1]);
+
+    if (isArray(value2) && !isArray(value1)) {
+        return false;
+    } else if (isArray(value1) && !isArray(value2)) {
+        return true;
+    }
+
+    return gte(value1, value2);
 }
 
 
 function $lt(value1, value2) {
-	return lt(value1, value2);
+    console.log('$lt', arguments[0], arguments[1]);
+
+    if (isArray(value2) && !isArray(value1)) {
+        return true;
+    } else if (isArray(value1) && !isArray(value2)) {
+        return false;
+    }
+
+    return lt(value1, value2);
 
 }
 
 
 function $lte(value1, value2) {
-	return lte(value1, value2);
+    console.log('$lte', arguments[0], arguments[1]);
+
+    if (isArray(value2) && !isArray(value1)) {
+        return true;
+    } else if (isArray(value1) && !isArray(value2)) {
+        return false;
+    }
+
+    return lte(value1, value2);
 
 }
 
 
 function $ne(value1, value2) {
-	return !$eq(value1, value2);
+    return !$eq(value1, value2);
 }
 
 
@@ -159,7 +195,7 @@ export default {
     $anyElementTrue,
     $allElementsTrue,
     // Comparison Operators
-    $cmp, 
+    $cmp,
     $gt,
     $gte,
     $lt,
