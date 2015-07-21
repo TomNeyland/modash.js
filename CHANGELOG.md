@@ -1,3 +1,13 @@
+### 0.4.1 (2015-07-21)
+
+
+#### Bug Fixes
+
+* **operators:**
+  * Removes all extra logging ([42068ed4](https://github.com/TomNeyland/modash.js/commit/42068ed4a595731bff2fd088597388a0bf5ec197))
+  * Removes stray debug log call ([a2e55997](https://github.com/TomNeyland/modash.js/commit/a2e55997ebe1d4c9d5709c9d21fbef8d98f4222c))
+
+
 ## 0.4.0 (2015-07-21)
 
 

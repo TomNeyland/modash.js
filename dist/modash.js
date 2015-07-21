@@ -366,7 +366,6 @@ function $and() {
         values[_key] = arguments[_key];
     }
 
-    console.log('$and', values);
     return (0, _lodash.every)(values);
 }
 
@@ -446,7 +445,6 @@ Comparison Operators
 */
 
 function $cmp(value1, value2) {
-    console.log('cmp', value1, value2);
 
     if ((0, _lodash.isArray)(value1) && (0, _lodash.isArray)(value2)) {
         return 0;
@@ -461,12 +459,10 @@ function $cmp(value1, value2) {
 }
 
 function $eq(value1, value2) {
-    console.log('$eq', arguments[0], arguments[1]);
     return (0, _lodash.isEqual)(value1, value2);
 }
 
 function $gt(value1, value2) {
-    console.log('$gt', arguments[0], arguments[1]);
 
     if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
         return false;
@@ -478,7 +474,6 @@ function $gt(value1, value2) {
 }
 
 function $gte(value1, value2) {
-    console.log('$gte', arguments[0], arguments[1]);
 
     if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
         return false;
@@ -490,7 +485,6 @@ function $gte(value1, value2) {
 }
 
 function $lt(value1, value2) {
-    console.log('$lt', arguments[0], arguments[1]);
 
     if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
         return true;
@@ -502,7 +496,6 @@ function $lt(value1, value2) {
 }
 
 function $lte(value1, value2) {
-    console.log('$lte', arguments[0], arguments[1]);
 
     if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
         return true;
