@@ -1,5 +1,5 @@
 import {
-    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique
+    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, sum, isDate
 }
 from 'lodash';
 
@@ -36,9 +36,9 @@ function $asSet(array) {
 function $setEquals(...arrays) {
 
     var sets = arrays.map($asSet),
-        head = sets[0];
+        firstSet = sets.shift();
 
-    return every(sets, partial(isEqual, head));
+    return every(sets, partial(isEqual, firstSet));
 }
 
 function $setIntersection(...arrays) {
@@ -153,6 +153,63 @@ function $ne(value1, value2) {
 
 /*
 
+Arithmetic Operators
+
+*/
+
+function $add(...values) {
+
+    var result = values.shift(),
+        resultAsDate = false;
+
+    if (isDate(result)) {
+    	resultAsDate = true;
+    	result = result.getTime();
+    }
+
+    for (let i = values.length - 1; i >= 0; i--) {
+        let value = values[i];
+        if (isDate(value)) {
+            resultAsDate = true;
+            value = value.getTime();
+        }
+        result += value;
+    };
+
+    return resultAsDate ? new Date(result) : result;
+}
+
+function $subtract(value1, value2) {
+    if (isDate(value1) && isDate(value2)) {
+
+    	return value1.getTime() - value2.getTime();
+    } else if (isDate(value1) && !isDate(value2)) {
+    	return new Date(value1.getTime() - value2);
+    } else if (!isDate(value1) && isDate(value2)) {
+	console.log(value1, value2);
+
+    	return new Date(value1 - value2.getTime())
+    } else {
+    	return value1 - value2;
+    }
+
+}
+
+function $multiply(value1, value2) {
+    return value1 * value2;
+}
+
+function $divide(value1, value2) {
+    return value1 / value2;
+}
+
+function $mod(value1, value2) {
+    return value1 % value2;
+}
+
+
+/*
+
 String Operators
 
 */
@@ -160,6 +217,7 @@ String Operators
 function $substr(string, start, len) {
     return string.slice(start, start + len);
 }
+
 
 
 export default {
@@ -183,7 +241,12 @@ export default {
     $lt,
     $lte,
     $ne,
+    // Arithmetic Operators
+    $add,
+    $subtract,
+    $divide,
+    $multiply,
+    $mod,
     // String Operators
     $substr
-
 };
