@@ -1,5 +1,5 @@
 import {
-    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, sum, isDate
+    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, isDate
 }
 from 'lodash';
 
@@ -163,8 +163,8 @@ function $add(...values) {
         resultAsDate = false;
 
     if (isDate(result)) {
-    	resultAsDate = true;
-    	result = result.getTime();
+        resultAsDate = true;
+        result = result.getTime();
     }
 
     for (let i = values.length - 1; i >= 0; i--) {
@@ -174,25 +174,21 @@ function $add(...values) {
             value = value.getTime();
         }
         result += value;
-    };
+    }
 
     return resultAsDate ? new Date(result) : result;
 }
 
 function $subtract(value1, value2) {
     if (isDate(value1) && isDate(value2)) {
-
-    	return value1.getTime() - value2.getTime();
+        return value1.getTime() - value2.getTime();
     } else if (isDate(value1) && !isDate(value2)) {
-    	return new Date(value1.getTime() - value2);
+        return new Date(value1.getTime() - value2);
     } else if (!isDate(value1) && isDate(value2)) {
-	console.log(value1, value2);
-
-    	return new Date(value1 - value2.getTime())
+        return new Date(value1 - value2.getTime());
     } else {
-    	return value1 - value2;
+        return value1 - value2;
     }
-
 }
 
 function $multiply(value1, value2) {

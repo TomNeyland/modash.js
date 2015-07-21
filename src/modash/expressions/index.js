@@ -1,5 +1,5 @@
 import {
-    isArray, isObject, isDate, get, set, merge, size, keys, pluck
+    isArray, isObject, isDate, get, set, merge, size, keys
 }
 from 'lodash';
 
