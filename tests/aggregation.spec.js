@@ -52,8 +52,6 @@ describe('Modash Aggregation', function() {
                 "stop.title": 1
             }).value();
 
-            console.debug(JSON.stringify(projection))
-
             expect(projection).to.deep.equal([{
                 "_id": 1,
                 "stop": {
@@ -75,8 +73,6 @@ describe('Modash Aggregation', function() {
                     "title": 1
                 }
             }).value();
-
-            console.debug(JSON.stringify(projection))
 
             expect(projection).to.deep.equal([{
                 "_id": 1,
