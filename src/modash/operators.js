@@ -12,7 +12,6 @@ Boolean Operators
 
 
 function $and(...values) {
-    console.log('$and', values);
     return every(values);
 }
 
