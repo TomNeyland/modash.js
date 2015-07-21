@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import EXPRESSION_OPERATORS from '../src/modash/operators';
 import {
     $project
@@ -149,8 +150,6 @@ describe('Modash Set Operator', function() {
                 _id: 0
             }).value();
 
-            console.log(projection);
-
             expect(projection).to.deep.equal([{
                 "A": ["red", "blue"],
                 "B": ["red", "blue"],
@@ -208,8 +207,6 @@ describe('Modash Set Operator', function() {
                 },
                 _id: 0
             }).value();
-
-            console.log(projection[0]);
 
             expect(projection).to.deep.equal([{
                 "A": ["red", "blue"],
@@ -453,8 +450,6 @@ describe('Modash Set Operator', function() {
                 _id: 0
             }).value();
 
-            console.log(projection);
-
             expect(projection).to.deep.equal([{
                 "responses": [true],
                 "isAnyTrue": true
@@ -506,8 +501,6 @@ describe('Modash Set Operator', function() {
                 },
                 _id: 0
             }).value();
-
-            console.log(projection);
 
             expect(projection).to.deep.equal([{
                 "responses": [true],
@@ -608,8 +601,6 @@ describe('Modash Comparison Operator', function() {
                 _id: 0
             }).value();
 
-            console.log(projection);
-
             expect(projection).to.deep.equal([{
                 "item": "abc1",
                 "qty": 300,
@@ -648,8 +639,6 @@ describe('Modash Comparison Operator', function() {
                 },
                 _id: 0
             }).value();
-
-            console.log(projection);
 
             expect(projection).to.deep.equal([{
                 "item": "abc1",
@@ -827,6 +816,226 @@ describe('Modash Comparison Operator', function() {
                 "item": "VWZ2",
                 "qty": 180,
                 "qtyNe250": true
+            }]);
+
+        });
+
+    });
+
+});
+
+
+
+describe('Modash Arithmetic Operator', function() {
+
+    describe('$add', function() {
+
+        it('should add all of its arguments', function() {
+
+            var projection = $project(testData.sales, {
+                item: 1,
+                total: {
+                    $add: ["$price", "$fee"]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "total": 12
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "total": 21
+            }, {
+                "_id": 3,
+                "item": "xyz",
+                "total": 5
+            }]);
+
+        });
+
+        it('should return an offset date when adding numbers and dates', function() {
+
+            var projection = $project(testData.sales, {
+                item: 1,
+                billing_date: {
+                    $add: ["$date", 3 * 24 * 60 * 60000]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "billing_date": new Date("2014-03-04T08:00:00Z")
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "billing_date": new Date("2014-03-04T09:00:00Z")
+            }, {
+                "_id": 3,
+                "item": "xyz",
+                "billing_date": new Date("2014-03-18T09:00:00Z")
+            }]);
+
+        });
+
+    });
+
+    describe('$subtract', function() {
+
+        it('should subtract its second argument from its first argument', function() {
+
+            var projection = $project(testData.sales, {
+                item: 1,
+                total: {
+                    $subtract: [{
+                        $add: ["$price", "$fee"]
+                    }, "$discount"]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "total": 7
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "total": 19
+            }, {
+                "_id": 3,
+                "item": "xyz",
+                "total": 5
+            }]);
+
+        });
+
+        it('should return an timedelta in miliseconds when subtracting two dates', function() {
+            var projection = $project(testData.sales, {
+                item: 1,
+                dateDifference: {
+                    $subtract: [new Date("2014-03-01T08:00:00Z"), "$date"]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "dateDifference": 0
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "dateDifference": -3600000,
+            }, {
+                "item": 'xyz',
+                "dateDifference": -1213200000,
+                "_id": 3
+            }]);
+
+        });
+
+        it('should subtact miliseconds from a date', function() {
+            var projection = $project(testData.sales, {
+                item: 1,
+                dateDifference: {
+                    $subtract: ["$date", 5 * 60 * 1000]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "dateDifference": new Date("2014-03-01T07:55:00Z")
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "dateDifference": new Date("2014-03-01T08:55:00Z")
+            }, {
+                "item": 'xyz',
+                "dateDifference": new Date("2014-03-15T08:55:00Z"),
+                "_id": 3
+            }]);
+
+        });
+
+    });
+
+    describe('$multiply', function() {
+
+        it('should multiply all of its arguments', function() {
+
+            var projection = $project(testData.sales, {
+                date: 1,
+                item: 1,
+                total: {
+                    $multiply: ["$price", "$quantity"]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "item": "abc",
+                "date": new Date("2014-03-01T08:00:00Z"),
+                "total": 20
+            }, {
+                "_id": 2,
+                "item": "jkl",
+                "date": new Date("2014-03-01T09:00:00Z"),
+                "total": 20
+            }, {
+                "_id": 3,
+                "item": "xyz",
+                "date": new Date("2014-03-15T09:00:00Z"),
+                "total": 50
+            }]);
+
+        });
+
+    });
+
+    describe('$divide', function() {
+
+        it('should divide its first argument by its second argument', function() {
+
+            var projection = $project(testData.planning, {
+                name: 1,
+                workdays: {
+                    $divide: ["$hours", 8]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "name": "A",
+                "workdays": 10
+            }, {
+                "_id": 2,
+                "name": "B",
+                "workdays": 5
+            }]);
+
+        });
+
+    });
+
+
+    describe('$mod', function() {
+
+        it('should divide its first argument by its second argument and return the remainder', function() {
+
+            var projection = $project(testData.planning, {
+                remainder: {
+                    $mod: ["$hours", "$tasks"]
+                }
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "_id": 1,
+                "remainder": 3
+            }, {
+                "_id": 2,
+                "remainder": 0
             }]);
 
         });
