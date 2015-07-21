@@ -10,16 +10,13 @@ Boolean Operators
 
 */
 
-
 function $and(...values) {
     return every(values);
 }
 
-
 function $or(...values) {
     return some(values);
 }
-
 
 function $not(...values) {
     return !some(values);
@@ -36,7 +33,6 @@ function $asSet(array) {
     return unique(array).sort($cmp);
 }
 
-
 function $setEquals(...arrays) {
 
     var sets = arrays.map($asSet),
@@ -45,33 +41,37 @@ function $setEquals(...arrays) {
     return every(sets, partial(isEqual, head));
 }
 
-
 function $setIntersection(...arrays) {
     return $asSet(intersection(...arrays));
 }
-
 
 function $setUnion(...arrays) {
     return union(...arrays.map($asSet));
 }
 
-
 function $setDifference(...arrays) {
     return difference(...arrays.map($asSet));
 }
-
 
 function $setIsSubset(subset, superset) {
     return isEqual($asSet(intersection(subset, superset)), $asSet(subset));
 }
 
-
 function $anyElementTrue(values) {
+
+    if (!isArray(values)) {
+        throw TypeError(`values must be an array, got ${typeof values}`)
+    }
+
     return $or(...values);
 }
 
-
 function $allElementsTrue(values) {
+
+    if (!isArray(values)) {
+        throw TypeError(`values must be an array, got ${typeof values}`)
+    }
+
     return $and(...values);
 }
 
@@ -81,7 +81,6 @@ function $allElementsTrue(values) {
 Comparison Operators
 
 */
-
 
 function $cmp(value1, value2) {
 
@@ -97,11 +96,9 @@ function $cmp(value1, value2) {
     return 0;
 }
 
-
 function $eq(value1, value2) {
     return isEqual(value1, value2);
 }
-
 
 function $gt(value1, value2) {
 
@@ -114,7 +111,6 @@ function $gt(value1, value2) {
     return gt(value1, value2);
 }
 
-
 function $gte(value1, value2) {
 
     if (isArray(value2) && !isArray(value1)) {
@@ -125,7 +121,6 @@ function $gte(value1, value2) {
 
     return gte(value1, value2);
 }
-
 
 function $lt(value1, value2) {
 
@@ -139,7 +134,6 @@ function $lt(value1, value2) {
 
 }
 
-
 function $lte(value1, value2) {
 
     if (isArray(value2) && !isArray(value1)) {
@@ -152,11 +146,9 @@ function $lte(value1, value2) {
 
 }
 
-
 function $ne(value1, value2) {
     return !$eq(value1, value2);
 }
-
 
 
 /*
@@ -164,7 +156,6 @@ function $ne(value1, value2) {
 String Operators
 
 */
-
 
 function $substr(string, start, len) {
     return string.slice(start, start + len);
