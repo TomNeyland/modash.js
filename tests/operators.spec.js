@@ -1,6 +1,6 @@
 import EXPRESSION_OPERATORS from '../src/modash/operators';
 import {
-    $project, aggregate
+    $project
 }
 from '../src/modash/aggregation';
 import testData from './test-data';
