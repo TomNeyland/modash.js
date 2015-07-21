@@ -55,5 +55,47 @@ export default {
         "item": "VWZ2",
         description: "product 5",
         qty: 180
-    }]
+    }],
+    experiments: [{
+        "_id": 1,
+        "A": ["red", "blue"],
+        "B": ["red", "blue"]
+    }, {
+        "_id": 2,
+        "A": ["red", "blue"],
+        "B": ["blue", "red", "blue"]
+    }, {
+        "_id": 3,
+        "A": ["red", "blue"],
+        "B": ["red", "blue", "green"]
+    }, {
+        "_id": 4,
+        "A": ["red", "blue"],
+        "B": ["green", "red"]
+    }, {
+        "_id": 5,
+        "A": ["red", "blue"],
+        "B": []
+    }, {
+        "_id": 6,
+        "A": ["red", "blue"],
+        "B": [
+            ["red"],
+            ["blue"]
+        ]
+    }, {
+        "_id": 7,
+        "A": ["red", "blue"],
+        "B": [
+            ["red", "blue"]
+        ]
+    }, {
+        "_id": 8,
+        "A": [],
+        "B": []
+    }, {
+        "_id": 9,
+        "A": [],
+        "B": ["red"]
+    } ]
 };
