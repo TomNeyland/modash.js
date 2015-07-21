@@ -175,11 +175,17 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
+
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var _lodash = require('lodash');
 
-var EXPRESSION_OPERATORS = {};
+var _operators = require('../operators');
+
+var _operators2 = _interopRequireDefault(_operators);
 
 function isFieldPath(expression) {
     return typeof expression === 'string' && expression.indexOf('$') === 0 && expression.indexOf('$$') === -1;
@@ -194,7 +200,7 @@ function isExpressionObject(expression) {
 }
 
 function isExpressionOperator(expression) {
-    return (0, _lodash.size)(expression) === 1 && (0, _lodash.keys)(expression)[0] in EXPRESSION_OPERATORS;
+    return (0, _lodash.size)(expression) === 1 && (0, _lodash.keys)(expression)[0] in _operators2['default'];
 }
 
 function $expression(obj, expression, root) {
@@ -205,8 +211,8 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    if (isExpressionOperator(EXPRESSION_OPERATORS)) {
-        result = $expressionOperator(obj, expression, root);
+    if (isExpressionOperator(expression)) {
+        result = $expressionOperator(root, expression, root);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
@@ -214,7 +220,7 @@ function $expression(obj, expression, root) {
     } else if (isSystemVariable(expression)) {
         throw Error('System Variables are not currently supported');
     } else {
-        throw Error('Invalid Expression: ' + JSON.stringify(expression));
+        return expression;
     }
 
     return result;
@@ -225,13 +231,13 @@ function $fieldPath(obj, path) {
     // this will need additional tweaks later
     path = path.slice(1);
 
+    // remove?
     if (path.indexOf('.') !== -1) {
         path = path.split('.');
         var headPath = path.shift();
         var head = (0, _lodash.get)(obj, headPath);
 
         if ((0, _lodash.isArray)(head)) {
-
             return (0, _lodash.pluck)(head, path);
         } else {
             return (0, _lodash.get)(head, path);
@@ -241,7 +247,24 @@ function $fieldPath(obj, path) {
     return (0, _lodash.get)(obj, path);
 }
 
-function $expressionOperator() {}
+function $expressionOperator(obj, operatorExpression, root) {
+
+    var operator = (0, _lodash.keys)(operatorExpression)[0],
+        args = operatorExpression[operator],
+        operatorFunction = _operators2['default'][operator],
+        result;
+
+    if (!(0, _lodash.isArray)(args)) {
+        args = [args];
+    }
+
+    args = args.map(function (argExpression) {
+        return $expression(obj, argExpression, root);
+    });
+
+    result = operatorFunction.apply(undefined, _toConsumableArray(args));
+    return result;
+}
 
 function $expressionObject(obj, specifications, root) {
 
@@ -295,6 +318,7 @@ function $expressionObject(obj, specifications, root) {
                 })));
                 /*eslint-enable */
             } else {
+
                 (0, _lodash.merge)(result, (0, _lodash.set)({}, path, $expression(target, expression, root)));
             }
         }
@@ -320,7 +344,216 @@ exports['default'] = {
 };
 module.exports = exports['default'];
 
-},{"lodash":undefined}],4:[function(require,module,exports){
+},{"../operators":4,"lodash":undefined}],4:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+    value: true
+});
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
+
+var _lodash = require('lodash');
+
+/*
+
+Boolean Operators
+
+*/
+
+function $and() {
+    for (var _len = arguments.length, values = Array(_len), _key = 0; _key < _len; _key++) {
+        values[_key] = arguments[_key];
+    }
+
+    console.log('$and', values);
+    return (0, _lodash.every)(values);
+}
+
+function $or() {
+    for (var _len2 = arguments.length, values = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+        values[_key2] = arguments[_key2];
+    }
+
+    return (0, _lodash.some)(values);
+}
+
+function $not() {
+    for (var _len3 = arguments.length, values = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+        values[_key3] = arguments[_key3];
+    }
+
+    return !(0, _lodash.some)(values);
+}
+
+/*
+
+Set Operators
+
+*/
+
+function $asSet(array) {
+    return (0, _lodash.unique)(array).sort($cmp);
+}
+
+function $setEquals() {
+    for (var _len4 = arguments.length, arrays = Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+        arrays[_key4] = arguments[_key4];
+    }
+
+    var sets = arrays.map($asSet),
+        head = sets[0];
+
+    return (0, _lodash.every)(sets, (0, _lodash.partial)(_lodash.isEqual, head));
+}
+
+function $setIntersection() {
+    return $asSet(_lodash.intersection.apply(undefined, arguments));
+}
+
+function $setUnion() {
+    for (var _len5 = arguments.length, arrays = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+        arrays[_key5] = arguments[_key5];
+    }
+
+    return _lodash.union.apply(undefined, _toConsumableArray(arrays.map($asSet)));
+}
+
+function $setDifference() {
+    for (var _len6 = arguments.length, arrays = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+        arrays[_key6] = arguments[_key6];
+    }
+
+    return _lodash.difference.apply(undefined, _toConsumableArray(arrays.map($asSet)));
+}
+
+function $setIsSubset(subset, superset) {
+    return (0, _lodash.isEqual)($asSet((0, _lodash.intersection)(subset, superset)), $asSet(subset));
+}
+
+function $anyElementTrue(values) {
+    return $or.apply(undefined, _toConsumableArray(values));
+}
+
+function $allElementsTrue(values) {
+    return $and.apply(undefined, _toConsumableArray(values));
+}
+
+/*
+
+Comparison Operators
+
+*/
+
+function $cmp(value1, value2) {
+    console.log('cmp', value1, value2);
+
+    if ((0, _lodash.isArray)(value1) && (0, _lodash.isArray)(value2)) {
+        return 0;
+    }
+
+    if ($lt(value1, value2)) {
+        return -1;
+    } else if ($gt(value1, value2)) {
+        return 1;
+    }
+    return 0;
+}
+
+function $eq(value1, value2) {
+    console.log('$eq', arguments[0], arguments[1]);
+    return (0, _lodash.isEqual)(value1, value2);
+}
+
+function $gt(value1, value2) {
+    console.log('$gt', arguments[0], arguments[1]);
+
+    if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
+        return false;
+    } else if ((0, _lodash.isArray)(value1) && !(0, _lodash.isArray)(value2)) {
+        return true;
+    }
+
+    return (0, _lodash.gt)(value1, value2);
+}
+
+function $gte(value1, value2) {
+    console.log('$gte', arguments[0], arguments[1]);
+
+    if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
+        return false;
+    } else if ((0, _lodash.isArray)(value1) && !(0, _lodash.isArray)(value2)) {
+        return true;
+    }
+
+    return (0, _lodash.gte)(value1, value2);
+}
+
+function $lt(value1, value2) {
+    console.log('$lt', arguments[0], arguments[1]);
+
+    if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
+        return true;
+    } else if ((0, _lodash.isArray)(value1) && !(0, _lodash.isArray)(value2)) {
+        return false;
+    }
+
+    return (0, _lodash.lt)(value1, value2);
+}
+
+function $lte(value1, value2) {
+    console.log('$lte', arguments[0], arguments[1]);
+
+    if ((0, _lodash.isArray)(value2) && !(0, _lodash.isArray)(value1)) {
+        return true;
+    } else if ((0, _lodash.isArray)(value1) && !(0, _lodash.isArray)(value2)) {
+        return false;
+    }
+
+    return (0, _lodash.lte)(value1, value2);
+}
+
+function $ne(value1, value2) {
+    return !$eq(value1, value2);
+}
+
+/*
+
+String Operators
+
+*/
+
+function $substr(string, start, len) {
+    return string.slice(start, start + len);
+}
+
+exports['default'] = {
+    // Boolean Operators
+    $and: $and,
+    $or: $or,
+    $not: $not,
+    // Set Operators
+    $setEquals: $setEquals,
+    $setIntersection: $setIntersection,
+    $setUnion: $setUnion,
+    $setDifference: $setDifference,
+    $setIsSubset: $setIsSubset,
+    $anyElementTrue: $anyElementTrue,
+    $allElementsTrue: $allElementsTrue,
+    // Comparison Operators
+    $cmp: $cmp,
+    $gt: $gt,
+    $gte: $gte,
+    $lt: $lt,
+    $lte: $lte,
+    $ne: $ne,
+    // String Operators
+    $substr: $substr
+
+};
+module.exports = exports['default'];
+
+},{"lodash":undefined}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -354,4 +587,4 @@ var Modash = {
 exports['default'] = Modash;
 module.exports = exports['default'];
 
-},{"./aggregation":1,"./count":2,"./expressions":3}]},{},[4]);
+},{"./aggregation":1,"./count":2,"./expressions":3}]},{},[5]);
