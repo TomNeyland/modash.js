@@ -1,3 +1,16 @@
+### 0.4.2 (2015-07-21)
+
+
+#### Bug Fixes
+
+* **operators:** Error handling and spacing fixes ([c324d9f6](https://github.com/TomNeyland/modash.js/commit/c324d9f646259ae8afcdf38b4d464ed6b87ffd06))
+
+
+#### Features
+
+* **tests:** Adds survey test dataset ([921b4198](https://github.com/TomNeyland/modash.js/commit/921b4198bd283e367984f63fb599708a4ed43245))
+
+
 ### 0.4.1 (2015-07-21)
 
 
