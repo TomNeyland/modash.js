@@ -34,7 +34,6 @@ function $expression(obj, expression, root) {
 
     if (isExpressionOperator(expression)) {
         result = $expressionOperator(root, expression, root);
-        console.log('expression operator result', result);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
