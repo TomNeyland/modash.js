@@ -43,10 +43,7 @@ function $setEquals(...arrays) {
     var sets = arrays.map($asSet),
         head = sets[0];
 
-    return every(sets, function(obj){
-    	console.log('obj eq head?', obj, head);
-    	return isEqual(head, obj);
-    });
+    return every(sets, partial(isEqual, head));
 }
 
 
