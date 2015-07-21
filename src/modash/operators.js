@@ -60,7 +60,7 @@ function $setIsSubset(subset, superset) {
 function $anyElementTrue(values) {
 
     if (!isArray(values)) {
-        throw TypeError(`values must be an array, got ${typeof values}`)
+        throw Error(`values must be an array, got ${typeof values}`);
     }
 
     return $or(...values);
@@ -69,7 +69,7 @@ function $anyElementTrue(values) {
 function $allElementsTrue(values) {
 
     if (!isArray(values)) {
-        throw TypeError(`values must be an array, got ${typeof values}`)
+        throw Error(`values must be an array, got ${typeof values}`);
     }
 
     return $and(...values);
