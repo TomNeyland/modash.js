@@ -138,7 +138,7 @@ describe('Modash Set Operator', function() {
 
     describe('$setEquals', function() {
 
-        it('should correctly compare sets', function() {
+        it('should compare sets', function() {
 
             var projection = $project(testData.experiments, {
                 A: 1,
@@ -198,7 +198,7 @@ describe('Modash Set Operator', function() {
 
     describe('$setIntersection', function() {
 
-        it('should correctly intersect sets', function() {
+        it('should intersect sets', function() {
 
             var projection = $project(testData.experiments, {
                 A: 1,
@@ -259,7 +259,7 @@ describe('Modash Set Operator', function() {
 
     describe('$setUnion', function() {
 
-        it('should correctly union sets', function() {
+        it('should union sets', function() {
 
             var projection = $project(testData.experiments, {
                 A: 1,
@@ -320,7 +320,7 @@ describe('Modash Set Operator', function() {
 
     describe('$setDifference', function() {
 
-        it('should correctly difference sets', function() {
+        it('should difference sets', function() {
 
             var projection = $project(testData.experiments, {
                 A: 1,
@@ -384,7 +384,7 @@ describe('Modash Set Operator', function() {
 
     describe('$setIsSubset', function() {
 
-        it('should correctly detect subsets', function() {
+        it('should detect subsets', function() {
 
             var projection = $project(testData.experiments, {
                 A: 1,
@@ -443,7 +443,7 @@ describe('Modash Set Operator', function() {
 
     describe('$anyElementTrue', function() {
 
-        it('should correctly OR the elements of an array', function() {
+        it('should OR the elements of an array', function() {
 
             var projection = $project(testData.survey, {
                 responses: 1,
@@ -497,7 +497,7 @@ describe('Modash Set Operator', function() {
 
     describe('$allElementsTrue', function() {
 
-        it('should correctly AND the elements of an array', function() {
+        it('should AND the elements of an array', function() {
 
             var projection = $project(testData.survey, {
                 responses: 1,
@@ -547,6 +547,290 @@ describe('Modash Set Operator', function() {
                 "isAllTrue": false
             }]);
         });
+    });
+
+});
+
+
+
+describe('Modash Comparison Operator', function() {
+
+    describe('$cmp', function() {
+
+        it('should return -1, 0, 1 based on mongodb\'s comparison rules', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                cmpTo250: {
+                    $cmp: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "cmpTo250": 1
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "cmpTo250": -1
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "cmpTo250": 0
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "cmpTo250": 1
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "cmpTo250": -1
+            }]);
+
+        });
+
+    });
+
+
+    describe('$eq', function() {
+
+        it('should return compare two values for equality', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyEq250: {
+                    $eq: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection);
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyEq250": false
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyEq250": false
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyEq250": true
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyEq250": false
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyEq250": false
+            }]);
+
+        });
+
+    });
+
+    describe('$gt', function() {
+
+        it('should check if the first argument is greater than the second argument', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyGt250: {
+                    $gt: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            console.log(projection);
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyGt250": true
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyGt250": false
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyGt250": false
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyGt250": true
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyGt250": false
+            }]);
+
+        });
+
+    });
+
+    describe('$gte', function() {
+
+        it('should check if the first argument is greater than or equal to the second argument', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyGte250: {
+                    $gte: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyGte250": true
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyGte250": false
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyGte250": true
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyGte250": true
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyGte250": false
+            }]);
+
+        });
+
+    });
+
+    describe('$lt', function() {
+
+        it('should check if the first argument is less than the second argument', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyLt250: {
+                    $lt: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyLt250": false
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyLt250": true
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyLt250": false
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyLt250": false
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyLt250": true
+            }]);
+
+        });
+
+    });
+
+    describe('$lte', function() {
+
+        it('should check if the first argument is less than or equal to the second argument', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyLte250: {
+                    $lte: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyLte250": false
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyLte250": true
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyLte250": true
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyLte250": false
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyLte250": true
+            }]);
+
+        });
+
+    });
+
+    describe('$ne', function() {
+
+        it('should check if the first argument is less than or equal to the second argument', function() {
+
+            var projection = $project(testData.inventory, {
+                item: 1,
+                qty: 1,
+                qtyNe250: {
+                    $ne: ["$qty", 250]
+                },
+                _id: 0
+            }).value();
+
+            expect(projection).to.deep.equal([{
+                "item": "abc1",
+                "qty": 300,
+                "qtyNe250": true
+            }, {
+                "item": "abc2",
+                "qty": 200,
+                "qtyNe250": true
+            }, {
+                "item": "xyz1",
+                "qty": 250,
+                "qtyNe250": false
+            }, {
+                "item": "VWZ1",
+                "qty": 300,
+                "qtyNe250": true
+            }, {
+                "item": "VWZ2",
+                "qty": 180,
+                "qtyNe250": true
+            }]);
+
+        });
+
     });
 
 });
