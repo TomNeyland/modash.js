@@ -134,5 +134,43 @@ export default {
     }, {
         "_id": 10,
         "responses": [undefined]
+    }],
+    sales: [{
+        "_id": 1,
+        "item": "abc",
+        "price": 10,
+        "fee": 2,
+        "quantity": 2,
+        "discount": 5,
+        date: new Date("2014-03-01T08:00:00Z")
+    }, {
+        "_id": 2,
+        "item": "jkl",
+        "price": 20,
+        "fee": 1,
+        "quantity": 1,
+        "discount": 2,
+        date: new Date("2014-03-01T09:00:00Z")
+    }, {
+        "_id": 3,
+        "item": "xyz",
+        "price": 5,
+        "fee": 0,
+        "quantity": 10,
+        "discount": 0,
+        date: new Date("2014-03-15T09:00:00Z")
+    }],
+    planning: [{
+        "_id": 1,
+        "name": "A",
+        "hours": 80,
+        "tasks": 7,
+        "resources": 7
+    }, {
+        "_id": 2,
+        "name": "B",
+        "hours": 40,
+        "tasks": 4,
+        "resources": 4
     }]
 };
