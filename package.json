@@ -12,6 +12,9 @@
   "bugs": {
     "url": "https://github.com/TomNeyland/modash.js/issues"
   },
+  "scripts": {
+    "docs": "./node_modules/.bin/jsdoc -c jsdoc.conf.json"
+  },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
     "babel": "^5.6.23",
@@ -37,6 +40,7 @@
     "gulp-tag-version": "^1.1.0",
     "gulp-uglify": "^1.0.1",
     "gulp-util": "^3.0.1",
+    "jsdoc": "https://github.com/jsdoc3/jsdoc/tarball/master",
     "karma": "^0.12.31",
     "karma-browserify": ">=4.2.1",
     "karma-chai": "^0.1.0",
