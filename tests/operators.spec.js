@@ -89,7 +89,6 @@ describe('Modash Boolean Operator', function() {
 
     });
 
-
     describe('$not', function() {
 
         it('should apply a boolean NOT to its arguments', function() {
@@ -128,11 +127,7 @@ describe('Modash Boolean Operator', function() {
 
     });
 
-
-
-
 });
-
 
 
 describe('Modash Set Operator', function() {
@@ -314,7 +309,6 @@ describe('Modash Set Operator', function() {
         });
     });
 
-
     describe('$setDifference', function() {
 
         it('should difference sets', function() {
@@ -378,7 +372,6 @@ describe('Modash Set Operator', function() {
         });
     });
 
-
     describe('$setIsSubset', function() {
 
         it('should detect subsets', function() {
@@ -436,7 +429,6 @@ describe('Modash Set Operator', function() {
             }]);
         });
     });
-
 
     describe('$anyElementTrue', function() {
 
@@ -545,7 +537,6 @@ describe('Modash Set Operator', function() {
 });
 
 
-
 describe('Modash Comparison Operator', function() {
 
     describe('$cmp', function() {
@@ -586,7 +577,6 @@ describe('Modash Comparison Operator', function() {
         });
 
     });
-
 
     describe('$eq', function() {
 
@@ -825,7 +815,6 @@ describe('Modash Comparison Operator', function() {
 });
 
 
-
 describe('Modash Arithmetic Operator', function() {
 
     describe('$add', function() {
@@ -1018,7 +1007,6 @@ describe('Modash Arithmetic Operator', function() {
         });
 
     });
-
 
     describe('$mod', function() {
 
