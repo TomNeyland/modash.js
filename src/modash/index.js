@@ -16,7 +16,7 @@ const Modash = {
     $expression,
     // distinct,
     $group,
-    $project,
+    $project
     // mapReduce
 };
 
