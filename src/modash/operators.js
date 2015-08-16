@@ -214,6 +214,89 @@ function $substr(string, start, len) {
     return string.slice(start, start + len);
 }
 
+/*
+
+Date Operators
+
+ */
+
+function $dayOfYear(date) {
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var diff = now - start;
+    var oneDay = 1000 * 60 * 60 * 24;
+    var day = Math.floor(diff / oneDay);
+    return day;
+}
+
+function $dayOfMonth(date) {
+    return date ? date.getDate() : null;
+}
+
+function $dayOfWeek(date) {
+    return date ? date.getDay() : null;
+}
+
+function $year(date) {
+    return date ? date.getFullYear() : null;
+}
+
+function $month(date) {
+    return date ? date.getMonth() + 1 : null;
+}
+
+
+// https://gist.github.com/dblock/1081513
+function $week(date) {
+
+    // Create a copy of this date object
+    var target = new Date(date.valueOf());
+
+    // ISO week date weeks start on monday
+    // so correct the day number
+    var dayNr = (date.getDay() + 6) % 7;
+
+    // Set the target to the thursday of this week so the
+    // target date is in the right year
+    target.setDate(target.getDate() - dayNr + 3);
+
+    // ISO 8601 states that week 1 is the week
+    // with january 4th in it
+    var jan4 = new Date(target.getFullYear(), 0, 4);
+
+    // Number of days between target date and january 4th
+    var dayDiff = (target - jan4) / 86400000;
+
+    // Calculate week number: Week 1 (january 4th) plus the
+    // number of weeks between target date and january 4th
+    var weekNr = 1 + Math.ceil(dayDiff / 7);
+
+    return weekNr;
+
+}
+
+function $hour(date) {
+    // body...
+}
+
+function $minute(date) {
+    // body...
+}
+
+function $second(date) {
+    // body...
+}
+
+function $millisecond(date) {
+    // body...
+}
+
+function $dateToString(date) {
+    // body...
+}
+
+
+
 
 
 export default {
@@ -244,5 +327,17 @@ export default {
     $multiply,
     $mod,
     // String Operators
-    $substr
+    $substr,
+    // Date Operators
+    $dayOfYear,
+    $dayOfMonth,
+    $dayOfWeek,
+    $year,
+    $month,
+    $week,
+    $hour,
+    $minute,
+    $second,
+    $millisecond,
+    $dateToString
 };
