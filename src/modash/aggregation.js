@@ -1,13 +1,16 @@
 import {
-    chain, isArray
+    chain, isArray, mapValues
 }
 from 'lodash';
 
 import {
-    $expressionObject
+    $expressionObject, $expression
 }
 from './expressions';
-
+import {
+    $accumulate
+}
+from './accumulators';
 
 /*
 
@@ -25,14 +28,11 @@ Stage Operators
  */
 function $project(collection, specifications) {
 
-	if (!('_id' in specifications)) {
-		specifications._id = 1;
-	}
+    if (!('_id' in specifications)) {
+        specifications._id = 1;
+    }
 
-    return chain(collection)
-        .map(function(obj) {
-            return $expressionObject(obj, specifications, obj);
-        });
+    return chain(collection).map((obj) => $expressionObject(obj, specifications, obj));
 }
 
 /*eslint-disable */
@@ -102,7 +102,21 @@ function $unwind(collection, fieldPath) {
  * @param  {Object} specifications [description]
  * @return {Array}                [description]
  */
-function $group(collection, specifications) {
+function $group(collection, specifications = {}) {
+
+    var _idSpec = specifications._id;
+
+    var groups = chain(collection).groupBy((obj) => _idSpec ? JSON.stringify($expression(obj, _idSpec)) : null);
+
+    return groups.map(function(members, key, group) {
+        return mapValues(specifications, function(fieldSpec, field) {
+            if (field === '_id') {
+                return fieldSpec ? $expression(members[0], _idSpec) : null;
+            } else {
+                return $accumulate(members, fieldSpec);
+            }
+        });
+    });
 
 }
 
@@ -163,21 +177,28 @@ function aggregate(collection, pipeline) {
     if (!isArray(pipeline)) {
         pipeline = [pipeline];
     }
-
     collection = chain(collection);
 
-    for (let i = pipeline.length - 1; i < pipeline.length; i++) {
+    // collection = chain(collection);
+
+    for (let i = 0; i < pipeline.length; i++) {
         let stage = pipeline[i];
 
         if (stage.$project) {
-			collection = $project(collection, stage.$project);
+            collection = $project(collection, stage.$project);
         }
+        if (stage.$group) {
+            collection = $group(collection, stage.$group);
+        }
+
 
     }
 
-    return collection;
+    return collection.value();
 }
 
 
 
-export default { aggregate, $project };
+export default {
+    aggregate, $project, $group
+};
