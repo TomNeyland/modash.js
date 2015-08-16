@@ -221,9 +221,8 @@ Date Operators
  */
 
 function $dayOfYear(date) {
-    var now = new Date();
-    var start = new Date(now.getFullYear(), 0, 0);
-    var diff = now - start;
+    var start = new Date(date.getFullYear(), 0, 0);
+    var diff = date - start;
     var oneDay = 1000 * 60 * 60 * 24;
     var day = Math.floor(diff / oneDay);
     return day;
@@ -276,23 +275,23 @@ function $week(date) {
 }
 
 function $hour(date) {
-    // body...
+    return date.getHours();
 }
 
 function $minute(date) {
-    // body...
+    return date.getMinutes();
 }
 
 function $second(date) {
-    // body...
+    return date.getSeconds();
 }
 
 function $millisecond(date) {
-    // body...
+    return date.getMilliseconds();
 }
 
 function $dateToString(date) {
-    // body...
+    return date.toString();
 }
 
 
