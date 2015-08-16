@@ -1,16 +1,15 @@
 module.exports = function(config) {
     config.set({
 
-        frameworks: ['mocha', 'browserify','chai'],
+        frameworks: ['mocha', 'browserify', 'chai'],
 
         files: [
             // Per test imports...?
             'tests/**/*.spec.js',
-            'tests/*.spec.js',
+            'tests/*.spec.js'
         ],
 
-        exclude: [
-        ],
+        exclude: [],
 
         preprocessors: {
             'src/modash.js': ['browserify'],
@@ -18,7 +17,7 @@ module.exports = function(config) {
             'tests/**/*.spec.js': ['browserify']
         },
 
-        reporters: ['progress'],
+        reporters: ['spec'],
         port: 9876,
         colors: true,
 
