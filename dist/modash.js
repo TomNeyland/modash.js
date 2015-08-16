@@ -2,12 +2,109 @@
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
-  value: true
+    value: true
 });
 
 var _lodash = require('lodash');
 
 var _expressions = require('./expressions');
+
+var ACCUMULATORS = {
+    $accumulate: $accumulate,
+    $sum: $sum,
+    $avg: $avg,
+    $first: $first,
+    $last: $last,
+    $min: $min,
+    $max: $max,
+    $push: $push,
+    $addToSet: $addToSet
+};
+
+function isAccumulatorExpression(expression) {
+    return (0, _lodash.size)(expression) === 1 && (0, _lodash.keys)(expression)[0] in ACCUMULATORS;
+}
+
+/*
+
+Accumulators
+
+ */
+
+function $accumulate(collection, operatorExpression) {
+    if (isAccumulatorExpression(operatorExpression)) {
+        var operator = (0, _lodash.keys)(operatorExpression)[0],
+            args = operatorExpression[operator],
+            accumulatorFunction = ACCUMULATORS[operator];
+
+        var result = accumulatorFunction(collection, args);
+        return result;
+    }
+}
+
+function $sum(collection, spec) {
+
+    if (spec === 1) {
+        return (0, _lodash.size)(collection);
+    }
+
+    return (0, _lodash.sum)(collection, function (obj) {
+        return (0, _expressions.$expression)(obj, spec);
+    });
+}
+
+function $avg(collection, spec) {
+    return $sum(collection, spec) / (0, _lodash.size)(collection);
+}
+
+function $first(collection, spec) {
+    return (0, _expressions.$expression)((0, _lodash.first)(collection), spec);
+}
+
+function $last(collection, spec) {
+    return (0, _expressions.$expression)((0, _lodash.last)(collection), spec);
+}
+
+function $max(collection, spec) {
+    return (0, _lodash.max)(collection, function (obj) {
+        return (0, _expressions.$expression)(obj, spec);
+    });
+}
+
+function $min(collection, spec) {
+    return (0, _lodash.min)(collection, function (obj) {
+        return (0, _expressions.$expression)(obj, spec);
+    });
+}
+
+function $push(collection, spec) {
+    return (0, _lodash.map)(collection, function (obj) {
+        return (0, _expressions.$expression)(obj, spec);
+    });
+}
+
+function $addToSet(collection, spec) {
+    console.debug('Please find a more efficient way to do this');
+    return (0, _lodash.unique)($push(collection, spec), function (obj) {
+        return JSON.stringify(obj);
+    });
+}
+
+exports['default'] = ACCUMULATORS;
+exports.$accumulate = $accumulate;
+
+},{"./expressions":4,"lodash":undefined}],2:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+    value: true
+});
+
+var _lodash = require('lodash');
+
+var _expressions = require('./expressions');
+
+var _accumulators = require('./accumulators');
 
 /*
 
@@ -18,101 +115,119 @@ Stage Operators
 /**
  * Reshapes each document in the stream, such as by adding new fields or
  * removing existing fields. For each input document, outputs one document.
- * @param  {[Array]} collection     [description]
- * @param  {[Object]} specifications [description]
- * @return {[Array]}                [description]
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
  */
 function $project(collection, specifications) {
 
-  if (!('_id' in specifications)) {
-    specifications._id = 1;
-  }
+    if (!('_id' in specifications)) {
+        specifications._id = 1;
+    }
 
-  return (0, _lodash.chain)(collection).map(function (obj) {
-    return (0, _expressions.$expressionObject)(obj, specifications, obj);
-  });
+    return (0, _lodash.chain)(collection).map(function (obj) {
+        return (0, _expressions.$expressionObject)(obj, specifications, obj);
+    });
 }
 
 /*eslint-disable */
 /**
  * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
- * @param  {[Array]} collection [description]
- * @param  {[type]} query      [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} query      [description]
+ * @return {Array}            [description]
  */
 function $match(collection, query) {}
 
 /**
  * Reshapes each document in the stream by restricting the content for each
  * document based on information stored in the documents themselves.
- * @param  {[Array]} collection [description]
- * @param  {[type]} expression [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} expression [description]
+ * @return {Array}            [description]
  */
 function $redact(collection, expression) {}
 
 /**
  * Limits the number of documents passed to the next stage in the pipeline.
- * @param  {[Array]} collection [description]
- * @param  {[type]} count      [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} count      [description]
+ * @return {Array}            [description]
  */
 function $limit(collection, count) {}
 
 /**
  * Skips the first n documents where n is the specified skip number and passes
  * the remaining documents unmodified to the pipeline
- * @param  {[Array]} collection [description]
- * @param  {[type]} count      [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} count      [description]
+ * @return {Array}            [description]
  */
 function $skip(collection, count) {}
 
 /**
  * Deconstructs an array field from the input documents to output a document
  * for each element.
- * @param  {[Array]} collection [description]
- * @param  {[type]} fieldPath  [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} fieldPath  [description]
+ * @return {Array}            [description]
  */
 function $unwind(collection, fieldPath) {}
 
 /**
  * Groups input documents by a specified identifier expression and applies the
  * accumulator expression(s), if specified, to each group.
- * @param  {[Array]} collection     [description]
- * @param  {[Object]} specifications [description]
- * @return {[Array]}                [description]
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
  */
-function $group(collection, specifications) {}
+function $group(collection) {
+    var specifications = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    var _idSpec = specifications._id;
+
+    var groups = (0, _lodash.chain)(collection).groupBy(function (obj) {
+        return _idSpec ? JSON.stringify((0, _expressions.$expression)(obj, _idSpec)) : null;
+    });
+
+    return groups.map(function (members, key, group) {
+        return (0, _lodash.mapValues)(specifications, function (fieldSpec, field) {
+            if (field === '_id') {
+                return fieldSpec ? (0, _expressions.$expression)(members[0], _idSpec) : null;
+            } else {
+                return (0, _accumulators.$accumulate)(members, fieldSpec);
+            }
+        });
+    });
+}
 
 /**
  * Reorders the document stream by a specified sort key.
- * @param  {[Array]} collection     [description]
- * @param  {[Object]} specifications [description]
- * @return {[Array]}                [description]
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
  */
 function $sort(collection, specifications) {}
 
 /**
  * Returns an ordered stream of documents based on the proximity to a geospatial point.
- * @param  {[Array]} collection [description]
- * @param  {[type]} options    [description]
- * @return {[Array]}            [description]
+ * @param  {Array} collection [description]
+ * @param  {type} options    [description]
+ * @return {Array}            [description]
  */
 function $geoNear(collection, options) {
-  throw Error('Not Implemented');
+    throw Error('Not Implemented');
 }
 
 /**
  * Writes the resulting documents of the aggregation pipeline to a collection.
- * @param  {[Array]} collection       [description]
- * @param  {[type]} outputCollection [description]
- * @return {[Array]}                  [description]
+ * @param  {Array} collection       [description]
+ * @param  {type} outputCollection [description]
+ * @return {Array}                  [description]
  */
 function $out(collection, outputCollection) {
-  throw Error('Not Implemented');
+    throw Error('Not Implemented');
 }
 /*eslint-enable */
 
@@ -123,36 +238,42 @@ function $out(collection, outputCollection) {
 /**
  * Performs aggregation operation using the aggregation pipeline. The pipeline allows users
  * to process data from a collection with a sequence of stage-based manipulations.
- * @param  {[Array]}  collection    [description]
- * @param  {[Array|Object]}  pipeline     [description]
+ * @param  {Array}  collection    [description]
+ * @param  {Array|Object}  pipeline     [description]
  * @param  {Boolean} explain      Not Implemented
  * @param  {Boolean} allowDiskUse Not Implemented
  * @param  {Boolean} cursor       Not Implemented
- * @return {[Array]}               [description]
+ * @return {Array}               [description]
  */
 function aggregate(collection, pipeline) {
 
-  if (!(0, _lodash.isArray)(pipeline)) {
-    pipeline = [pipeline];
-  }
-
-  collection = (0, _lodash.chain)(collection);
-
-  for (var i = pipeline.length - 1; i < pipeline.length; i++) {
-    var stage = pipeline[i];
-
-    if (stage.$project) {
-      collection = $project(collection, stage.$project);
+    if (!(0, _lodash.isArray)(pipeline)) {
+        pipeline = [pipeline];
     }
-  }
+    collection = (0, _lodash.chain)(collection);
 
-  return collection;
+    // collection = chain(collection);
+
+    for (var i = 0; i < pipeline.length; i++) {
+        var stage = pipeline[i];
+
+        if (stage.$project) {
+            collection = $project(collection, stage.$project);
+        }
+        if (stage.$group) {
+            collection = $group(collection, stage.$group);
+        }
+    }
+
+    return collection.value();
 }
 
-exports['default'] = { aggregate: aggregate, $project: $project };
+exports['default'] = {
+    aggregate: aggregate, $project: $project, $group: $group
+};
 module.exports = exports['default'];
 
-},{"./expressions":3,"lodash":undefined}],2:[function(require,module,exports){
+},{"./accumulators":1,"./expressions":4,"lodash":undefined}],3:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -168,7 +289,7 @@ function count(collection) {
 exports['default'] = { count: count };
 module.exports = exports['default'];
 
-},{"lodash":undefined}],3:[function(require,module,exports){
+},{"lodash":undefined}],4:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -183,7 +304,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 
 var _lodash = require('lodash');
 
-var _operators = require('../operators');
+var _operators = require('./operators');
 
 var _operators2 = _interopRequireDefault(_operators);
 
@@ -211,14 +332,14 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    if (isExpressionOperator(expression)) {
+    if (isSystemVariable(expression)) {
+        result = $systemVariable(obj, expression, root);
+    } else if (isExpressionOperator(expression)) {
         result = $expressionOperator(root, expression, root);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
         result = $expressionObject(obj, expression, root);
-    } else if (isSystemVariable(expression)) {
-        throw Error('System Variables are not currently supported');
     } else {
         result = expression;
     }
@@ -280,8 +401,8 @@ function $expressionObject(obj, specifications, root) {
                 }));
                 /*eslint-enable */
             } else {
-                (0, _lodash.merge)(result, (0, _lodash.set)({}, headPath, $expression(head, _defineProperty({}, pathParts.join('.'), expression), root)));
-            }
+                    (0, _lodash.merge)(result, (0, _lodash.set)({}, headPath, $expression(head, _defineProperty({}, pathParts.join('.'), expression), root)));
+                }
         } else {
 
             if (expression === true || expression === 1) {
@@ -306,8 +427,8 @@ function $expressionObject(obj, specifications, root) {
                 /*eslint-enable */
             } else {
 
-                (0, _lodash.merge)(result, (0, _lodash.set)({}, path, $expression(target, expression, root)));
-            }
+                    (0, _lodash.merge)(result, (0, _lodash.set)({}, path, $expression(target, expression, root)));
+                }
         }
     };
 
@@ -322,16 +443,25 @@ function $expressionObject(obj, specifications, root) {
     return result;
 }
 
-function $systemVariable() {}
+function $systemVariable(obj, variableName, root) {
+    switch (variableName) {
+        case '$$ROOT':
+            return root;
+        case '$$CURRENT':
+            return obj;
+    }
+
+    throw Error('Unsupported system variable');
+}
 
 function $literal() {}
 
 exports['default'] = {
-    $expression: $expression, $fieldPath: $fieldPath, $systemVariable: $systemVariable, $literal: $literal, $expressionObject: $expressionObject
+    $expression: $expression, $fieldPath: $fieldPath, $systemVariable: $systemVariable, $literal: $literal, $expressionObject: $expressionObject, isExpressionOperator: isExpressionOperator, isExpressionObject: isExpressionObject
 };
 module.exports = exports['default'];
 
-},{"../operators":4,"lodash":undefined}],4:[function(require,module,exports){
+},{"./operators":5,"lodash":undefined}],5:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -572,6 +702,84 @@ function $substr(string, start, len) {
     return string.slice(start, start + len);
 }
 
+/*
+
+Date Operators
+
+ */
+
+function $dayOfYear(date) {
+    var start = new Date(date.getFullYear(), 0, 0);
+    var diff = date - start;
+    var oneDay = 1000 * 60 * 60 * 24;
+    var day = Math.floor(diff / oneDay);
+    return day;
+}
+
+function $dayOfMonth(date) {
+    return date ? date.getDate() : null;
+}
+
+function $dayOfWeek(date) {
+    return date ? date.getDay() : null;
+}
+
+function $year(date) {
+    return date ? date.getFullYear() : null;
+}
+
+function $month(date) {
+    return date ? date.getMonth() + 1 : null;
+}
+
+// https://gist.github.com/dblock/1081513
+function $week(date) {
+
+    // Create a copy of this date object
+    var target = new Date(date.valueOf());
+
+    // ISO week date weeks start on monday
+    // so correct the day number
+    var dayNr = (date.getDay() + 6) % 7;
+
+    // Set the target to the thursday of this week so the
+    // target date is in the right year
+    target.setDate(target.getDate() - dayNr + 3);
+
+    // ISO 8601 states that week 1 is the week
+    // with january 4th in it
+    var jan4 = new Date(target.getFullYear(), 0, 4);
+
+    // Number of days between target date and january 4th
+    var dayDiff = (target - jan4) / 86400000;
+
+    // Calculate week number: Week 1 (january 4th) plus the
+    // number of weeks between target date and january 4th
+    var weekNr = 1 + Math.ceil(dayDiff / 7);
+
+    return weekNr;
+}
+
+function $hour(date) {
+    return date.getHours();
+}
+
+function $minute(date) {
+    return date.getMinutes();
+}
+
+function $second(date) {
+    return date.getSeconds();
+}
+
+function $millisecond(date) {
+    return date.getMilliseconds();
+}
+
+function $dateToString(date) {
+    return date.toString();
+}
+
 exports['default'] = {
     // Boolean Operators
     $and: $and,
@@ -600,11 +808,23 @@ exports['default'] = {
     $multiply: $multiply,
     $mod: $mod,
     // String Operators
-    $substr: $substr
+    $substr: $substr,
+    // Date Operators
+    $dayOfYear: $dayOfYear,
+    $dayOfMonth: $dayOfMonth,
+    $dayOfWeek: $dayOfWeek,
+    $year: $year,
+    $month: $month,
+    $week: $week,
+    $hour: $hour,
+    $minute: $minute,
+    $second: $second,
+    $millisecond: $millisecond,
+    $dateToString: $dateToString
 };
 module.exports = exports['default'];
 
-},{"lodash":undefined}],5:[function(require,module,exports){
+},{"lodash":undefined}],6:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -616,7 +836,7 @@ var _aggregation = require('./aggregation');
 var _count = require('./count');
 
 // import distinct from './distinct';
-// import group from './group';
+// import $group from './group';
 // import mapReduce from './mapReduce';
 
 var _expressions = require('./expressions');
@@ -628,14 +848,15 @@ var _expressions = require('./expressions');
 var Modash = {
     aggregate: _aggregation.aggregate,
     count: _count.count,
-    $expression
+    $expression: _expressions.$expression,
     // distinct,
-    // group,
+    $group: _aggregation.$group,
+    $project: _aggregation.$project
     // mapReduce
-    : _expressions.$expression };
+};
 
 // Export the module
 exports['default'] = Modash;
 module.exports = exports['default'];
 
-},{"./aggregation":1,"./count":2,"./expressions":3}]},{},[5]);
+},{"./aggregation":2,"./count":3,"./expressions":4}]},{},[6]);

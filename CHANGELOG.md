@@ -1,3 +1,24 @@
+## 0.6.0 (2015-08-16)
+
+
+#### Bug Fixes
+
+* **tests:** Adds explicit import for expect ([2161b68f](https://github.com/TomNeyland/modash.js/commit/2161b68f15f013c32263bf3662eedd308eccf327))
+
+
+#### Features
+
+* Adds $group and $project functions ([935a3a83](https://github.com/TomNeyland/modash.js/commit/935a3a83739e0936bce691a6888d321c6d51b8ac))
+* **accumulators:** Adds Accumulator Operators for $group ([08f29fe2](https://github.com/TomNeyland/modash.js/commit/08f29fe2b0b01e87ad55c8f1e79b36cc275fdd94))
+* **aggregation:** Adds support for $group expressions ([ba861880](https://github.com/TomNeyland/modash.js/commit/ba861880221fc01b850bdcb3a429da29c4b908a5))
+* **operators:**
+  * Adds more Date Operators ([45a29049](https://github.com/TomNeyland/modash.js/commit/45a29049d9b5d5d3c31e84e528a548d46481d74c))
+  * Adds Date Operators ([cc21aed3](https://github.com/TomNeyland/modash.js/commit/cc21aed3bef2d73b0e1223cddd033a1b98638d0d))
+* **tests:**
+  * Adds new spec reporter to karma ([33ea66d8](https://github.com/TomNeyland/modash.js/commit/33ea66d8df7c6b99ce2fd2474bb1bdda0cf3bb6f))
+  * Adds more test datasets ([0bff391e](https://github.com/TomNeyland/modash.js/commit/0bff391eea4c4672aa2f8f6f7298f4887404f5e0))
+
+
 ## 0.5.0 (2015-07-21)
 
 
