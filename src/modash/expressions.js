@@ -3,7 +3,7 @@ import {
 }
 from 'lodash';
 
-import EXPRESSION_OPERATORS from '../operators';
+import EXPRESSION_OPERATORS from './operators';
 
 
 function isFieldPath(expression) {
@@ -24,6 +24,7 @@ function isExpressionOperator(expression) {
 
 
 
+
 function $expression(obj, expression, root) {
 
     var result;
@@ -32,14 +33,14 @@ function $expression(obj, expression, root) {
         root = obj;
     }
 
-    if (isExpressionOperator(expression)) {
+    if (isSystemVariable(expression)) {
+        result = $systemVariable(obj, expression, root);
+    } else if (isExpressionOperator(expression)) {
         result = $expressionOperator(root, expression, root);
     } else if (isFieldPath(expression)) {
         result = $fieldPath(obj, expression);
     } else if (isExpressionObject(expression)) {
         result = $expressionObject(obj, expression, root);
-    } else if (isSystemVariable(expression)) {
-        throw Error('System Variables are not currently supported');
     } else {
         result = expression;
     }
@@ -150,8 +151,15 @@ function $expressionObject(obj, specifications, root) {
 }
 
 
-function $systemVariable() {
+function $systemVariable(obj, variableName, root) {
+    switch (variableName) {
+        case '$$ROOT':
+            return root;
+        case '$$CURRENT':
+            return obj;
+    }
 
+    throw Error('Unsupported system variable');
 }
 
 function $literal() {
@@ -159,5 +167,5 @@ function $literal() {
 }
 
 export default {
-    $expression, $fieldPath, $systemVariable, $literal, $expressionObject
+    $expression, $fieldPath, $systemVariable, $literal, $expressionObject, isExpressionOperator, isExpressionObject
 };
