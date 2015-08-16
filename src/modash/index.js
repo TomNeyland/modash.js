@@ -1,7 +1,7 @@
-import {aggregate} from './aggregation';
+import {aggregate, $project, $group} from './aggregation';
 import {count} from './count';
 // import distinct from './distinct';
-// import group from './group';
+// import $group from './group';
 // import mapReduce from './mapReduce';
 import {$expression} from './expressions';
 
@@ -13,11 +13,13 @@ import {$expression} from './expressions';
 const Modash = {
     aggregate,
     count,
-    $expression
+    $expression,
     // distinct,
-    // group,
+    $group,
+    $project,
     // mapReduce
 };
+
 
 
 // Export the module
