@@ -4,6 +4,7 @@ import './tasks/changelog';
 import './tasks/clean';
 import './tasks/default';
 import './tasks/enforce';
+import './tasks/gh-pages';
 import './tasks/lint';
 import './tasks/release';
 import './tasks/test';
