@@ -1,5 +1,5 @@
 import {
-    chain, isArray, mapValues
+    chain, isArray, mapValues, first
 }
 from 'lodash';
 
@@ -45,6 +45,18 @@ function $project(collection, specifications) {
  */
 function $match(collection, query) {
 
+    var result = [];
+
+    for (var i = 0; i < collection.length; i++) {
+        var item = collection[i];
+
+        for (param in query) {
+            var expression = query[param];
+
+        }
+
+    };
+
 }
 
 
@@ -67,7 +79,7 @@ function $redact(collection, expression) {
  * @return {Array}            [description]
  */
 function $limit(collection, count) {
-
+    return first(collection, count);
 }
 
 
