@@ -138,7 +138,18 @@ function $project(collection, specifications) {
  * @param  {type} query      [description]
  * @return {Array}            [description]
  */
-function $match(collection, query) {}
+function $match(collection, query) {
+
+    var result = [];
+
+    for (var i = 0; i < collection.length; i++) {
+        var item = collection[i];
+
+        for (param in query) {
+            var expression = query[param];
+        }
+    };
+}
 
 /**
  * Reshapes each document in the stream by restricting the content for each
@@ -155,7 +166,9 @@ function $redact(collection, expression) {}
  * @param  {type} count      [description]
  * @return {Array}            [description]
  */
-function $limit(collection, count) {}
+function $limit(collection, count) {
+    return (0, _lodash.first)(collection, count);
+}
 
 /**
  * Skips the first n documents where n is the specified skip number and passes
