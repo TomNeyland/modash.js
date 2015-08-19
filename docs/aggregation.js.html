@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: aggregation.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: aggregation.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import {
+    chain, isArray, mapValues
+}
+from 'lodash';
+
+import {
+    $expressionObject, $expression
+}
+from './expressions';
+import {
+    $accumulate
+}
+from './accumulators';
+
+/*
+
+Stage Operators
+
+*/
+
+
+/**
+ * Reshapes each document in the stream, such as by adding new fields or
+ * removing existing fields. For each input document, outputs one document.
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
+ */
+function $project(collection, specifications) {
+
+    if (!('_id' in specifications)) {
+        specifications._id = 1;
+    }
+
+    return chain(collection).map((obj) => $expressionObject(obj, specifications, obj));
+}
+
+/*eslint-disable */
+/**
+ * Filters the document stream to allow only matching documents to pass
+ * unmodified into the next pipeline stage.
+ * @param  {Array} collection [description]
+ * @param  {type} query      [description]
+ * @return {Array}            [description]
+ */
+function $match(collection, query) {
+
+}
+
+
+/**
+ * Reshapes each document in the stream by restricting the content for each
+ * document based on information stored in the documents themselves.
+ * @param  {Array} collection [description]
+ * @param  {type} expression [description]
+ * @return {Array}            [description]
+ */
+function $redact(collection, expression) {
+
+}
+
+
+/**
+ * Limits the number of documents passed to the next stage in the pipeline.
+ * @param  {Array} collection [description]
+ * @param  {type} count      [description]
+ * @return {Array}            [description]
+ */
+function $limit(collection, count) {
+
+}
+
+
+/**
+ * Skips the first n documents where n is the specified skip number and passes
+ * the remaining documents unmodified to the pipeline
+ * @param  {Array} collection [description]
+ * @param  {type} count      [description]
+ * @return {Array}            [description]
+ */
+function $skip(collection, count) {
+
+}
+
+
+/**
+ * Deconstructs an array field from the input documents to output a document
+ * for each element.
+ * @param  {Array} collection [description]
+ * @param  {type} fieldPath  [description]
+ * @return {Array}            [description]
+ */
+function $unwind(collection, fieldPath) {
+
+}
+
+
+/**
+ * Groups input documents by a specified identifier expression and applies the
+ * accumulator expression(s), if specified, to each group.
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
+ */
+function $group(collection, specifications = {}) {
+
+    var _idSpec = specifications._id;
+
+    var groups = chain(collection).groupBy((obj) => _idSpec ? JSON.stringify($expression(obj, _idSpec)) : null);
+
+    return groups.map(function(members, key, group) {
+        return mapValues(specifications, function(fieldSpec, field) {
+            if (field === '_id') {
+                return fieldSpec ? $expression(members[0], _idSpec) : null;
+            } else {
+                return $accumulate(members, fieldSpec);
+            }
+        });
+    });
+
+}
+
+
+/**
+ * Reorders the document stream by a specified sort key.
+ * @param  {Array} collection     [description]
+ * @param  {Object} specifications [description]
+ * @return {Array}                [description]
+ */
+function $sort(collection, specifications) {
+
+}
+
+
+/**
+ * Returns an ordered stream of documents based on the proximity to a geospatial point.
+ * @param  {Array} collection [description]
+ * @param  {type} options    [description]
+ * @return {Array}            [description]
+ */
+function $geoNear(collection, options) {
+    throw Error('Not Implemented');
+}
+
+
+/**
+ * Writes the resulting documents of the aggregation pipeline to a collection.
+ * @param  {Array} collection       [description]
+ * @param  {type} outputCollection [description]
+ * @return {Array}                  [description]
+ */
+function $out(collection, outputCollection) {
+    throw Error('Not Implemented');
+}
+/*eslint-enable */
+
+
+
+/*
+ Public Aggregation Function
+ */
+
+
+
+/**
+ * Performs aggregation operation using the aggregation pipeline. The pipeline allows users
+ * to process data from a collection with a sequence of stage-based manipulations.
+ * @param  {Array}  collection    [description]
+ * @param  {Array|Object}  pipeline     [description]
+ * @param  {Boolean} explain      Not Implemented
+ * @param  {Boolean} allowDiskUse Not Implemented
+ * @param  {Boolean} cursor       Not Implemented
+ * @return {Array}               [description]
+ */
+function aggregate(collection, pipeline) {
+
+    if (!isArray(pipeline)) {
+        pipeline = [pipeline];
+    }
+    collection = chain(collection);
+
+    // collection = chain(collection);
+
+    for (let i = 0; i &lt; pipeline.length; i++) {
+        let stage = pipeline[i];
+
+        if (stage.$project) {
+            collection = $project(collection, stage.$project);
+        }
+        if (stage.$group) {
+            collection = $group(collection, stage.$group);
+        }
+
+
+    }
+
+    return collection.value();
+}
+
+
+
+export default {
+    aggregate, $project, $group
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#$geoNear">$geoNear</a></li><li><a href="global.html#$group">$group</a></li><li><a href="global.html#$limit">$limit</a></li><li><a href="global.html#$match">$match</a></li><li><a href="global.html#$out">$out</a></li><li><a href="global.html#$project">$project</a></li><li><a href="global.html#$redact">$redact</a></li><li><a href="global.html#$skip">$skip</a></li><li><a href="global.html#$sort">$sort</a></li><li><a href="global.html#$unwind">$unwind</a></li><li><a href="global.html#aggregate">aggregate</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0-dev</a> on Wed Aug 19 2015 18:32:29 GMT-0400 (EDT)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
