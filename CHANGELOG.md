@@ -3,7 +3,7 @@
 
 #### Features
 
-* **aggregation:** Adds initial $match implementation ([9bae5baf](https://github.com/TomNeyland/modash.js/commit/9bae5baf957ad3ab38bf06dff1a72f03f9d21415))
+* **aggregation:** Adds initial $match and $limit implementation ([9bae5baf](https://github.com/TomNeyland/modash.js/commit/9bae5baf957ad3ab38bf06dff1a72f03f9d21415))
 * **gulp:** Add gh-pages task ([dddbbe71](https://github.com/TomNeyland/modash.js/commit/dddbbe710722b148e6b85f1f5453581d8fdcd474))
 
 
