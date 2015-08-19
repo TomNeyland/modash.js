@@ -5,6 +5,7 @@ import {resolve} from 'path';
 export default {
     app: './src',
     build: './dist',
+    docs: './docs',
     js: {
         files: [
             './src/**/*.js',
