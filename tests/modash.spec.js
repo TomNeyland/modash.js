@@ -1,5 +1,7 @@
 import Modash from '../src/modash';
 import _ from 'lodash';
+import {expect} from 'chai';
+
 
 describe('Modash Module Exports', function() {
 
