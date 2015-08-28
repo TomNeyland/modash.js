@@ -48,15 +48,27 @@ function $match(collection, query) {
     var result = [];
 
     for (var i = 0; i < collection.length; i++) {
-        var item = collection[i];
+        let item = collection[i],
+            itemMatched = true;
 
         for (param in query) {
-            var expression = query[param];
+            let expression = query[param],
+                expressionValue = $expressionObject(item, expression);
 
+            if (expression === false) {
+                itemMatched = false;
+                break;
+            }
+
+        }
+
+        if (itemMatched) {
+            result.push(item);
         }
 
     };
 
+    return result;
 }
 
 
@@ -140,7 +152,7 @@ function $group(collection, specifications = {}) {
  * @return {Array}                [description]
  */
 function $sort(collection, specifications) {
-
+    throw Error('Not Implemented');
 }
 
 
