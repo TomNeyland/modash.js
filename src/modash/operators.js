@@ -210,9 +210,70 @@ String Operators
 
 */
 
+function $concat(...expressions) {
+    return expressions.join('');
+}
+
 function $substr(string, start, len) {
     return string.slice(start, start + len);
 }
+
+function $toLower(string) {
+    return string.toLowerCase();
+}
+
+function $toUpper(string) {
+    return string.toUpperCase();
+}
+
+function $strcasecmp(string1, string2) {
+    string1 = string1.toLowerCase();
+    string2 = string2.toLowerCase();
+
+    if (string1 === string2) {
+        return 0;
+    } else if (string1 > string2) {
+        return 1;
+    } else if (string1 < string2) {
+        return -1;
+    } else {
+        throw new Error('Error comparing values: ' + string1 + ' and ' + string2);
+    }
+
+}
+
+
+/*
+
+Text Search Operators
+
+*/
+
+function $meta(metaDataKeyword) {
+    throw new Error('Not Implemented');
+}
+
+
+/*
+
+Array Operators
+
+*/
+
+
+/*
+
+Variable Operators
+
+*/
+
+
+/*
+
+Literal Operators
+
+*/
+
 
 /*
 
@@ -295,7 +356,11 @@ function $dateToString(date) {
 }
 
 
+/*
 
+Conditional Aggregation Operators
+
+ */
 
 
 export default {
@@ -326,7 +391,13 @@ export default {
     $multiply,
     $mod,
     // String Operators
+    $concat,
     $substr,
+    $toLower,
+    $toUpper,
+    $strcasecmp,
+    // Text Search Operators
+    $meta,
     // Date Operators
     $dayOfYear,
     $dayOfMonth,
