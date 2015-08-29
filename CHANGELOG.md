@@ -1,3 +1,12 @@
+## 0.7.0 (2015-08-28)
+
+
+#### Features
+
+* **aggregation:** Adds complete $match operator ([7827882f](https://github.com/TomNeyland/modash.js/commit/7827882f959ac1500d736ab49412cf343f97e7dd))
+* **operators:** Adds string operators ([a079adf7](https://github.com/TomNeyland/modash.js/commit/a079adf7f9ac6a8d240782037f49da73d53ce63f))
+
+
 ### 0.6.1 (2015-08-18)
 
 
