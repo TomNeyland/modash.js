@@ -1,10 +1,22 @@
+import _ from 'lodash';
+import {
+    expect
+}
+from 'chai';
+
+import Modash from '../src/modash';
+import testData from './test-data';
 import {
     $project
 }
 from '../src/modash/aggregation';
-import testData from './test-data';
 
-import {expect} from 'chai';
+var db;
+
+beforeEach(function() {
+    _.mixin(Modash);
+    db = _.mapValues(testData, _.chain);
+});
 
 
 describe('Modash Boolean Operator', function() {
@@ -814,7 +826,6 @@ describe('Modash Comparison Operator', function() {
 
 });
 
-
 describe('Modash Arithmetic Operator', function() {
 
     describe('$add', function() {
@@ -1029,5 +1040,47 @@ describe('Modash Arithmetic Operator', function() {
         });
 
     });
+
+});
+
+describe('Modash String Operator', function() {
+
+    describe('$concat', function() {
+
+        it('should concatenate strings and return the concatenated string.', function() {
+
+            var projection = db.inventory.aggregate(
+                [{
+                    $project: {
+                        itemDescription: {
+                            $concat: ['$item', ' - ', '$description']
+                        }
+                    }
+                }]
+            ).value();
+
+            console.error(projection);
+
+            expect(projection).to.deep.equal([{
+                itemDescription: 'abc1 - product 1',
+                _id: 1
+            }, {
+                itemDescription: 'abc2 - product 2',
+                _id: 2
+            }, {
+                itemDescription: 'xyz1 - product 3',
+                _id: 3
+            }, {
+                itemDescription: 'VWZ1 - product 4',
+                _id: 4
+            }, {
+                itemDescription: 'VWZ2 - product 5',
+                _id: 5
+            }]);
+
+        });
+
+    });
+
 
 });
