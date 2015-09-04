@@ -1059,8 +1059,6 @@ describe('Modash String Operator', function() {
                 }]
             ).value();
 
-            console.error(projection);
-
             expect(projection).to.deep.equal([{
                 itemDescription: 'abc1 - product 1',
                 _id: 1
