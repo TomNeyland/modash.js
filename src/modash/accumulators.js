@@ -16,7 +16,7 @@ const ACCUMULATORS = {
     $min,
     $max,
     $push,
-    $addToSet
+    $addToSet,
 };
 
 function isAccumulatorExpression(expression) {
@@ -82,6 +82,4 @@ function $addToSet(collection, spec) {
 
 
 export default ACCUMULATORS;
-export {
-    $accumulate
-};
+
