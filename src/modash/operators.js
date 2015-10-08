@@ -1,5 +1,5 @@
 import {
-    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, isDate
+    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, isDate, size
 }
 from 'lodash';
 
@@ -260,12 +260,9 @@ Array Operators
 
 */
 
-
-/*
-
-Variable Operators
-
-*/
+function $size(collection) {
+    return size(collection);
+}
 
 
 /*
@@ -355,6 +352,22 @@ function $dateToString(date) {
     return date.toString();
 }
 
+/*
+
+Conditional Aggregation Operators
+
+ */
+
+function $cond(isTrue, thenValue, elseValue) {
+    // by the expression pre-evaluating the condition and arguments
+    // we can't shortcut properly...
+    return isTrue ? thenValue : elseValue;
+}
+
+function $ifNull(value, defaultValue) {
+    // cant shortcut properly...
+    return value !== null ? value : defaultValue;
+}
 
 /*
 
@@ -398,6 +411,8 @@ export default {
     $strcasecmp,
     // Text Search Operators
     $meta,
+    // Array Operators
+    $size,
     // Date Operators
     $dayOfYear,
     $dayOfMonth,
@@ -409,5 +424,8 @@ export default {
     $minute,
     $second,
     $millisecond,
-    $dateToString
+    $dateToString,
+    // Conditional Operators
+    $cond,
+    $ifNull
 };
