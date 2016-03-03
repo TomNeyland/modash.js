@@ -1,7 +1,6 @@
 
 dependencies:
 	npm --loglevel error install
-	bower install
 
 clean:
 	rm -rf node_modules/
@@ -10,7 +9,8 @@ clean:
 build:
 	make clean
 	make dependencies
-	gulp build
+	npm run build
+	npm run test-once
 
 
 .PHONY : build
