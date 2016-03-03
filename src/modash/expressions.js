@@ -1,5 +1,12 @@
 import {
-    isArray, isObject, isDate, get, set, merge, size, keys
+    isArray,
+    isObject,
+    isDate,
+    get,
+    set,
+    merge,
+    size,
+    keys
 }
 from 'lodash';
 
@@ -21,8 +28,6 @@ function isExpressionObject(expression) {
 function isExpressionOperator(expression) {
     return size(expression) === 1 && (keys(expression)[0] in EXPRESSION_OPERATORS);
 }
-
-
 
 
 function $expression(obj, expression, root) {
@@ -70,7 +75,9 @@ function $expressionOperator(obj, operatorExpression, root) {
     }
 
     args = args.map(function(argExpression) {
-        return $expression(obj, argExpression, root);
+        return function() {
+            return $expression(obj, argExpression, root);
+        };
     });
 
     result = operatorFunction(...args);
@@ -167,5 +174,11 @@ function $literal() {
 }
 
 export default {
-    $expression, $fieldPath, $systemVariable, $literal, $expressionObject, isExpressionOperator, isExpressionObject
+    $expression,
+    $fieldPath,
+    $systemVariable,
+    $literal,
+    $expressionObject,
+    isExpressionOperator,
+    isExpressionObject
 };

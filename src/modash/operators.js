@@ -1,7 +1,30 @@
 import {
-    every, some, partial, isArray, isEqual, intersection, union, difference, gt, gte, lt, lte, unique, isDate, size
+    every,
+    some,
+    partial,
+    isArray,
+    isEqual,
+    intersection,
+    union,
+    difference,
+    gt,
+    gte,
+    lt,
+    lte,
+    unique,
+    isDate,
+    size,
+    isFunction
 }
 from 'lodash';
+
+/*
+    Helpers
+ */
+
+function evaluate(val) {
+    return isFunction(val) ? val() : val;
+}
 
 
 /*
@@ -11,15 +34,15 @@ Boolean Operators
 */
 
 function $and(...values) {
-    return every(values);
+    return every(values.map(evaluate));
 }
 
 function $or(...values) {
-    return some(values);
+    return some(values, evaluate);
 }
 
 function $not(...values) {
-    return !some(values);
+    return !some(values, evaluate);
 }
 
 
@@ -30,34 +53,38 @@ Set Operators
 */
 
 function $asSet(array) {
-    return unique(array).sort($cmp);
+    return unique(array.map(evaluate)).sort($cmp);
 }
 
 function $setEquals(...arrays) {
 
-    var sets = arrays.map($asSet),
+    var sets = arrays.map(evaluate).map($asSet),
         firstSet = sets.shift();
 
     return every(sets, partial(isEqual, firstSet));
 }
 
 function $setIntersection(...arrays) {
-    return $asSet(intersection(...arrays));
+    return $asSet(intersection(...arrays.map(evaluate)));
 }
 
 function $setUnion(...arrays) {
-    return union(...arrays.map($asSet));
+    return union(...arrays.map(evaluate).map($asSet));
 }
 
 function $setDifference(...arrays) {
-    return difference(...arrays.map($asSet));
+    return difference(...arrays.map(evaluate).map($asSet));
 }
 
 function $setIsSubset(subset, superset) {
+    subset = evaluate(subset);
+    superset = evaluate(superset);
     return isEqual($asSet(intersection(subset, superset)), $asSet(subset));
 }
 
 function $anyElementTrue(values) {
+
+    values = evaluate(values);
 
     if (!isArray(values)) {
         throw Error(`values must be an array, got ${typeof values}`);
@@ -67,6 +94,8 @@ function $anyElementTrue(values) {
 }
 
 function $allElementsTrue(values) {
+
+    values = evaluate(values);
 
     if (!isArray(values)) {
         throw Error(`values must be an array, got ${typeof values}`);
@@ -83,6 +112,8 @@ Comparison Operators
 */
 
 function $cmp(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
 
     if (isArray(value1) && isArray(value2)) {
         return 0;
@@ -97,10 +128,15 @@ function $cmp(value1, value2) {
 }
 
 function $eq(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     return isEqual(value1, value2);
 }
 
 function $gt(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
 
     if (isArray(value2) && !isArray(value1)) {
         return false;
@@ -112,6 +148,8 @@ function $gt(value1, value2) {
 }
 
 function $gte(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
 
     if (isArray(value2) && !isArray(value1)) {
         return false;
@@ -123,6 +161,8 @@ function $gte(value1, value2) {
 }
 
 function $lt(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
 
     if (isArray(value2) && !isArray(value1)) {
         return true;
@@ -135,6 +175,8 @@ function $lt(value1, value2) {
 }
 
 function $lte(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
 
     if (isArray(value2) && !isArray(value1)) {
         return true;
@@ -147,6 +189,9 @@ function $lte(value1, value2) {
 }
 
 function $ne(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     return !$eq(value1, value2);
 }
 
@@ -158,6 +203,7 @@ Arithmetic Operators
 */
 
 function $add(...values) {
+    values = values.map(evaluate);
 
     var result = values.shift(),
         resultAsDate = false;
@@ -180,6 +226,9 @@ function $add(...values) {
 }
 
 function $subtract(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     if (isDate(value1) && isDate(value2)) {
         return value1.getTime() - value2.getTime();
     } else if (isDate(value1) && !isDate(value2)) {
@@ -192,14 +241,23 @@ function $subtract(value1, value2) {
 }
 
 function $multiply(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     return value1 * value2;
 }
 
 function $divide(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     return value1 / value2;
 }
 
 function $mod(value1, value2) {
+    value1 = evaluate(value1);
+    value2 = evaluate(value2);
+
     return value1 % value2;
 }
 
@@ -211,22 +269,31 @@ String Operators
 */
 
 function $concat(...expressions) {
+    expressions = expressions.map(evaluate);
     return expressions.join('');
 }
 
 function $substr(string, start, len) {
+    string = evaluate(string);
+    start = evaluate(start);
+    len = evaluate(len);
+
     return string.slice(start, start + len);
 }
 
 function $toLower(string) {
+    string = evaluate(string);
     return string.toLowerCase();
 }
 
 function $toUpper(string) {
+    string = evaluate(string);
     return string.toUpperCase();
 }
 
 function $strcasecmp(string1, string2) {
+    string1 = evaluate(string1);
+    string2 = evaluate(string2);
     string1 = string1.toLowerCase();
     string2 = string2.toLowerCase();
 
@@ -249,10 +316,11 @@ Text Search Operators
 
 */
 
+/*eslint-disable */
 function $meta(metaDataKeyword) {
     throw new Error('Not Implemented');
 }
-
+/*eslint-enable */
 
 /*
 
@@ -261,7 +329,7 @@ Array Operators
 */
 
 function $size(collection) {
-    return size(collection);
+    return size(evaluate(collection));
 }
 
 
@@ -279,6 +347,7 @@ Date Operators
  */
 
 function $dayOfYear(date) {
+    date = evaluate(date);
     var start = new Date(date.getFullYear(), 0, 0);
     var diff = date - start;
     var oneDay = 1000 * 60 * 60 * 24;
@@ -287,24 +356,29 @@ function $dayOfYear(date) {
 }
 
 function $dayOfMonth(date) {
+    date = evaluate(date);
     return date ? date.getDate() : null;
 }
 
 function $dayOfWeek(date) {
+    date = evaluate(date);
     return date ? date.getDay() : null;
 }
 
 function $year(date) {
+    date = evaluate(date);
     return date ? date.getFullYear() : null;
 }
 
 function $month(date) {
+    date = evaluate(date);
     return date ? date.getMonth() + 1 : null;
 }
 
 
 // https://gist.github.com/dblock/1081513
 function $week(date) {
+    date = evaluate(date);
 
     // Create a copy of this date object
     var target = new Date(date.valueOf());
@@ -333,22 +407,27 @@ function $week(date) {
 }
 
 function $hour(date) {
+    date = evaluate(date);
     return date.getHours();
 }
 
 function $minute(date) {
+    date = evaluate(date);
     return date.getMinutes();
 }
 
 function $second(date) {
+    date = evaluate(date);
     return date.getSeconds();
 }
 
 function $millisecond(date) {
+    date = evaluate(date);
     return date.getMilliseconds();
 }
 
 function $dateToString(date) {
+    date = evaluate(date);
     return date.toString();
 }
 
@@ -359,14 +438,13 @@ Conditional Aggregation Operators
  */
 
 function $cond(isTrue, thenValue, elseValue) {
-    // by the expression pre-evaluating the condition and arguments
-    // we can't shortcut properly...
-    return isTrue ? thenValue : elseValue;
+    return evaluate(isTrue) ? evaluate(thenValue) : evaluate(elseValue);
 }
 
 function $ifNull(value, defaultValue) {
     // cant shortcut properly...
-    return value !== null ? value : defaultValue;
+    value = evaluate(value);
+    return value !== null ? value : evaluate(defaultValue);
 }
 
 /*
