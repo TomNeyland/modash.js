@@ -16,7 +16,7 @@ const ACCUMULATORS = {
     $min,
     $max,
     $push,
-    $addToSet,
+    $addToSet
 };
 
 function isAccumulatorExpression(expression) {
@@ -76,7 +76,9 @@ function $push(collection, spec) {
 }
 
 function $addToSet(collection, spec) {
-    console.debug('Please find a more efficient way to do this');
+    /*eslint-disable */
+    console.debug('Please find a more efficient way to do $addToSet');
+    /*eslint-enable */
     return unique($push(collection, spec), (obj) => JSON.stringify(obj));
 }
 
