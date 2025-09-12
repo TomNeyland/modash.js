@@ -26,7 +26,7 @@ npm install modash
 
 ## 📖 Usage
 
-### Basic Example
+### Quick Start
 
 ```javascript
 import Modash from 'modash';
@@ -61,104 +61,464 @@ console.log(revenueByDate);
 // ]
 ```
 
-### Advanced Pipeline Example
+## 🌟 Real-World Examples
+
+### 🛒 E-commerce Analytics
+
+**Top-Selling Products with Inventory Management:**
 
 ```javascript
-// E-commerce customer analytics with enhanced operators
-const customerStats = Modash.aggregate(orders, [
-  // Enhanced filtering with multiple conditions
-  { 
-    $match: { 
-      $and: [
-        { price: { $gte: 100 } },
-        { status: { $regex: '^(shipped|delivered)$', $options: 'i' } },
-        { tags: { $exists: true, $size: { $gte: 1 } } }
-      ]
+// Analyze product performance and identify low stock items
+const productAnalysis = Modash.aggregate(orders, [
+  {
+    $lookup: {
+      from: products,
+      localField: 'productId', 
+      foreignField: '_id',
+      as: 'product'
     }
   },
-  
-  // Join with customer data
+  { $unwind: '$product' },
+  {
+    $addFields: {
+      revenue: { $multiply: ['$quantity', '$product.price'] },
+      lowStock: { $lt: ['$product.stock', 10] },
+      isPremium: { $in: ['premium', '$product.tags'] }
+    }
+  },
+  {
+    $group: {
+      _id: '$product.name',
+      totalRevenue: { $sum: '$revenue' },
+      totalQuantitySold: { $sum: '$quantity' },
+      avgRating: { $avg: { $avg: '$product.ratings' } },
+      lowStockAlert: { $first: '$lowStock' },
+      category: { $first: '$product.category' }
+    }
+  },
+  { $sort: { totalRevenue: -1 } },
+  { $limit: 5 }
+]);
+
+/* Expected Output:
+[
+  {
+    _id: "MacBook Pro 16\"",
+    totalRevenue: 2499,
+    totalQuantitySold: 1,
+    avgRating: 4.6,
+    lowStockAlert: false,
+    category: "laptops"
+  }
+  // ... more products
+]
+*/
+```
+
+**Customer Segmentation & Purchase Behavior:**
+
+```javascript
+// Advanced customer analytics with tier-based insights
+const customerInsights = Modash.aggregate(orders, [
   {
     $lookup: {
       from: customers,
       localField: 'customerId',
-      foreignField: '_id',
+      foreignField: '_id', 
       as: 'customer'
     }
   },
-  
-  // Add computed fields with array operations
-  { 
-    $addFields: { 
-      customerName: { $arrayElemAt: ['$customer.name', 0] },
-      totalValue: { $multiply: ['$price', '$quantity'] },
-      discountedPrice: { $round: [{ $multiply: ['$price', 0.9] }, 2] },
-      isHighValue: { $gte: [{ $multiply: ['$price', '$quantity'] }, 1000] },
-      firstTag: { $arrayElemAt: ['$tags', 0] },
-      tagCount: { $size: '$tags' }
+  {
+    $lookup: {
+      from: products,
+      localField: 'productId',
+      foreignField: '_id',
+      as: 'product'
     }
   },
-  
-  // Group by customer with advanced accumulators
+  { $unwind: '$customer' },
+  { $unwind: '$product' },
+  {
+    $addFields: {
+      orderValue: { $multiply: ['$quantity', '$product.price'] },
+      customerTier: '$customer.tier',
+      isPremiumProduct: { $in: ['premium', '$product.tags'] }
+    }
+  },
   {
     $group: {
       _id: '$customerId',
-      customerName: { $first: '$customerName' },
+      customerName: { $first: '$customer.name' },
+      customerTier: { $first: '$customerTier' },
       totalOrders: { $sum: 1 },
-      totalSpent: { $sum: '$totalValue' },
-      avgOrderValue: { $avg: '$totalValue' },
-      highValueOrders: { $sum: { $cond: ['$isHighValue', 1, 0] } },
-      allTags: { $addToSet: '$firstTag' },
-      orderValues: { $push: '$totalValue' }
+      totalSpent: { $sum: '$orderValue' },
+      avgOrderValue: { $avg: '$orderValue' },
+      premiumProductsPurchased: { 
+        $sum: { $cond: ['$isPremiumProduct', 1, 0] } 
+      }
     }
   },
-  
-  // Enhanced sorting with multiple fields
-  { $sort: { totalSpent: -1, totalOrders: -1 } },
-  
-  // Final projection with string operations
-  {
-    $project: {
-      customerName: { $toUpper: '$customerName' },
-      totalOrders: 1,
-      totalSpent: { $round: ['$totalSpent', 2] },
-      avgOrderValue: { $round: ['$avgOrderValue', 2] },
-      topOrderValue: { $max: '$orderValues' },
-      customerTier: { 
-        $cond: [
-          { $gte: ['$totalSpent', 5000] }, 'Premium',
-          { $cond: [{ $gte: ['$totalSpent', 1000] }, 'Gold', 'Standard'] }
-        ]
-      },
-      tagSummary: { $concatArrays: [['customer'], '$allTags'] },
-      _id: 0
-    }
-  },
-  
-  { $limit: 10 }
+  { $sort: { totalSpent: -1 } }
 ]);
+
+/* Expected Output:
+[
+  {
+    _id: 201,
+    customerName: "Alice Johnson", 
+    customerTier: "premium",
+    totalOrders: 2,
+    totalSpent: 3498,
+    avgOrderValue: 1749,
+    premiumProductsPurchased: 2
+  }
+  // ... more customers
+]
+*/
 ```
 
-### Working with Arrays
+### 📝 Content Management & Analytics
+
+**High-Performance Content Discovery:**
 
 ```javascript
-const blogPosts = [
-  { title: 'Post 1', tags: ['javascript', 'react'] },
-  { title: 'Post 2', tags: ['node', 'express'] }
-];
-
-// Unwind tags and group by tag
-const tagStats = Modash.aggregate(blogPosts, [
-  { $unwind: '$tags' },
-  { 
-    $group: {
-      _id: '$tags',
-      postCount: { $sum: 1 },
-      posts: { $push: '$title' }
+// Find top-performing blog posts with engagement scoring
+const topContent = Modash.aggregate(blogPosts, [
+  {
+    $lookup: {
+      from: authors,
+      localField: 'authorId',
+      foreignField: '_id',
+      as: 'author'
     }
   },
-  { $sort: { postCount: -1 } }
+  { $unwind: '$author' },
+  {
+    $addFields: {
+      engagementScore: { 
+        $add: [
+          { $multiply: ['$views', 0.1] },
+          { $multiply: ['$likes', 2] },
+          { $multiply: [{ $size: '$comments' }, 5] }
+        ]
+      },
+      commentsCount: { $size: '$comments' },
+      authorName: '$author.name'
+    }
+  },
+  {
+    $match: {
+      views: { $gte: 1000 }
+    }
+  },
+  { $sort: { engagementScore: -1 } },
+  {
+    $project: {
+      title: 1,
+      authorName: 1,
+      views: 1,
+      likes: 1,
+      commentsCount: 1,
+      engagementScore: { $round: ['$engagementScore', 2] },
+      tags: 1
+    }
+  },
+  { $limit: 10 }
 ]);
+
+/* Expected Output:
+[
+  {
+    title: "Advanced JavaScript Patterns",
+    authorName: "Mike Chen",
+    views: 2100,
+    likes: 156,
+    commentsCount: 2,
+    engagementScore: 532.0,
+    tags: ["javascript", "patterns", "advanced"]
+  }
+  // ... more posts
+]
+*/
+```
+
+### 👥 HR & People Analytics
+
+**Department Performance & Salary Analysis:**
+
+```javascript
+// Comprehensive HR analytics with performance metrics
+const hrAnalytics = Modash.aggregate(employees, [
+  {
+    $addFields: {
+      avgPerformance: { $avg: '$performance' },
+      yearsOfService: { 
+        $divide: [
+          { $subtract: [new Date(), '$startDate'] },
+          365.25 * 24 * 60 * 60 * 1000
+        ]
+      }
+    }
+  },
+  {
+    $group: {
+      _id: '$department',
+      employeeCount: { $sum: 1 },
+      avgSalary: { $avg: '$salary' },
+      minSalary: { $min: '$salary' },
+      maxSalary: { $max: '$salary' },
+      avgPerformance: { $avg: '$avgPerformance' },
+      totalPayroll: { $sum: '$salary' }
+    }
+  },
+  {
+    $addFields: {
+      salaryRange: { $subtract: ['$maxSalary', '$minSalary'] },
+      payrollPerEmployee: { $divide: ['$totalPayroll', '$employeeCount'] }
+    }
+  },
+  { $sort: { avgSalary: -1 } }
+]);
+
+/* Expected Output:
+[
+  {
+    _id: "engineering",
+    employeeCount: 2,
+    avgSalary: 102500,
+    minSalary: 95000,
+    maxSalary: 110000,
+    avgPerformance: 8.97,
+    totalPayroll: 205000,
+    salaryRange: 15000,
+    payrollPerEmployee: 102500
+  }
+  // ... more departments
+]
+*/
+```
+
+### 💰 Financial Transaction Analysis
+
+**Account Activity & Risk Assessment:**
+
+```javascript
+// Comprehensive financial transaction analysis
+const accountSummary = Modash.aggregate(transactions, [
+  {
+    $addFields: {
+      month: { $month: '$date' },
+      isDeposit: { $eq: ['$type', 'deposit'] },
+      absAmount: { $abs: '$amount' }
+    }
+  },
+  {
+    $group: {
+      _id: '$accountId',
+      totalTransactions: { $sum: 1 },
+      totalDeposits: { 
+        $sum: { $cond: ['$isDeposit', '$amount', 0] }
+      },
+      totalWithdrawals: { 
+        $sum: { $cond: ['$isDeposit', 0, { $abs: '$amount' }] }
+      },
+      netBalance: { $sum: '$amount' },
+      avgTransactionSize: { $avg: '$absAmount' },
+      largestTransaction: { $max: '$absAmount' },
+      categories: { $addToSet: '$category' }
+    }
+  },
+  {
+    $addFields: {
+      categoryCount: { $size: '$categories' },
+      isPositiveBalance: { $gt: ['$netBalance', 0] },
+      activityLevel: {
+        $switch: {
+          branches: [
+            { case: { $gte: ['$totalTransactions', 4] }, then: 'High' },
+            { case: { $gte: ['$totalTransactions', 2] }, then: 'Medium' }
+          ],
+          default: 'Low'
+        }
+      }
+    }
+  },
+  { $sort: { netBalance: -1 } }
+]);
+
+/* Expected Output:
+[
+  {
+    _id: "ACC001",
+    totalTransactions: 3,
+    totalDeposits: 5000,
+    totalWithdrawals: 1550,
+    netBalance: 3450,
+    avgTransactionSize: 2183.33,
+    largestTransaction: 5000,
+    categories: ["salary", "rent", "groceries"],
+    categoryCount: 3,
+    isPositiveBalance: true,
+    activityLevel: "Medium"
+  }
+  // ... more accounts
+]
+*/
+```
+
+### 🌡️ IoT Environmental Monitoring
+
+**Sensor Data Analysis with Alert System:**
+
+```javascript
+// Environmental monitoring with automated alerts  
+const environmentalAnalysis = Modash.aggregate(sensorReadings, [
+  {
+    $addFields: {
+      tempAlert: {
+        $or: [
+          { $lt: ['$temperature', 18] },
+          { $gt: ['$temperature', 26] }
+        ]
+      },
+      locationKey: {
+        $concat: [
+          '$location.building',
+          '-Floor',
+          { $toString: '$location.floor' },
+          '-',
+          '$location.room'
+        ]
+      }
+    }
+  },
+  {
+    $group: {
+      _id: '$locationKey',
+      deviceId: { $first: '$deviceId' },
+      avgTemperature: { $avg: '$temperature' },
+      avgHumidity: { $avg: '$humidity' },
+      tempAlertCount: { $sum: { $cond: ['$tempAlert', 1, 0] } },
+      totalReadings: { $sum: 1 },
+      location: { $first: '$location' }
+    }
+  },
+  {
+    $addFields: {
+      alertPercentage: { 
+        $multiply: [
+          { $divide: ['$tempAlertCount', '$totalReadings'] },
+          100
+        ]
+      },
+      status: {
+        $switch: {
+          branches: [
+            { case: { $gt: ['$alertPercentage', 50] }, then: 'Critical' },
+            { case: { $gt: ['$alertPercentage', 20] }, then: 'Warning' }
+          ],
+          default: 'Normal'
+        }
+      }
+    }
+  },
+  { $sort: { alertPercentage: -1 } }
+]);
+
+/* Expected Output:
+[
+  {
+    _id: "A-Floor1-101",
+    deviceId: "TEMP001",
+    avgTemperature: 23.3,
+    avgHumidity: 46.5,
+    tempAlertCount: 0,
+    totalReadings: 2,
+    alertPercentage: 0,
+    status: "Normal",
+    location: { building: "A", floor: 1, room: "101" }
+  }
+  // ... more locations
+]
+*/
+```
+
+### 📱 Social Media Trend Analysis
+
+**Viral Content & Hashtag Analytics:**
+
+```javascript
+// Advanced social media analytics with virality scoring
+const trendingContent = Modash.aggregate(socialPosts, [
+  {
+    $lookup: {
+      from: users,
+      localField: 'userId',
+      foreignField: '_id',
+      as: 'user'
+    }
+  },
+  { $unwind: '$user' },
+  { $unwind: '$hashtags' },
+  {
+    $group: {
+      _id: '$hashtags',
+      postCount: { $sum: 1 },
+      totalLikes: { $sum: '$likes' },
+      totalShares: { $sum: '$shares' },
+      avgEngagement: { 
+        $avg: { $add: ['$likes', { $multiply: ['$shares', 3] }] }
+      },
+      uniqueUsers: { $addToSet: '$user.username' }
+    }
+  },
+  {
+    $addFields: {
+      userCount: { $size: '$uniqueUsers' },
+      viralityScore: { 
+        $multiply: [
+          '$avgEngagement',
+          { $sqrt: '$userCount' },
+          { $log10: { $add: ['$postCount', 1] } }
+        ]
+      },
+      trendingLevel: {
+        $switch: {
+          branches: [
+            { case: { $gt: ['$viralityScore', 100] }, then: 'Viral' },
+            { case: { $gt: ['$viralityScore', 50] }, then: 'Trending' }
+          ],
+          default: 'Popular'
+        }
+      }
+    }
+  },
+  { $sort: { viralityScore: -1 } },
+  {
+    $project: {
+      hashtag: '$_id',
+      postCount: 1,
+      userCount: 1,
+      avgEngagement: { $round: ['$avgEngagement', 1] },
+      viralityScore: { $round: ['$viralityScore', 2] },
+      trendingLevel: 1
+    }
+  }
+]);
+
+/* Expected Output:
+[
+  {
+    hashtag: "typescript",
+    postCount: 1,
+    userCount: 1,
+    avgEngagement: 101.0,
+    viralityScore: 30.30,
+    trendingLevel: "Popular"
+  }
+  // ... more hashtags  
+]
+*/
 ```
 
 ## 🔧 API Reference
