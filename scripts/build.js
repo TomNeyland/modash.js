@@ -14,15 +14,34 @@ if (!existsSync(distDir)) {
   mkdirSync(distDir, { recursive: true });
 }
 
-// Simple bundling - just copy and create a single file
-const indexPath = resolve(rootDir, 'src/modash/index.js');
-const indexContent = readFileSync(indexPath, 'utf8');
+// For now, create a simple shim that re-exports from the source
+const shimContent = `// Modash.js - Modern MongoDB-inspired aggregation library
+// Distribution build - re-exports from source
 
-// Create a simple bundle (for now just the main file)
-const bundleContent = `// Modash.js - Modern MongoDB-inspired aggregation library
-// This is a simple build for compatibility
-${indexContent}`;
+export { 
+  default,
+  aggregate,
+  count,
+  $expression,
+  $group,
+  $project,
+  $match,
+  $limit,
+  $skip,
+  $sort,
+  $unwind,
+  $lookup,
+  $addFields,
+  $set,
+} from '../src/modash/index.js';
+`;
 
-writeFileSync(resolve(distDir, 'modash.js'), bundleContent);
+writeFileSync(resolve(distDir, 'modash.js'), shimContent);
+writeFileSync(resolve(distDir, 'index.js'), shimContent);
 
-console.log('Build complete! Generated dist/modash.js');
+console.log('Build complete! Generated dist/modash.js and dist/index.js');
+
+writeFileSync(resolve(distDir, 'modash.js'), shimContent);
+writeFileSync(resolve(distDir, 'index.js'), shimContent);
+
+console.log('Build complete! Generated dist/modash.js and dist/index.js');

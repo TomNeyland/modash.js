@@ -33,6 +33,9 @@ function $project(collection, specifications) {
  * unmodified into the next pipeline stage.
  */
 function $match(collection, query) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   return collection.filter(item => matchDocument(item, query));
 }
 
@@ -141,6 +144,9 @@ function matchDocument(doc, query) {
  * Limits the number of documents passed to the next stage in the pipeline.
  */
 function $limit(collection, count) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   return collection.slice(0, count);
 }
 
@@ -149,6 +155,9 @@ function $limit(collection, count) {
  * the remaining documents unmodified to the pipeline
  */
 function $skip(collection, count) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   return drop(collection, count);
 }
 
@@ -156,6 +165,9 @@ function $skip(collection, count) {
  * Reorders the document stream by a specified sort key.
  */
 function $sort(collection, sortSpec) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   const sortKeys = Object.keys(sortSpec);
 
   return [...collection].sort((a, b) => {
@@ -191,6 +203,9 @@ function $sort(collection, sortSpec) {
  * for each element. Each output document replaces the array with an element value.
  */
 function $unwind(collection, fieldPath) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
 
@@ -238,6 +253,9 @@ function $group(collection, specifications = {}) {
  * to filter in documents from the "joined" collection for processing.
  */
 function $lookup(collection, { from, localField, foreignField, as }) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   if (!from || !Array.isArray(from)) {
     throw new Error(
       '$lookup: "from" must be an array (the foreign collection)'
@@ -265,6 +283,9 @@ function $lookup(collection, { from, localField, foreignField, as }) {
  * contain all existing fields from the input documents and newly added fields.
  */
 function $addFields(collection, fieldSpecs) {
+  if (!Array.isArray(collection)) {
+    return [];
+  }
   return collection.map(doc => {
     const newFields = {};
     for (const [fieldName, expression] of Object.entries(fieldSpecs)) {

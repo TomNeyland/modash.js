@@ -142,9 +142,9 @@ jobs:
               const iterations = 1000;
               
               for (let i = 0; i < iterations; i++) {
-                Modash.default.aggregate(testData.default.orders, [
-                  { \$match: { price: { \$gt: 100 } } },
-                  { \$group: { _id: '\$customerId', total: { \$sum: '\$price' } } },
+                Modash.default.aggregate(testData.default.sales, [
+                  { \$match: { price: { \$gt: 10 } } },
+                  { \$group: { _id: '\$item', total: { \$sum: '\$price' } } },
                   { \$sort: { total: -1 } }
                 ]);
               }
