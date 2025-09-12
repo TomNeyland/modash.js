@@ -1,4 +1,4 @@
-import { aggregate, $project, $group, $match, $limit, $skip, $sort, $unwind } from './aggregation.js';
+import { aggregate, $project, $group, $match, $limit, $skip, $sort, $unwind, $lookup, $addFields, $set } from './aggregation.js';
 import { count } from './count.js';
 import { $expression } from './expressions.js';
 
@@ -18,7 +18,10 @@ const Modash = {
     $limit, 
     $skip,
     $sort,
-    $unwind
+    $unwind,
+    $lookup,
+    $addFields,
+    $set
 };
 
 export default Modash;
@@ -32,5 +35,8 @@ export {
     $limit, 
     $skip, 
     $sort, 
-    $unwind 
+    $unwind,
+    $lookup,
+    $addFields,
+    $set
 };
