@@ -1,6 +1,6 @@
 {
   "name": "modash",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Modern MongoDB-inspired aggregation library for JavaScript",
   "type": "module",
   "repository": {
@@ -8,8 +8,12 @@
     "url": "https://github.com/TomNeyland/modash.js"
   },
   "main": "src/modash/index.js",
+  "types": "src/index.d.ts",
   "exports": {
-    ".": "./src/modash/index.js"
+    ".": {
+      "import": "./src/modash/index.js",
+      "types": "./src/index.d.ts"
+    }
   },
   "author": "Tom Neyland",
   "license": "MIT",
@@ -25,14 +29,17 @@
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint src/ tests/ --fix",
     "build": "node scripts/build.js",
-    "docs": "jsdoc -c jsdoc.conf.json"
+    "docs": "jsdoc -c jsdoc.conf.json",
+    "type-check": "tsc --noEmit --allowJs --checkJs src/modash/*.js"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
     "chai": "^5.1.2",
     "eslint": "^9.15.0",
     "jsdoc": "^4.0.4",
-    "mocha": "^10.8.2"
+    "mocha": "^10.8.2",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "lodash-es": "^4.17.21"
