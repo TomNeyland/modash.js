@@ -37,11 +37,22 @@ function $sum(collection, spec) {
     if (spec === 1) {
         return size(collection);
     }
-    return sum(collection, (obj) => $expression(obj, spec));
+    
+    // Calculate sum manually to handle expressions properly
+    let total = 0;
+    for (const obj of collection) {
+        const value = $expression(obj, spec);
+        if (typeof value === 'number' && !isNaN(value)) {
+            total += value;
+        }
+    }
+    return total;
 }
 
 function $avg(collection, spec) {
-    return $sum(collection, spec) / size(collection);
+    const totalSum = $sum(collection, spec);
+    const count = size(collection);
+    return count > 0 ? totalSum / count : 0;
 }
 
 function $first(collection, spec) {
@@ -53,11 +64,25 @@ function $last(collection, spec) {
 }
 
 function $max(collection, spec) {
-    return max(collection, (obj) => $expression(obj, spec));
+    let maxValue = -Infinity;
+    for (const obj of collection) {
+        const value = $expression(obj, spec);
+        if (typeof value === 'number' && value > maxValue) {
+            maxValue = value;
+        }
+    }
+    return maxValue === -Infinity ? undefined : maxValue;
 }
 
 function $min(collection, spec) {
-    return min(collection, (obj) => $expression(obj, spec));
+    let minValue = Infinity;
+    for (const obj of collection) {
+        const value = $expression(obj, spec);
+        if (typeof value === 'number' && value < minValue) {
+            minValue = value;
+        }
+    }
+    return minValue === Infinity ? undefined : minValue;
 }
 
 function $push(collection, spec) {
