@@ -1,11 +1,7 @@
 import {
-    sum, min, max, size, keys, map, first, last, unique
-}
-from 'lodash';
-import {
-    $expression
-}
-from './expressions';
+    sum, min, max, size, keys, map, first, last, uniq
+} from 'lodash-es';
+import { $expression } from './expressions.js';
 
 const ACCUMULATORS = {
     $accumulate,
@@ -23,31 +19,24 @@ function isAccumulatorExpression(expression) {
     return size(expression) === 1 && (keys(expression)[0] in ACCUMULATORS);
 }
 
-
-/*
-
-Accumulators
-
+/**
+ * Accumulators for aggregation operations
  */
 
 function $accumulate(collection, operatorExpression) {
     if (isAccumulatorExpression(operatorExpression)) {
-        var operator = keys(operatorExpression)[0],
-            args = operatorExpression[operator],
-            accumulatorFunction = ACCUMULATORS[operator];
+        const operator = keys(operatorExpression)[0];
+        const args = operatorExpression[operator];
+        const accumulatorFunction = ACCUMULATORS[operator];
 
-        var result = accumulatorFunction(collection, args);
-        return result;
+        return accumulatorFunction(collection, args);
     }
-
 }
 
 function $sum(collection, spec) {
-
     if (spec === 1) {
         return size(collection);
     }
-
     return sum(collection, (obj) => $expression(obj, spec));
 }
 
@@ -76,12 +65,10 @@ function $push(collection, spec) {
 }
 
 function $addToSet(collection, spec) {
-    /*eslint-disable */
-    console.debug('Please find a more efficient way to do $addToSet');
-    /*eslint-enable */
-    return unique($push(collection, spec), (obj) => JSON.stringify(obj));
+    const values = $push(collection, spec);
+    return uniq(values, (obj) => JSON.stringify(obj));
 }
 
-
+export { $accumulate };
 export default ACCUMULATORS;
 

@@ -7,11 +7,9 @@ import {
     merge,
     size,
     keys
-}
-from 'lodash';
+} from 'lodash-es';
 
-import EXPRESSION_OPERATORS from './operators';
-
+import EXPRESSION_OPERATORS from './operators.js';
 
 function isFieldPath(expression) {
     return (typeof expression === 'string') && expression.indexOf('$') === 0 && expression.indexOf('$$') === -1;
@@ -29,10 +27,8 @@ function isExpressionOperator(expression) {
     return size(expression) === 1 && (keys(expression)[0] in EXPRESSION_OPERATORS);
 }
 
-
 function $expression(obj, expression, root) {
-
-    var result;
+    let result;
 
     if (root === undefined) {
         root = obj;
@@ -51,112 +47,81 @@ function $expression(obj, expression, root) {
     }
 
     return result;
-
 }
 
 function $fieldPath(obj, path) {
     // slice the $ and use the regular get
-    // this will need additional tweaks later
     path = path.slice(1);
-
     return get(obj, path);
 }
 
-
 function $expressionOperator(obj, operatorExpression, root) {
-
-    var operator = keys(operatorExpression)[0],
-        args = operatorExpression[operator],
-        operatorFunction = EXPRESSION_OPERATORS[operator],
-        result;
+    const operator = keys(operatorExpression)[0];
+    let args = operatorExpression[operator];
+    const operatorFunction = EXPRESSION_OPERATORS[operator];
 
     if (!isArray(args)) {
         args = [args];
     }
 
-    args = args.map(function(argExpression) {
-        return function() {
-            return $expression(obj, argExpression, root);
-        };
-    });
+    args = args.map(argExpression => () => $expression(obj, argExpression, root));
 
-    result = operatorFunction(...args);
+    const result = operatorFunction(...args);
     return result;
 }
 
-
 function $expressionObject(obj, specifications, root) {
-
-    var result = {};
+    const result = {};
 
     if (root === undefined) {
         root = obj;
     }
 
-    for (let path in specifications) {
-
-        let target = root,
-            expression = specifications[path];
+    for (const path in specifications) {
+        let target = root;
+        let expression = specifications[path];
 
         if (path.indexOf('.') !== -1) {
-
-            var pathParts = path.split('.');
-            let headPath = pathParts.shift();
-            let head = get(obj, headPath);
+            const pathParts = path.split('.');
+            const headPath = pathParts.shift();
+            const head = get(obj, headPath);
 
             if (isArray(head)) {
-                /*eslint-disable */
-                // refactor this part soon...
-                set(result, headPath, head.map(function(subtarget) {
-                    return $expression(subtarget, {
-                        [pathParts.join('.')]: expression
-                    }, root);
-                }));
-                /*eslint-enable */
+                set(result, headPath, head.map(subtarget => 
+                    $expression(subtarget, { [pathParts.join('.')]: expression }, root)
+                ));
             } else {
-                merge(result, set({}, headPath, $expression(head, {
-                    [pathParts.join('.')]: expression
-                }, root)));
+                merge(result, set({}, headPath, 
+                    $expression(head, { [pathParts.join('.')]: expression }, root)
+                ));
             }
-
         } else {
-
             if (expression === true || expression === 1) {
                 // Simple passthrough of obj's path/field values
                 target = obj;
                 expression = '$' + path;
             } else if (expression === false || expression === 0) {
-                // we can go ahead and skip this all together
+                // Skip this field
                 continue;
             } else if (typeof expression === 'string') {
-                // Assume a pathspec for now, meaning we use root as the target
+                // Assume a pathspec, use root as the target
                 target = root;
             } else if (typeof expression === 'object') {
                 target = get(obj, path);
             }
+
             if (isArray(target)) {
-                /*eslint-disable */
-                // refactor this part soon...
-                merge(result, set({}, path, target.map(function(subtarget) {
-                    return $expression(subtarget, expression, root);
-                })));
-                /*eslint-enable */
-
+                merge(result, set({}, path, target.map(subtarget => 
+                    $expression(subtarget, expression, root)
+                )));
             } else {
-
                 merge(result, set({}, path, $expression(target, expression, root)));
-
             }
         }
-
-
-
     }
 
     return result;
-
 }
-
 
 function $systemVariable(obj, variableName, root) {
     switch (variableName) {
@@ -164,14 +129,24 @@ function $systemVariable(obj, variableName, root) {
             return root;
         case '$$CURRENT':
             return obj;
+        default:
+            throw new Error('Unsupported system variable');
     }
-
-    throw Error('Unsupported system variable');
 }
 
 function $literal() {
-
+    // TODO: Implement literal expressions
 }
+
+export {
+    $expression,
+    $fieldPath,
+    $systemVariable,
+    $literal,
+    $expressionObject,
+    isExpressionOperator,
+    isExpressionObject
+};
 
 export default {
     $expression,

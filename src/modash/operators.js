@@ -1,7 +1,6 @@
 import {
     every,
     some,
-    partial,
     isArray,
     isEqual,
     intersection,
@@ -11,28 +10,21 @@ import {
     gte,
     lt,
     lte,
-    unique,
+    uniq,
     isDate,
     size,
     isFunction
-}
-from 'lodash';
+} from 'lodash-es';
 
-/*
-    Helpers
+/**
+ * Modern MongoDB Expression Operators for JavaScript
  */
 
 function evaluate(val) {
     return isFunction(val) ? val() : val;
 }
 
-
-/*
-
-Boolean Operators
-
-*/
-
+// Boolean Operators
 function $and(...values) {
     return every(values.map(evaluate));
 }
@@ -45,23 +37,15 @@ function $not(...values) {
     return !some(values, evaluate);
 }
 
-
-/*
-
-Set Operators
-
-*/
-
+// Set Operators
 function $asSet(array) {
-    return unique(array.map(evaluate)).sort($cmp);
+    return uniq(array.map(evaluate)).sort();
 }
 
 function $setEquals(...arrays) {
-
-    var sets = arrays.map(evaluate).map($asSet),
-        firstSet = sets.shift();
-
-    return every(sets, partial(isEqual, firstSet));
+    const sets = arrays.map(evaluate).map($asSet);
+    const firstSet = sets[0];
+    return every(sets, set => isEqual(firstSet, set));
 }
 
 function $setIntersection(...arrays) {
@@ -83,34 +67,22 @@ function $setIsSubset(subset, superset) {
 }
 
 function $anyElementTrue(values) {
-
     values = evaluate(values);
-
     if (!isArray(values)) {
-        throw Error(`values must be an array, got ${typeof values}`);
+        throw new Error(`values must be an array, got ${typeof values}`);
     }
-
     return $or(...values);
 }
 
 function $allElementsTrue(values) {
-
     values = evaluate(values);
-
     if (!isArray(values)) {
-        throw Error(`values must be an array, got ${typeof values}`);
+        throw new Error(`values must be an array, got ${typeof values}`);
     }
-
     return $and(...values);
 }
 
-
-/*
-
-Comparison Operators
-
-*/
-
+// Comparison Operators
 function $cmp(value1, value2) {
     value1 = evaluate(value1);
     value2 = evaluate(value2);
@@ -119,31 +91,21 @@ function $cmp(value1, value2) {
         return 0;
     }
 
-    if ($lt(value1, value2)) {
-        return -1;
-    } else if ($gt(value1, value2)) {
-        return 1;
-    }
+    if (value1 < value2) return -1;
+    if (value1 > value2) return 1;
     return 0;
 }
 
 function $eq(value1, value2) {
-    value1 = evaluate(value1);
-    value2 = evaluate(value2);
-
-    return isEqual(value1, value2);
+    return isEqual(evaluate(value1), evaluate(value2));
 }
 
 function $gt(value1, value2) {
     value1 = evaluate(value1);
     value2 = evaluate(value2);
 
-    if (isArray(value2) && !isArray(value1)) {
-        return false;
-    } else if (isArray(value1) && !isArray(value2)) {
-        return true;
-    }
-
+    if (isArray(value2) && !isArray(value1)) return false;
+    if (isArray(value1) && !isArray(value2)) return true;
     return gt(value1, value2);
 }
 
@@ -151,12 +113,8 @@ function $gte(value1, value2) {
     value1 = evaluate(value1);
     value2 = evaluate(value2);
 
-    if (isArray(value2) && !isArray(value1)) {
-        return false;
-    } else if (isArray(value1) && !isArray(value2)) {
-        return true;
-    }
-
+    if (isArray(value2) && !isArray(value1)) return false;
+    if (isArray(value1) && !isArray(value2)) return true;
     return gte(value1, value2);
 }
 
@@ -164,49 +122,29 @@ function $lt(value1, value2) {
     value1 = evaluate(value1);
     value2 = evaluate(value2);
 
-    if (isArray(value2) && !isArray(value1)) {
-        return true;
-    } else if (isArray(value1) && !isArray(value2)) {
-        return false;
-    }
-
+    if (isArray(value2) && !isArray(value1)) return true;
+    if (isArray(value1) && !isArray(value2)) return false;
     return lt(value1, value2);
-
 }
 
 function $lte(value1, value2) {
     value1 = evaluate(value1);
     value2 = evaluate(value2);
 
-    if (isArray(value2) && !isArray(value1)) {
-        return true;
-    } else if (isArray(value1) && !isArray(value2)) {
-        return false;
-    }
-
+    if (isArray(value2) && !isArray(value1)) return true;
+    if (isArray(value1) && !isArray(value2)) return false;
     return lte(value1, value2);
-
 }
 
 function $ne(value1, value2) {
-    value1 = evaluate(value1);
-    value2 = evaluate(value2);
-
     return !$eq(value1, value2);
 }
 
-
-/*
-
-Arithmetic Operators
-
-*/
-
+// Arithmetic Operators
 function $add(...values) {
     values = values.map(evaluate);
-
-    var result = values.shift(),
-        resultAsDate = false;
+    let result = values.shift();
+    let resultAsDate = false;
 
     if (isDate(result)) {
         resultAsDate = true;
@@ -240,119 +178,50 @@ function $subtract(value1, value2) {
     }
 }
 
-function $multiply(value1, value2) {
-    value1 = evaluate(value1);
-    value2 = evaluate(value2);
-
-    return value1 * value2;
+function $multiply(...values) {
+    return values.map(evaluate).reduce((product, n) => product * n, 1);
 }
 
 function $divide(value1, value2) {
-    value1 = evaluate(value1);
-    value2 = evaluate(value2);
-
-    return value1 / value2;
+    return evaluate(value1) / evaluate(value2);
 }
 
 function $mod(value1, value2) {
-    value1 = evaluate(value1);
-    value2 = evaluate(value2);
-
-    return value1 % value2;
+    return evaluate(value1) % evaluate(value2);
 }
 
-
-/*
-
-String Operators
-
-*/
-
+// String Operators
 function $concat(...expressions) {
-    expressions = expressions.map(evaluate);
-    return expressions.join('');
+    return expressions.map(evaluate).join('');
 }
 
 function $substr(string, start, len) {
     string = evaluate(string);
     start = evaluate(start);
     len = evaluate(len);
-
     return string.slice(start, start + len);
 }
 
 function $toLower(string) {
-    string = evaluate(string);
-    return string.toLowerCase();
+    return evaluate(string).toLowerCase();
 }
 
 function $toUpper(string) {
-    string = evaluate(string);
-    return string.toUpperCase();
+    return evaluate(string).toUpperCase();
 }
 
-function $strcasecmp(string1, string2) {
-    string1 = evaluate(string1);
-    string2 = evaluate(string2);
-    string1 = string1.toLowerCase();
-    string2 = string2.toLowerCase();
-
-    if (string1 === string2) {
-        return 0;
-    } else if (string1 > string2) {
-        return 1;
-    } else if (string1 < string2) {
-        return -1;
-    } else {
-        throw new Error('Error comparing values: ' + string1 + ' and ' + string2);
-    }
-
-}
-
-
-/*
-
-Text Search Operators
-
-*/
-
-/*eslint-disable */
-function $meta(metaDataKeyword) {
-    throw new Error('Not Implemented');
-}
-/*eslint-enable */
-
-/*
-
-Array Operators
-
-*/
-
+// Array Operators
 function $size(collection) {
     return size(evaluate(collection));
 }
 
-
-/*
-
-Literal Operators
-
-*/
-
-
-/*
-
-Date Operators
-
- */
-
+// Date Operators
 function $dayOfYear(date) {
     date = evaluate(date);
-    var start = new Date(date.getFullYear(), 0, 0);
-    var diff = date - start;
-    var oneDay = 1000 * 60 * 60 * 24;
-    var day = Math.floor(diff / oneDay);
-    return day;
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
 }
 
 function $dayOfMonth(date) {
@@ -375,91 +244,49 @@ function $month(date) {
     return date ? date.getMonth() + 1 : null;
 }
 
-
-// https://gist.github.com/dblock/1081513
 function $week(date) {
     date = evaluate(date);
-
-    // Create a copy of this date object
-    var target = new Date(date.valueOf());
-
-    // ISO week date weeks start on monday
-    // so correct the day number
-    var dayNr = (date.getDay() + 6) % 7;
-
-    // Set the target to the thursday of this week so the
-    // target date is in the right year
+    const target = new Date(date.valueOf());
+    const dayNr = (date.getDay() + 6) % 7;
     target.setDate(target.getDate() - dayNr + 3);
-
-    // ISO 8601 states that week 1 is the week
-    // with january 4th in it
-    var jan4 = new Date(target.getFullYear(), 0, 4);
-
-    // Number of days between target date and january 4th
-    var dayDiff = (target - jan4) / 86400000;
-
-    // Calculate week number: Week 1 (january 4th) plus the
-    // number of weeks between target date and january 4th
-    var weekNr = 1 + Math.ceil(dayDiff / 7);
-
-    return weekNr;
-
+    const jan4 = new Date(target.getFullYear(), 0, 4);
+    const dayDiff = (target - jan4) / 86400000;
+    return 1 + Math.ceil(dayDiff / 7);
 }
 
 function $hour(date) {
-    date = evaluate(date);
-    return date.getHours();
+    return evaluate(date).getHours();
 }
 
 function $minute(date) {
-    date = evaluate(date);
-    return date.getMinutes();
+    return evaluate(date).getMinutes();
 }
 
 function $second(date) {
-    date = evaluate(date);
-    return date.getSeconds();
+    return evaluate(date).getSeconds();
 }
 
 function $millisecond(date) {
-    date = evaluate(date);
-    return date.getMilliseconds();
+    return evaluate(date).getMilliseconds();
 }
 
-function $dateToString(date) {
-    date = evaluate(date);
-    return date.toString();
-}
-
-/*
-
-Conditional Aggregation Operators
-
- */
-
+// Conditional Operators
 function $cond(isTrue, thenValue, elseValue) {
     return evaluate(isTrue) ? evaluate(thenValue) : evaluate(elseValue);
 }
 
 function $ifNull(value, defaultValue) {
-    // cant shortcut properly...
-    value = evaluate(value);
-    return value !== null ? value : evaluate(defaultValue);
+    const val = evaluate(value);
+    return val !== null ? val : evaluate(defaultValue);
 }
 
-/*
-
-Conditional Aggregation Operators
-
- */
-
-
-export default {
-    // Boolean Operators
+const EXPRESSION_OPERATORS = {
+    // Boolean
     $and,
     $or,
     $not,
-    // Set Operators
+    
+    // Set
     $setEquals,
     $setIntersection,
     $setUnion,
@@ -467,7 +294,8 @@ export default {
     $setIsSubset,
     $anyElementTrue,
     $allElementsTrue,
-    // Comparison Operators
+    
+    // Comparison
     $cmp,
     $eq,
     $gt,
@@ -475,23 +303,24 @@ export default {
     $lt,
     $lte,
     $ne,
-    // Arithmetic Operators
+    
+    // Arithmetic
     $add,
     $subtract,
-    $divide,
     $multiply,
+    $divide,
     $mod,
-    // String Operators
+    
+    // String
     $concat,
     $substr,
     $toLower,
     $toUpper,
-    $strcasecmp,
-    // Text Search Operators
-    $meta,
-    // Array Operators
+    
+    // Array
     $size,
-    // Date Operators
+    
+    // Date
     $dayOfYear,
     $dayOfMonth,
     $dayOfWeek,
@@ -502,8 +331,10 @@ export default {
     $minute,
     $second,
     $millisecond,
-    $dateToString,
-    // Conditional Operators
+    
+    // Conditional
     $cond,
     $ifNull
 };
+
+export default EXPRESSION_OPERATORS;
