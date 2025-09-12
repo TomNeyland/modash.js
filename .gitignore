@@ -15,3 +15,29 @@ app/bower_components/
 bower_components/
 dist/
 build/
+
+# Quality tool outputs
+coverage/
+.nyc_output/
+*.lcov
+.c8_output/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*
+.editorconfig.local
+
+# Log files
+*.log
+logs/
+
+# Test artifacts
+test-results.*
+eslint-results.*
+typescript-results.*
+prettier-results.*
+
+# Temporary files
+tmp/
+temp/

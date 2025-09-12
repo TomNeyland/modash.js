@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.nyc_output
+docs
+*.min.js
+*.bundle.js
+CHANGELOG.md
+LICENSE

@@ -5,7 +5,11 @@
 
 // Basic value types that can appear in documents
 export type PrimitiveValue = string | number | boolean | Date | null;
-export type DocumentValue = PrimitiveValue | Document | PrimitiveValue[] | Document[];
+export type DocumentValue =
+  | PrimitiveValue
+  | Document
+  | PrimitiveValue[]
+  | Document[];
 
 // MongoDB document type
 export interface Document {
@@ -49,7 +53,7 @@ export type QueryExpression = {
 };
 
 // Expression type - used in $project, $addFields, etc.
-export type Expression = 
+export type Expression =
   | DocumentValue
   | FieldPath
   | SystemVariable
@@ -85,7 +89,10 @@ export interface ArrayExpression {
   $slice?: [Expression, Expression] | [Expression, Expression, Expression];
   $concatArrays?: Expression[];
   $in?: [Expression, Expression];
-  $indexOfArray?: [Expression, Expression] | [Expression, Expression, Expression] | [Expression, Expression, Expression, Expression];
+  $indexOfArray?:
+    | [Expression, Expression]
+    | [Expression, Expression, Expression]
+    | [Expression, Expression, Expression, Expression];
   $reverseArray?: Expression;
   $filter?: {
     input: Expression;
@@ -132,11 +139,13 @@ export interface BooleanExpression {
 
 // Conditional expressions
 export interface ConditionalExpression {
-  $cond?: [Expression, Expression, Expression] | {
-    if: Expression;
-    then: Expression;
-    else: Expression;
-  };
+  $cond?:
+    | [Expression, Expression, Expression]
+    | {
+        if: Expression;
+        then: Expression;
+        else: Expression;
+      };
   $ifNull?: [Expression, Expression];
 }
 
@@ -199,11 +208,13 @@ export interface SkipStage {
 }
 
 export interface UnwindStage {
-  $unwind: string | {
-    path: string;
-    includeArrayIndex?: string;
-    preserveNullAndEmptyArrays?: boolean;
-  };
+  $unwind:
+    | string
+    | {
+        path: string;
+        includeArrayIndex?: string;
+        preserveNullAndEmptyArrays?: boolean;
+      };
 }
 
 export interface LookupStage {
@@ -228,7 +239,7 @@ export interface SetStage {
 }
 
 // Union of all pipeline stages
-export type PipelineStage = 
+export type PipelineStage =
   | MatchStage
   | ProjectStage
   | GroupStage
@@ -251,7 +262,10 @@ export interface ModashStatic {
    * @param pipeline - Array of pipeline stages
    * @returns Processed array of documents
    */
-  aggregate<T extends Document = Document>(collection: Collection<T>, pipeline: Pipeline): Collection<T>;
+  aggregate<T extends Document = Document>(
+    collection: Collection<T>,
+    pipeline: Pipeline
+  ): Collection<T>;
 
   /**
    * Returns the count of documents in the collection.
@@ -269,32 +283,100 @@ export interface ModashStatic {
   $expression(obj: Document, expression: Expression): DocumentValue;
 
   // Stage operators (can be used standalone)
-  $group<T extends Document = Document>(collection: Collection<T>, specifications: GroupStage['$group']): Collection<T>;
-  $project<T extends Document = Document>(collection: Collection<T>, specifications: ProjectStage['$project']): Collection<T>;
-  $match<T extends Document = Document>(collection: Collection<T>, query: QueryExpression): Collection<T>;
-  $limit<T extends Document = Document>(collection: Collection<T>, count: number): Collection<T>;
-  $skip<T extends Document = Document>(collection: Collection<T>, count: number): Collection<T>;
-  $sort<T extends Document = Document>(collection: Collection<T>, sortSpec: SortStage['$sort']): Collection<T>;
-  $unwind<T extends Document = Document>(collection: Collection<T>, fieldPath: string): Collection<T>;
-  $lookup<T extends Document = Document>(collection: Collection<T>, lookupSpec: LookupStage['$lookup']): Collection<T>;
-  $addFields<T extends Document = Document>(collection: Collection<T>, fieldSpecs: AddFieldsStage['$addFields']): Collection<T>;
-  $set<T extends Document = Document>(collection: Collection<T>, fieldSpecs: SetStage['$set']): Collection<T>;
+  $group<T extends Document = Document>(
+    collection: Collection<T>,
+    specifications: GroupStage['$group']
+  ): Collection<T>;
+  $project<T extends Document = Document>(
+    collection: Collection<T>,
+    specifications: ProjectStage['$project']
+  ): Collection<T>;
+  $match<T extends Document = Document>(
+    collection: Collection<T>,
+    query: QueryExpression
+  ): Collection<T>;
+  $limit<T extends Document = Document>(
+    collection: Collection<T>,
+    count: number
+  ): Collection<T>;
+  $skip<T extends Document = Document>(
+    collection: Collection<T>,
+    count: number
+  ): Collection<T>;
+  $sort<T extends Document = Document>(
+    collection: Collection<T>,
+    sortSpec: SortStage['$sort']
+  ): Collection<T>;
+  $unwind<T extends Document = Document>(
+    collection: Collection<T>,
+    fieldPath: string
+  ): Collection<T>;
+  $lookup<T extends Document = Document>(
+    collection: Collection<T>,
+    lookupSpec: LookupStage['$lookup']
+  ): Collection<T>;
+  $addFields<T extends Document = Document>(
+    collection: Collection<T>,
+    fieldSpecs: AddFieldsStage['$addFields']
+  ): Collection<T>;
+  $set<T extends Document = Document>(
+    collection: Collection<T>,
+    fieldSpecs: SetStage['$set']
+  ): Collection<T>;
 }
 
 // Individual function exports
-export function aggregate<T extends Document = Document>(collection: Collection<T>, pipeline: Pipeline): Collection<T>;
-export function count<T extends Document = Document>(collection: Collection<T>): number;
-export function $expression(obj: Document, expression: Expression): DocumentValue;
-export function $group<T extends Document = Document>(collection: Collection<T>, specifications: GroupStage['$group']): Collection<T>;
-export function $project<T extends Document = Document>(collection: Collection<T>, specifications: ProjectStage['$project']): Collection<T>;
-export function $match<T extends Document = Document>(collection: Collection<T>, query: QueryExpression): Collection<T>;
-export function $limit<T extends Document = Document>(collection: Collection<T>, count: number): Collection<T>;
-export function $skip<T extends Document = Document>(collection: Collection<T>, count: number): Collection<T>;
-export function $sort<T extends Document = Document>(collection: Collection<T>, sortSpec: SortStage['$sort']): Collection<T>;
-export function $unwind<T extends Document = Document>(collection: Collection<T>, fieldPath: string): Collection<T>;
-export function $lookup<T extends Document = Document>(collection: Collection<T>, lookupSpec: LookupStage['$lookup']): Collection<T>;
-export function $addFields<T extends Document = Document>(collection: Collection<T>, fieldSpecs: AddFieldsStage['$addFields']): Collection<T>;
-export function $set<T extends Document = Document>(collection: Collection<T>, fieldSpecs: SetStage['$set']): Collection<T>;
+export function aggregate<T extends Document = Document>(
+  collection: Collection<T>,
+  pipeline: Pipeline
+): Collection<T>;
+export function count<T extends Document = Document>(
+  collection: Collection<T>
+): number;
+export function $expression(
+  obj: Document,
+  expression: Expression
+): DocumentValue;
+export function $group<T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: GroupStage['$group']
+): Collection<T>;
+export function $project<T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: ProjectStage['$project']
+): Collection<T>;
+export function $match<T extends Document = Document>(
+  collection: Collection<T>,
+  query: QueryExpression
+): Collection<T>;
+export function $limit<T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T>;
+export function $skip<T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T>;
+export function $sort<T extends Document = Document>(
+  collection: Collection<T>,
+  sortSpec: SortStage['$sort']
+): Collection<T>;
+export function $unwind<T extends Document = Document>(
+  collection: Collection<T>,
+  fieldPath: string
+): Collection<T>;
+export function $lookup<T extends Document = Document>(
+  collection: Collection<T>,
+  lookupSpec: LookupStage['$lookup']
+): Collection<T>;
+export function $addFields<T extends Document = Document>(
+  collection: Collection<T>,
+  fieldSpecs: AddFieldsStage['$addFields']
+): Collection<T>;
+export function $set<T extends Document = Document>(
+  collection: Collection<T>,
+  fieldSpecs: SetStage['$set']
+): Collection<T>;
 
 // Default export
 declare const Modash: ModashStatic;

@@ -34,7 +34,7 @@ import Modash from 'modash';
 const sales = [
   { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
   { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
-  { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') }
+  { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
 ];
 
 // Calculate total revenue by date
@@ -42,16 +42,16 @@ const revenueByDate = Modash.aggregate(sales, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
-      revenue: { $multiply: ['$price', '$quantity'] }
-    }
+      revenue: { $multiply: ['$price', '$quantity'] },
+    },
   },
   {
     $group: {
       _id: '$date',
       totalRevenue: { $sum: '$revenue' },
-      itemCount: { $sum: 1 }
-    }
-  }
+      itemCount: { $sum: 1 },
+    },
+  },
 ]);
 
 console.log(revenueByDate);
@@ -73,18 +73,18 @@ const productAnalysis = Modash.aggregate(orders, [
   {
     $lookup: {
       from: products,
-      localField: 'productId', 
+      localField: 'productId',
       foreignField: '_id',
-      as: 'product'
-    }
+      as: 'product',
+    },
   },
   { $unwind: '$product' },
   {
     $addFields: {
       revenue: { $multiply: ['$quantity', '$product.price'] },
       lowStock: { $lt: ['$product.stock', 10] },
-      isPremium: { $in: ['premium', '$product.tags'] }
-    }
+      isPremium: { $in: ['premium', '$product.tags'] },
+    },
   },
   {
     $group: {
@@ -93,11 +93,11 @@ const productAnalysis = Modash.aggregate(orders, [
       totalQuantitySold: { $sum: '$quantity' },
       avgRating: { $avg: { $avg: '$product.ratings' } },
       lowStockAlert: { $first: '$lowStock' },
-      category: { $first: '$product.category' }
-    }
+      category: { $first: '$product.category' },
+    },
   },
   { $sort: { totalRevenue: -1 } },
-  { $limit: 5 }
+  { $limit: 5 },
 ]);
 
 /* Expected Output:
@@ -124,17 +124,17 @@ const customerInsights = Modash.aggregate(orders, [
     $lookup: {
       from: customers,
       localField: 'customerId',
-      foreignField: '_id', 
-      as: 'customer'
-    }
+      foreignField: '_id',
+      as: 'customer',
+    },
   },
   {
     $lookup: {
       from: products,
       localField: 'productId',
       foreignField: '_id',
-      as: 'product'
-    }
+      as: 'product',
+    },
   },
   { $unwind: '$customer' },
   { $unwind: '$product' },
@@ -142,8 +142,8 @@ const customerInsights = Modash.aggregate(orders, [
     $addFields: {
       orderValue: { $multiply: ['$quantity', '$product.price'] },
       customerTier: '$customer.tier',
-      isPremiumProduct: { $in: ['premium', '$product.tags'] }
-    }
+      isPremiumProduct: { $in: ['premium', '$product.tags'] },
+    },
   },
   {
     $group: {
@@ -153,12 +153,12 @@ const customerInsights = Modash.aggregate(orders, [
       totalOrders: { $sum: 1 },
       totalSpent: { $sum: '$orderValue' },
       avgOrderValue: { $avg: '$orderValue' },
-      premiumProductsPurchased: { 
-        $sum: { $cond: ['$isPremiumProduct', 1, 0] } 
-      }
-    }
+      premiumProductsPurchased: {
+        $sum: { $cond: ['$isPremiumProduct', 1, 0] },
+      },
+    },
   },
-  { $sort: { totalSpent: -1 } }
+  { $sort: { totalSpent: -1 } },
 ]);
 
 /* Expected Output:
@@ -189,27 +189,27 @@ const topContent = Modash.aggregate(blogPosts, [
       from: authors,
       localField: 'authorId',
       foreignField: '_id',
-      as: 'author'
-    }
+      as: 'author',
+    },
   },
   { $unwind: '$author' },
   {
     $addFields: {
-      engagementScore: { 
+      engagementScore: {
         $add: [
           { $multiply: ['$views', 0.1] },
           { $multiply: ['$likes', 2] },
-          { $multiply: [{ $size: '$comments' }, 5] }
-        ]
+          { $multiply: [{ $size: '$comments' }, 5] },
+        ],
       },
       commentsCount: { $size: '$comments' },
-      authorName: '$author.name'
-    }
+      authorName: '$author.name',
+    },
   },
   {
     $match: {
-      views: { $gte: 1000 }
-    }
+      views: { $gte: 1000 },
+    },
   },
   { $sort: { engagementScore: -1 } },
   {
@@ -220,10 +220,10 @@ const topContent = Modash.aggregate(blogPosts, [
       likes: 1,
       commentsCount: 1,
       engagementScore: { $round: ['$engagementScore', 2] },
-      tags: 1
-    }
+      tags: 1,
+    },
   },
-  { $limit: 10 }
+  { $limit: 10 },
 ]);
 
 /* Expected Output:
@@ -252,13 +252,13 @@ const hrAnalytics = Modash.aggregate(employees, [
   {
     $addFields: {
       avgPerformance: { $avg: '$performance' },
-      yearsOfService: { 
+      yearsOfService: {
         $divide: [
           { $subtract: [new Date(), '$startDate'] },
-          365.25 * 24 * 60 * 60 * 1000
-        ]
-      }
-    }
+          365.25 * 24 * 60 * 60 * 1000,
+        ],
+      },
+    },
   },
   {
     $group: {
@@ -268,16 +268,16 @@ const hrAnalytics = Modash.aggregate(employees, [
       minSalary: { $min: '$salary' },
       maxSalary: { $max: '$salary' },
       avgPerformance: { $avg: '$avgPerformance' },
-      totalPayroll: { $sum: '$salary' }
-    }
+      totalPayroll: { $sum: '$salary' },
+    },
   },
   {
     $addFields: {
       salaryRange: { $subtract: ['$maxSalary', '$minSalary'] },
-      payrollPerEmployee: { $divide: ['$totalPayroll', '$employeeCount'] }
-    }
+      payrollPerEmployee: { $divide: ['$totalPayroll', '$employeeCount'] },
+    },
   },
-  { $sort: { avgSalary: -1 } }
+  { $sort: { avgSalary: -1 } },
 ]);
 
 /* Expected Output:
@@ -309,24 +309,24 @@ const accountSummary = Modash.aggregate(transactions, [
     $addFields: {
       month: { $month: '$date' },
       isDeposit: { $eq: ['$type', 'deposit'] },
-      absAmount: { $abs: '$amount' }
-    }
+      absAmount: { $abs: '$amount' },
+    },
   },
   {
     $group: {
       _id: '$accountId',
       totalTransactions: { $sum: 1 },
-      totalDeposits: { 
-        $sum: { $cond: ['$isDeposit', '$amount', 0] }
+      totalDeposits: {
+        $sum: { $cond: ['$isDeposit', '$amount', 0] },
       },
-      totalWithdrawals: { 
-        $sum: { $cond: ['$isDeposit', 0, { $abs: '$amount' }] }
+      totalWithdrawals: {
+        $sum: { $cond: ['$isDeposit', 0, { $abs: '$amount' }] },
       },
       netBalance: { $sum: '$amount' },
       avgTransactionSize: { $avg: '$absAmount' },
       largestTransaction: { $max: '$absAmount' },
-      categories: { $addToSet: '$category' }
-    }
+      categories: { $addToSet: '$category' },
+    },
   },
   {
     $addFields: {
@@ -336,14 +336,14 @@ const accountSummary = Modash.aggregate(transactions, [
         $switch: {
           branches: [
             { case: { $gte: ['$totalTransactions', 4] }, then: 'High' },
-            { case: { $gte: ['$totalTransactions', 2] }, then: 'Medium' }
+            { case: { $gte: ['$totalTransactions', 2] }, then: 'Medium' },
           ],
-          default: 'Low'
-        }
-      }
-    }
+          default: 'Low',
+        },
+      },
+    },
   },
-  { $sort: { netBalance: -1 } }
+  { $sort: { netBalance: -1 } },
 ]);
 
 /* Expected Output:
@@ -371,15 +371,12 @@ const accountSummary = Modash.aggregate(transactions, [
 **Sensor Data Analysis with Alert System:**
 
 ```javascript
-// Environmental monitoring with automated alerts  
+// Environmental monitoring with automated alerts
 const environmentalAnalysis = Modash.aggregate(sensorReadings, [
   {
     $addFields: {
       tempAlert: {
-        $or: [
-          { $lt: ['$temperature', 18] },
-          { $gt: ['$temperature', 26] }
-        ]
+        $or: [{ $lt: ['$temperature', 18] }, { $gt: ['$temperature', 26] }],
       },
       locationKey: {
         $concat: [
@@ -387,10 +384,10 @@ const environmentalAnalysis = Modash.aggregate(sensorReadings, [
           '-Floor',
           { $toString: '$location.floor' },
           '-',
-          '$location.room'
-        ]
-      }
-    }
+          '$location.room',
+        ],
+      },
+    },
   },
   {
     $group: {
@@ -400,29 +397,26 @@ const environmentalAnalysis = Modash.aggregate(sensorReadings, [
       avgHumidity: { $avg: '$humidity' },
       tempAlertCount: { $sum: { $cond: ['$tempAlert', 1, 0] } },
       totalReadings: { $sum: 1 },
-      location: { $first: '$location' }
-    }
+      location: { $first: '$location' },
+    },
   },
   {
     $addFields: {
-      alertPercentage: { 
-        $multiply: [
-          { $divide: ['$tempAlertCount', '$totalReadings'] },
-          100
-        ]
+      alertPercentage: {
+        $multiply: [{ $divide: ['$tempAlertCount', '$totalReadings'] }, 100],
       },
       status: {
         $switch: {
           branches: [
             { case: { $gt: ['$alertPercentage', 50] }, then: 'Critical' },
-            { case: { $gt: ['$alertPercentage', 20] }, then: 'Warning' }
+            { case: { $gt: ['$alertPercentage', 20] }, then: 'Warning' },
           ],
-          default: 'Normal'
-        }
-      }
-    }
+          default: 'Normal',
+        },
+      },
+    },
   },
-  { $sort: { alertPercentage: -1 } }
+  { $sort: { alertPercentage: -1 } },
 ]);
 
 /* Expected Output:
@@ -455,8 +449,8 @@ const trendingContent = Modash.aggregate(socialPosts, [
       from: users,
       localField: 'userId',
       foreignField: '_id',
-      as: 'user'
-    }
+      as: 'user',
+    },
   },
   { $unwind: '$user' },
   { $unwind: '$hashtags' },
@@ -466,32 +460,32 @@ const trendingContent = Modash.aggregate(socialPosts, [
       postCount: { $sum: 1 },
       totalLikes: { $sum: '$likes' },
       totalShares: { $sum: '$shares' },
-      avgEngagement: { 
-        $avg: { $add: ['$likes', { $multiply: ['$shares', 3] }] }
+      avgEngagement: {
+        $avg: { $add: ['$likes', { $multiply: ['$shares', 3] }] },
       },
-      uniqueUsers: { $addToSet: '$user.username' }
-    }
+      uniqueUsers: { $addToSet: '$user.username' },
+    },
   },
   {
     $addFields: {
       userCount: { $size: '$uniqueUsers' },
-      viralityScore: { 
+      viralityScore: {
         $multiply: [
           '$avgEngagement',
           { $sqrt: '$userCount' },
-          { $log10: { $add: ['$postCount', 1] } }
-        ]
+          { $log10: { $add: ['$postCount', 1] } },
+        ],
       },
       trendingLevel: {
         $switch: {
           branches: [
             { case: { $gt: ['$viralityScore', 100] }, then: 'Viral' },
-            { case: { $gt: ['$viralityScore', 50] }, then: 'Trending' }
+            { case: { $gt: ['$viralityScore', 50] }, then: 'Trending' },
           ],
-          default: 'Popular'
-        }
-      }
-    }
+          default: 'Popular',
+        },
+      },
+    },
   },
   { $sort: { viralityScore: -1 } },
   {
@@ -501,9 +495,9 @@ const trendingContent = Modash.aggregate(socialPosts, [
       userCount: 1,
       avgEngagement: { $round: ['$avgEngagement', 1] },
       viralityScore: { $round: ['$viralityScore', 2] },
-      trendingLevel: 1
-    }
-  }
+      trendingLevel: 1,
+    },
+  },
 ]);
 
 /* Expected Output:
@@ -532,7 +526,7 @@ const trendingContent = Modash.aggregate(socialPosts, [
   - Existence: `{ field: { $exists: true } }`
 
 - **`$project`** - Reshape documents, add computed fields
-- **`$group`** - Group documents and apply aggregations  
+- **`$group`** - Group documents and apply aggregations
 - **`$sort`** - Sort documents by one or more fields
 - **`$limit`** - Limit number of documents
 - **`$skip`** - Skip documents for pagination
@@ -543,34 +537,42 @@ const trendingContent = Modash.aggregate(socialPosts, [
 ### Expression Operators
 
 #### Arithmetic
+
 - `$add`, `$subtract`, `$multiply`, `$divide`, `$mod`
 - `$abs`, `$ceil`, `$floor`, `$round`, `$sqrt`, `$pow`
 
-#### Comparison  
+#### Comparison
+
 - `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$cmp`
 
 #### Boolean
+
 - `$and`, `$or`, `$not`
 
 #### String
+
 - `$concat`, `$substr`, `$toLower`, `$toUpper`
 - `$split`, `$strLen`, `$trim`, `$ltrim`, `$rtrim`
 
 #### Array Operations
+
 - `$size`, `$arrayElemAt`, `$slice`, `$concatArrays`
 - `$in`, `$indexOfArray`, `$reverseArray`
 - `$filter`, `$map` - Advanced array transformations
 - `$avg`, `$sum`, `$min`, `$max` - Array aggregation (expression context)
 
 #### Date
+
 - `$year`, `$month`, `$dayOfMonth`, `$dayOfYear`, `$dayOfWeek`
 - `$hour`, `$minute`, `$second`, `$millisecond`
 
-#### Set Operations  
+#### Set Operations
+
 - `$setEquals`, `$setIntersection`, `$setUnion`, `$setDifference`, `$setIsSubset`
 - `$anyElementTrue`, `$allElementsTrue`
 
 #### Conditional
+
 - `$cond`, `$ifNull`
 
 ### Accumulator Operators
@@ -606,17 +608,19 @@ interface Order extends Document {
 
 // Type-safe collections
 const customers: Collection<Customer> = [
-  { _id: 1, name: 'Alice', email: 'alice@example.com', age: 30, orders: [] }
+  { _id: 1, name: 'Alice', email: 'alice@example.com', age: 30, orders: [] },
 ];
 
 // Type-safe pipelines with IntelliSense
 const pipeline: Pipeline = [
   { $match: { age: { $gte: 25 } } },
-  { $addFields: { 
-    orderCount: { $size: '$orders' },
-    isVip: { $gte: [{ $size: '$orders' }, 5] }
-  }},
-  { $sort: { orderCount: -1 } }
+  {
+    $addFields: {
+      orderCount: { $size: '$orders' },
+      isVip: { $gte: [{ $size: '$orders' }, 5] },
+    },
+  },
+  { $sort: { orderCount: -1 } },
 ];
 
 // Fully typed results
@@ -638,13 +642,13 @@ const result = Modash.aggregate(customers, pipeline);
 
 ```javascript
 const blogPosts = [
-  { 
+  {
     _id: 1,
     title: 'Getting Started with React',
     tags: ['react', 'javascript', 'frontend'],
     authors: ['Alice', 'Bob'],
     views: [100, 150, 200],
-    metadata: { featured: true, difficulty: 'beginner' }
+    metadata: { featured: true, difficulty: 'beginner' },
   },
   // ... more posts
 ];
@@ -653,7 +657,7 @@ const blogPosts = [
 const tagAnalysis = Modash.aggregate(blogPosts, [
   // Filter featured posts only
   { $match: { 'metadata.featured': true } },
-  
+
   // Add computed array fields
   {
     $addFields: {
@@ -663,24 +667,24 @@ const tagAnalysis = Modash.aggregate(blogPosts, [
       avgViews: { $avg: '$views' },
       primaryTag: { $arrayElemAt: ['$tags', 0] },
       lastTwoTags: { $slice: ['$tags', -2] },
-      allAuthorsUpper: { 
+      allAuthorsUpper: {
         $map: {
           input: '$authors',
-          in: { $toUpper: '$$this' }
-        }
+          in: { $toUpper: '$$this' },
+        },
       },
       frontendTags: {
         $filter: {
           input: '$tags',
-          cond: { $in: ['$$this', ['react', 'vue', 'angular', 'frontend']] }
-        }
-      }
-    }
+          cond: { $in: ['$$this', ['react', 'vue', 'angular', 'frontend']] },
+        },
+      },
+    },
   },
-  
+
   // Unwind tags for analysis
   { $unwind: '$tags' },
-  
+
   // Group by tag with advanced metrics
   {
     $group: {
@@ -690,10 +694,10 @@ const tagAnalysis = Modash.aggregate(blogPosts, [
       avgViewsPerPost: { $avg: '$totalViews' },
       posts: { $push: { title: '$title', views: '$totalViews' } },
       authors: { $addToSet: '$authors' },
-      difficulties: { $addToSet: '$metadata.difficulty' }
-    }
+      difficulties: { $addToSet: '$metadata.difficulty' },
+    },
   },
-  
+
   // Add computed fields for each tag
   {
     $addFields: {
@@ -704,17 +708,17 @@ const tagAnalysis = Modash.aggregate(blogPosts, [
           {
             $filter: {
               input: '$posts',
-              cond: { $eq: ['$$this.views', { $max: '$posts.views' }] }
-            }
+              cond: { $eq: ['$$this.views', { $max: '$posts.views' }] },
+            },
           },
-          0
-        ]
-      }
-    }
+          0,
+        ],
+      },
+    },
   },
-  
+
   { $sort: { popularityScore: -1 } },
-  { $limit: 5 }
+  { $limit: 5 },
 ]);
 ```
 
@@ -728,21 +732,21 @@ const userPostStats = Modash.aggregate(users, [
     $lookup: {
       from: posts,
       localField: '_id',
-      foreignField: 'authorId', 
-      as: 'posts'
-    }
+      foreignField: 'authorId',
+      as: 'posts',
+    },
   },
-  
-  // Join with comments  
+
+  // Join with comments
   {
     $lookup: {
       from: comments,
       localField: '_id',
       foreignField: 'userId',
-      as: 'comments'
-    }
+      as: 'comments',
+    },
   },
-  
+
   // Add comprehensive user metrics
   {
     $addFields: {
@@ -753,27 +757,33 @@ const userPostStats = Modash.aggregate(users, [
       recentPosts: {
         $filter: {
           input: '$posts',
-          cond: { 
+          cond: {
             $gte: [
-              '$$this.createdAt', 
-              { $dateSubtract: { startDate: new Date(), unit: 'day', amount: 30 } }
-            ]
-          }
-        }
+              '$$this.createdAt',
+              {
+                $dateSubtract: {
+                  startDate: new Date(),
+                  unit: 'day',
+                  amount: 30,
+                },
+              },
+            ],
+          },
+        },
       },
       topCategories: {
         $slice: [
           {
             $map: {
               input: { $setUnion: ['$posts.categories', []] },
-              in: '$$this'
-            }
+              in: '$$this',
+            },
           },
-          3
-        ]
-      }
-    }
-  }
+          3,
+        ],
+      },
+    },
+  },
 ]);
 ```
 
@@ -803,6 +813,7 @@ The new v0.8.0 is a complete modernization with breaking changes:
 - **Import Style**: Use `import Modash from 'modash'` instead of `_.mixin(Modash)`
 
 ### Before (v0.7.x)
+
 ```javascript
 const _ = require('lodash');
 const Modash = require('modash');
@@ -812,6 +823,7 @@ const result = _(data).aggregate([...]).value();
 ```
 
 ### After (v0.8.0+)
+
 ```javascript
 import Modash from 'modash';
 
@@ -828,5 +840,4 @@ Contributions welcome! Please read our contributing guide and submit pull reques
 
 ---
 
-*Bringing MongoDB aggregation elegance to JavaScript arrays since 2014, now modernized for 2024 and beyond.*
-
+_Bringing MongoDB aggregation elegance to JavaScript arrays since 2014, now modernized for 2024 and beyond._

@@ -1,7 +1,7 @@
 import { size } from 'lodash-es';
 
 function count(collection) {
-    return size(collection);
+  return size(collection);
 }
 
 export { count };

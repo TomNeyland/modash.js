@@ -1,0 +1,194 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+      tests: ${{ steps.changes.outputs.tests }}
+      docs: ${{ steps.changes.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            code:
+              - 'src/**/*.js'
+              - 'src/**/*.ts'
+              - 'package*.json'
+            tests:
+              - 'tests/**/*.js'
+              - 'tests/**/*.ts'
+            docs:
+              - '*.md'
+              - 'docs/**/*'
+
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.tests == 'true'
+    needs: changes
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Check formatting
+        run: |
+          if ! npm run format:check; then
+            echo "::error::Code formatting issues detected. Run 'npm run format' to fix them."
+            exit 1
+          fi
+
+  lint-check:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.tests == 'true'
+    needs: changes
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run ESLint
+        run: |
+          npm run lint -- --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
+          npm run lint
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: eslint-results.sarif
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true'
+    needs: changes
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: TypeScript Check
+        run: npm run type-check
+
+  test-coverage:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.tests == 'true'
+    needs: changes
+    
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Run tests with coverage
+        run: npm run test:coverage
+      - name: Coverage Comment
+        if: matrix.node-version == 20
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./coverage/lcov.info
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true'
+    needs: changes
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run performance benchmark
+        run: |
+          node -e "
+          import('./tests/test-data.js').then(testData => {
+            import('./src/modash/index.js').then(Modash => {
+              const startTime = process.hrtime.bigint();
+              const iterations = 1000;
+              
+              for (let i = 0; i < iterations; i++) {
+                Modash.default.aggregate(testData.default.orders, [
+                  { \$match: { price: { \$gt: 100 } } },
+                  { \$group: { _id: '\$customerId', total: { \$sum: '\$price' } } },
+                  { \$sort: { total: -1 } }
+                ]);
+              }
+              
+              const endTime = process.hrtime.bigint();
+              const avgTime = Number(endTime - startTime) / iterations / 1000000;
+              console.log(\`Average execution time: \${avgTime.toFixed(2)}ms\`);
+              
+              if (avgTime > 10) {
+                console.error('Performance regression detected!');
+                process.exit(1);
+              }
+            });
+          });
+          "
+
+  build-validation:
+    name: Build Validation  
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.code == 'true'
+    needs: changes
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Generate docs
+        run: npm run docs
+      - name: Validate exports
+        run: |
+          node -e "
+          Promise.all([
+            import('./src/modash/index.js'),
+            import('./dist/index.js')
+          ]).then(([src, dist]) => {
+            console.log('Source exports:', Object.keys(src));
+            console.log('Dist exports:', Object.keys(dist));
+          }).catch(err => {
+            console.error('Export validation failed:', err);
+            process.exit(1);
+          });
+          "

@@ -1,0 +1,80 @@
+name: Dependency Update
+
+on:
+  schedule:
+    - cron: '0 0 * * MON' # Every Monday at midnight
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependency-update:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Check for dependency updates
+        run: |
+          # Check for outdated packages
+          npm outdated --json > outdated.json || true
+          
+          # If no updates available, exit gracefully
+          if [ ! -s outdated.json ] || [ "$(cat outdated.json)" = "{}" ]; then
+            echo "No dependency updates available"
+            exit 0
+          fi
+          
+          # Show what would be updated
+          echo "📦 Available dependency updates:"
+          npm outdated
+          
+      - name: Update dependencies
+        run: |
+          # Update dev dependencies
+          npm update --save-dev
+          
+          # Update production dependencies (more carefully)
+          npm update --save
+          
+      - name: Run quality checks after update
+        run: |
+          npm ci
+          npm run quality
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update dependencies'
+          title: '📦 Automated dependency update'
+          body: |
+            ## Automated Dependency Update
+            
+            This PR updates the project dependencies to their latest compatible versions.
+            
+            ### Changes
+            - Updated npm dependencies to latest versions
+            - All quality checks passing
+            
+            ### Quality Assurance
+            - ✅ Code formatting check passed
+            - ✅ ESLint checks passed  
+            - ✅ TypeScript type checking passed
+            - ✅ All tests passing with coverage
+            
+            This PR was created automatically by the dependency update workflow.
+          branch: chore/dependency-update
+          delete-branch: true
