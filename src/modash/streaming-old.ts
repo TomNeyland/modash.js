@@ -444,7 +444,7 @@ export class StreamingCollection<
    */
   private updateAggregationsWithIVM(
     rowIds: RowId[],
-    operation: 'add' | 'remove'
+    _operation: 'add' | 'remove'
   ): void {
     for (const [pipelineKey, pipeline] of this.activePipelines.entries()) {
       const state = this.aggregationStates.get(pipelineKey);
@@ -509,7 +509,7 @@ export class StreamingCollection<
   private fallbackToLegacyUpdate(
     pipelineKey: string,
     pipeline: Pipeline,
-    operation: 'add' | 'remove'
+    _operation: 'add' | 'remove'
   ): void {
     const state = this.aggregationStates.get(pipelineKey);
     if (!state) return;
