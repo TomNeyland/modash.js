@@ -464,7 +464,9 @@ function aggregate<T extends Document = Document>(
       );
     }
     if ('$set' in stage) {
-      result = result.thru(data => $set(data as Collection<T>, stage.$set));
+      result = result.thru(data =>
+        $addFields(data as Collection<T>, stage.$set)
+      );
     }
   }
 
