@@ -7,9 +7,8 @@
 
 import { EventEmitter } from 'events';
 import type { Collection, Document, DocumentValue } from './expressions.js';
-import type { Pipeline, PipelineStage } from '../index.js';
-import { aggregate } from './aggregation.js';
-import { $match, $group, $sort, $project, $limit, $skip } from './aggregation.js';
+import type { Pipeline } from '../index.js';
+import { aggregate, $match } from './aggregation.js';
 
 /**
  * Events emitted by StreamingCollection
@@ -391,9 +390,13 @@ export class StreamingCollection<
       try {
         // Try incremental update first, fallback to full recalculation if needed
         const canIncrement = this.canIncrementPipeline(pipeline);
-        
+
         if (canIncrement) {
-          const newResult = this.incrementalUpdate(newDocuments, pipeline, state);
+          const newResult = this.incrementalUpdate(
+            newDocuments,
+            pipeline,
+            state
+          );
           state.lastResult = newResult;
         } else {
           // Some operations don't support incremental updates yet - use full recalculation
@@ -430,9 +433,13 @@ export class StreamingCollection<
       try {
         // Try decremental update first, fallback to full recalculation if needed
         const canDecrement = this.canDecrementPipeline(pipeline);
-        
+
         if (canDecrement) {
-          const newResult = this.decrementalUpdate(removedDocuments, pipeline, state);
+          const newResult = this.decrementalUpdate(
+            removedDocuments,
+            pipeline,
+            state
+          );
           state.lastResult = newResult;
         } else {
           // Some operations don't support decremental updates yet - use full recalculation
@@ -463,7 +470,7 @@ export class StreamingCollection<
    */
   private canIncrementPipeline(pipeline: Pipeline): boolean {
     const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
-    
+
     // For now, only support simple single-stage $match operations
     // We'll expand this as we improve the incremental logic
     return stages.length === 1 && '$match' in stages[0];
@@ -474,7 +481,7 @@ export class StreamingCollection<
    */
   private canDecrementPipeline(pipeline: Pipeline): boolean {
     // For decrements, be even more conservative - just use full recalc for now
-    // Decremental updates are more complex because we need to track which 
+    // Decremental updates are more complex because we need to track which
     // documents contributed to which results
     return false;
   }
@@ -482,16 +489,20 @@ export class StreamingCollection<
   /**
    * Perform incremental update for new documents
    */
-  private incrementalUpdate(newDocuments: T[], pipeline: Pipeline, state: AggregationState): Collection<Document> {
+  private incrementalUpdate(
+    newDocuments: T[],
+    pipeline: Pipeline,
+    state: AggregationState
+  ): Collection<Document> {
     const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
-    
+
     // For simple match-only pipelines, we can do true incremental updates
     if (stages.length === 1 && '$match' in stages[0]) {
       // Apply match to new documents and combine with existing results
       const newMatched = $match(newDocuments, stages[0].$match);
       return [...state.lastResult, ...newMatched];
     }
-    
+
     // For complex pipelines, fall back to full recalculation for now
     // This is safer and ensures correctness while we improve incremental logic
     return aggregate(this.documents, pipeline);
@@ -500,10 +511,14 @@ export class StreamingCollection<
   /**
    * Perform decremental update for removed documents
    */
-  private decrementalUpdate(removedDocuments: T[], pipeline: Pipeline, state: AggregationState): Collection<Document> {
+  private decrementalUpdate(
+    _removedDocuments: T[],
+    _pipeline: Pipeline,
+    _state: AggregationState
+  ): Collection<Document> {
     // For now, always use full recalculation for removals
     // This is safer and ensures correctness
-    return aggregate(this.documents, pipeline);
+    return aggregate(this.documents, _pipeline);
   }
 
   /**
