@@ -18,7 +18,16 @@ import type {
   SystemVariable,
 } from '../index.js';
 
-function isFieldPath(expression: unknown): expression is FieldPath {
+// Local type definitions for expression evaluation
+type ExpressionOperatorObject = Record<string, Expression | Expression[]>;
+type ExpressionValue =
+  | DocumentValue
+  | FieldPath
+  | SystemVariable
+  | ExpressionOperatorObject
+  | { [key: string]: Expression };
+
+function isFieldPath(expression: ExpressionValue): expression is FieldPath {
   return (
     typeof expression === 'string' &&
     expression.indexOf('$') === 0 &&
@@ -26,12 +35,14 @@ function isFieldPath(expression: unknown): expression is FieldPath {
   );
 }
 
-function isSystemVariable(expression: unknown): expression is SystemVariable {
+function isSystemVariable(
+  expression: ExpressionValue
+): expression is SystemVariable {
   return typeof expression === 'string' && expression.indexOf('$$') === 0;
 }
 
 function isExpressionObject(
-  expression: unknown
+  expression: ExpressionValue
 ): expression is { [key: string]: Expression } {
   return (
     isObject(expression) &&
@@ -42,8 +53,8 @@ function isExpressionObject(
 }
 
 function isExpressionOperator(
-  expression: unknown
-): expression is Record<string, unknown> {
+  expression: ExpressionValue
+): expression is ExpressionOperatorObject {
   return (
     isObject(expression) &&
     size(expression) === 1 &&
@@ -92,7 +103,7 @@ function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
 
 function $expressionOperator(
   obj: Document,
-  operatorExpression: Record<string, unknown>,
+  operatorExpression: ExpressionOperatorObject,
   root: Document
 ): DocumentValue {
   const [operator] = keys(operatorExpression);

@@ -15,7 +15,13 @@ import type {
   SortStage,
   LookupStage,
   AddFieldsStage,
+  ComparisonOperators,
+  QueryOperators,
 } from '../index.js';
+
+// Local type definitions for better type safety
+type FieldCondition = DocumentValue | (ComparisonOperators & QueryOperators);
+type GroupResult = Record<string, DocumentValue>;
 
 /**
  * Stage Operators for MongoDB-style aggregation pipeline
@@ -58,7 +64,7 @@ function $match<T extends Document = Document>(
  */
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
-    const condition = query[field];
+    const condition = query[field] as FieldCondition;
     const fieldValue = lodashGet(doc, field);
 
     // Handle logical operators
@@ -87,7 +93,9 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
     } else {
       // Handle comparison and other operators
       for (const operator in condition) {
-        const expectedValue = (condition as any)[operator];
+        const expectedValue = (condition as Record<string, DocumentValue>)[
+          operator
+        ];
         switch (operator) {
           case '$eq':
             if (fieldValue !== expectedValue) return false;
@@ -148,8 +156,9 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
             break;
           case '$regex':
             if (typeof fieldValue !== 'string') return false;
-            const options = (condition as any).$options || '';
-            const regex = new RegExp(expectedValue, options);
+            const options =
+              (condition as Record<string, string>).$options || '';
+            const regex = new RegExp(expectedValue as string, options);
             if (!regex.test(fieldValue)) return false;
             break;
           case '$all':
@@ -295,7 +304,7 @@ function $group<T extends Document = Document>(
 
   return groups
     .map(members => {
-      const result: any = {};
+      const result: GroupResult = {};
       for (const [field, fieldSpec] of Object.entries(specifications)) {
         if (field === '_id') {
           result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
