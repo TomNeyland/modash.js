@@ -26,9 +26,9 @@
     "pipeline",
     "javascript",
     "typescript",
-    "lodash",
     "functional",
-    "data-processing"
+    "data-processing",
+    "modern-javascript"
   ],
   "files": [
     "src/",
@@ -73,8 +73,5 @@
     "tsx": "^4.19.2",
     "typescript": "^5.9.2"
   },
-  "dependencies": {
-    "@types/lodash-es": "^4.17.12",
-    "lodash-es": "^4.17.21"
-  }
+  "dependencies": {}
 }
