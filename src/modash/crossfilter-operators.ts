@@ -560,6 +560,210 @@ export class SkipOperator implements IVMOperator {
 }
 
 /**
+ * $unwind operator with parent-children mapping
+ */
+export class UnwindOperator implements IVMOperator {
+  readonly type = '$unwind';
+  readonly canIncrement = true;
+  readonly canDecrement = true;
+
+  private parentToChildren = new Map<RowId, RowId[]>();
+  private childToParent = new Map<RowId, RowId>();
+  private nextChildId = 1000000; // Start child IDs from high numbers to avoid conflicts
+
+  constructor(
+    private path: string,
+    private options?: { includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean }
+  ) {
+    // Remove $ prefix if present
+    if (this.path.startsWith('$')) {
+      this.path = this.path.substring(1);
+    }
+  }
+
+  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    if (delta.sign !== 1) return [];
+
+    const doc = store.documents[delta.rowId];
+    if (!doc) return [];
+
+    const arrayValue = this.getFieldValue(doc, this.path);
+    const deltas: Delta[] = [];
+
+    if (Array.isArray(arrayValue) && arrayValue.length > 0) {
+      // Create child documents for each array element
+      const childIds: RowId[] = [];
+
+      arrayValue.forEach((element, index) => {
+        const childId = this.nextChildId++;
+        const childDoc = { ...doc };
+
+        // Set the unwound field to the array element
+        this.setFieldValue(childDoc, this.path, element);
+
+        // Add array index if requested
+        if (this.options?.includeArrayIndex) {
+          childDoc[this.options.includeArrayIndex] = index;
+        }
+
+        // Store the child document
+        store.documents[childId] = childDoc;
+        store.liveSet.set(childId);
+
+        childIds.push(childId);
+        this.childToParent.set(childId, delta.rowId);
+
+        deltas.push({ rowId: childId, sign: 1 });
+      });
+
+      this.parentToChildren.set(delta.rowId, childIds);
+    } else if (this.options?.preserveNullAndEmptyArrays) {
+      // Keep the document but set the unwound field to null
+      const childDoc = { ...doc };
+      this.setFieldValue(childDoc, this.path, null);
+
+      // Add array index if requested
+      if (this.options?.includeArrayIndex) {
+        childDoc[this.options.includeArrayIndex] = null;
+      }
+
+      const childId = this.nextChildId++;
+      store.documents[childId] = childDoc;
+      store.liveSet.set(childId);
+
+      this.parentToChildren.set(delta.rowId, [childId]);
+      this.childToParent.set(childId, delta.rowId);
+
+      deltas.push({ rowId: childId, sign: 1 });
+    }
+
+    return deltas;
+  }
+
+  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    if (delta.sign !== -1) return [];
+
+    const childIds = this.parentToChildren.get(delta.rowId);
+    if (!childIds) return [];
+
+    const deltas: Delta[] = [];
+
+    // Remove all child documents
+    childIds.forEach(childId => {
+      if (store.liveSet.isSet(childId)) {
+        store.liveSet.unset(childId);
+        delete store.documents[childId];
+        this.childToParent.delete(childId);
+
+        deltas.push({ rowId: childId, sign: -1 });
+      }
+    });
+
+    this.parentToChildren.delete(delta.rowId);
+    return deltas;
+  }
+
+  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
+    const result: Document[] = [];
+
+    // Return all unwound child documents
+    for (const rowId of store.liveSet) {
+      if (this.childToParent.has(rowId)) {
+        const doc = store.documents[rowId];
+        if (doc) {
+          result.push(doc);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  estimateComplexity(): string {
+    return 'O(n*m)'; // Where n is documents and m is average array length
+  }
+
+  getInputFields(): string[] {
+    return [this.path];
+  }
+
+  getOutputFields(): string[] {
+    const fields = [this.path];
+    if (this.options?.includeArrayIndex) {
+      fields.push(this.options.includeArrayIndex);
+    }
+    return fields;
+  }
+
+  private getFieldValue(doc: Document, fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let value = doc;
+
+    for (const part of parts) {
+      if (value && typeof value === 'object') {
+        value = (value as any)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return value;
+  }
+
+  private setFieldValue(doc: Document, fieldPath: string, value: any): void {
+    const parts = fieldPath.split('.');
+    let current = doc;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (!current[part] || typeof current[part] !== 'object') {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+
+    current[parts[parts.length - 1]] = value;
+  }
+}
+
+/**
+ * $lookup operator stub (forces fallback for now)
+ */
+export class LookupOperator implements IVMOperator {
+  readonly type = '$lookup';
+  readonly canIncrement = false; // Force fallback for now
+  readonly canDecrement = false;
+
+  constructor(private expr: any) {}
+
+  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    // This should not be called since canIncrement = false
+    throw new Error('LookupOperator should use fallback aggregation');
+  }
+
+  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    // This should not be called since canDecrement = false
+    throw new Error('LookupOperator should use fallback aggregation');
+  }
+
+  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
+    throw new Error('LookupOperator should use fallback aggregation');
+  }
+
+  estimateComplexity(): string {
+    return 'O(n*m)'; // Join complexity
+  }
+
+  getInputFields(): string[] {
+    return this.expr.localField ? [this.expr.localField] : [];
+  }
+
+  getOutputFields(): string[] {
+    return this.expr.as ? [this.expr.as] : [];
+  }
+}
+
+/**
  * Factory for creating IVM operators
  */
 export class IVMOperatorFactoryImpl implements IVMOperatorFactory {
@@ -597,98 +801,5 @@ export class IVMOperatorFactoryImpl implements IVMOperatorFactory {
   createLookupOperator(expr: any): IVMOperator {
     // For now, return a stub that forces fallback to standard aggregation
     return new LookupOperator(expr);
-  }
-}
-
-/**
- * $unwind stub operator - forces fallback to standard aggregation for now
- */
-export class UnwindOperator implements IVMOperator {
-  readonly type = '$unwind';
-  readonly canIncrement = false; // Force fallback
-  readonly canDecrement = false;
-
-  constructor(
-    private path: string,
-    private options?: any
-  ) {}
-
-  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error(
-      'UnwindOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  onRemove(
-    delta: Delta,
-    store: CrossfilterStore,
-    context: IVMContext
-  ): Delta[] {
-    throw new Error(
-      'UnwindOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
-    throw new Error(
-      'UnwindOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  estimateComplexity(): string {
-    return 'UNSUPPORTED';
-  }
-
-  getInputFields(): string[] {
-    return [this.path];
-  }
-
-  getOutputFields(): string[] {
-    return [];
-  }
-}
-
-/**
- * $lookup stub operator - forces fallback to standard aggregation for now
- */
-export class LookupOperator implements IVMOperator {
-  readonly type = '$lookup';
-  readonly canIncrement = false; // Force fallback
-  readonly canDecrement = false;
-
-  constructor(private expr: any) {}
-
-  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error(
-      'LookupOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  onRemove(
-    delta: Delta,
-    store: CrossfilterStore,
-    context: IVMContext
-  ): Delta[] {
-    throw new Error(
-      'LookupOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
-    throw new Error(
-      'LookupOperator is a stub - should use fallback aggregation'
-    );
-  }
-
-  estimateComplexity(): string {
-    return 'UNSUPPORTED';
-  }
-
-  getInputFields(): string[] {
-    return [];
-  }
-
-  getOutputFields(): string[] {
-    return [];
   }
 }
