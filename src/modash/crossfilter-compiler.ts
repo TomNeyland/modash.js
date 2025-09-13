@@ -21,27 +21,33 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   compileMatchExpr(expr: any): (doc: Document, rowId: RowId) => boolean {
     const key = `match:${JSON.stringify(expr)}`;
-    
+
     if (this.compiledCache.has(key)) {
-      return this.compiledCache.get(key) as (doc: Document, rowId: RowId) => boolean;
+      return this.compiledCache.get(key) as (
+        doc: Document,
+        rowId: RowId
+      ) => boolean;
     }
 
     const compiled = this.buildMatchFunction(expr);
     this.compiledCache.set(key, compiled);
-    
+
     return compiled;
   }
 
   compileProjectExpr(expr: any): (doc: Document, rowId: RowId) => Document {
     const key = `project:${JSON.stringify(expr)}`;
-    
+
     if (this.compiledCache.has(key)) {
-      return this.compiledCache.get(key) as (doc: Document, rowId: RowId) => Document;
+      return this.compiledCache.get(key) as (
+        doc: Document,
+        rowId: RowId
+      ) => Document;
     }
 
     const compiled = this.buildProjectFunction(expr);
     this.compiledCache.set(key, compiled);
-    
+
     return compiled;
   }
 
@@ -54,10 +60,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     }>;
   } {
     const key = `group:${JSON.stringify(expr)}`;
-    
+
     // Build group key function
     const getGroupKey = this.buildGroupKeyFunction(expr._id);
-    
+
     // Build accumulator functions
     const accumulators: Array<{
       field: string;
@@ -67,7 +73,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
     for (const [field, accumExpr] of Object.entries(expr)) {
       if (field === '_id') continue;
-      
+
       if (typeof accumExpr === 'object' && accumExpr !== null) {
         for (const [accType, accField] of Object.entries(accumExpr)) {
           const getValue = this.buildAccumulatorValueFunction(accField);
@@ -102,7 +108,16 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // Field conditions - check if simple enough for vectorization
         if (typeof condition === 'object' && condition !== null) {
           const operators = Object.keys(condition);
-          const vectorizableOps = ['$eq', '$ne', '$gt', '$gte', '$lt', '$lte', '$in', '$nin'];
+          const vectorizableOps = [
+            '$eq',
+            '$ne',
+            '$gt',
+            '$gte',
+            '$lt',
+            '$lte',
+            '$in',
+            '$nin',
+          ];
           if (!operators.every(op => vectorizableOps.includes(op))) {
             return false;
           }
@@ -117,7 +132,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     // For now, return a simple vectorized version
     // In a full implementation, this would generate optimized SIMD code
     const scalarFn = this.compileMatchExpr(expr);
-    
+
     return (docs: Document[], rowIds: RowId[]) => {
       const results = new Array(docs.length);
       for (let i = 0; i < docs.length; i++) {
@@ -127,14 +142,16 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     };
   }
 
-  private buildMatchFunction(expr: any): (doc: Document, rowId: RowId) => boolean {
+  private buildMatchFunction(
+    expr: any
+  ): (doc: Document, rowId: RowId) => boolean {
     if (typeof expr !== 'object' || expr === null) {
       return () => false;
     }
 
     // Generate optimized function code
     const conditions: string[] = [];
-    
+
     for (const [field, condition] of Object.entries(expr)) {
       if (field.startsWith('$')) {
         // Logical operators
@@ -146,7 +163,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             });
             conditions.push(`(${andConditions.join(' && ')})`);
             break;
-          
+
           case '$or':
             const orConditions = (condition as any[]).map((cond, i) => {
               const subFn = this.buildMatchFunction(cond);
@@ -154,7 +171,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             });
             conditions.push(`(${orConditions.join(' || ')})`);
             break;
-          
+
           case '$not':
             const notFn = this.buildMatchFunction(condition);
             conditions.push(`!(subFn(doc, rowId))`);
@@ -163,10 +180,14 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       } else {
         // Field conditions
         const fieldAccess = this.generateFieldAccess(field);
-        
+
         if (typeof condition === 'object' && condition !== null) {
           for (const [op, value] of Object.entries(condition)) {
-            const conditionCode = this.generateConditionCode(fieldAccess, op, value);
+            const conditionCode = this.generateConditionCode(
+              fieldAccess,
+              op,
+              value
+            );
             conditions.push(conditionCode);
           }
         } else {
@@ -176,16 +197,21 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       }
     }
 
-    const functionBody = conditions.length > 0 
-      ? `return ${conditions.join(' && ')};`
-      : 'return true;';
+    const functionBody =
+      conditions.length > 0
+        ? `return ${conditions.join(' && ')};`
+        : 'return true;';
 
     // Create optimized function
     try {
-      return new Function('doc', 'rowId', `
+      return new Function(
+        'doc',
+        'rowId',
+        `
         ${this.generateFieldAccessors()}
         ${functionBody}
-      `) as (doc: Document, rowId: RowId) => boolean;
+      `
+      ) as (doc: Document, rowId: RowId) => boolean;
     } catch (error) {
       // Fallback to safer evaluation
       return (doc: Document, rowId: RowId) => {
@@ -194,23 +220,27 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     }
   }
 
-  private buildProjectFunction(expr: any): (doc: Document, rowId: RowId) => Document {
+  private buildProjectFunction(
+    expr: any
+  ): (doc: Document, rowId: RowId) => Document {
     // Build projection function
     const projections: string[] = [];
-    
+
     // Check if _id should be included (default is include unless explicitly excluded)
     const excludeId = expr._id === 0 || expr._id === false;
     if (!excludeId) {
       projections.push(`if (doc._id !== undefined) result._id = doc._id;`);
     }
-    
+
     for (const [field, projection] of Object.entries(expr)) {
       if (field === '_id' && (projection === 0 || projection === false)) {
         // Skip _id exclusion, already handled above
         continue;
       } else if (projection === 1 || projection === true) {
         // Include field
-        projections.push(`if (${this.generateFieldAccess(field)} !== undefined) result.${field} = ${this.generateFieldAccess(field)};`);
+        projections.push(
+          `if (${this.generateFieldAccess(field)} !== undefined) result.${field} = ${this.generateFieldAccess(field)};`
+        );
       } else if (projection === 0 || projection === false) {
         // Exclude field (handled by not including it)
         continue;
@@ -235,10 +265,14 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     `;
 
     try {
-      return new Function('doc', 'rowId', `
+      return new Function(
+        'doc',
+        'rowId',
+        `
         ${this.generateFieldAccessors()}
         ${functionBody}
-      `) as (doc: Document, rowId: RowId) => Document;
+      `
+      ) as (doc: Document, rowId: RowId) => Document;
     } catch (error) {
       // Fallback to safer evaluation
       return (doc: Document, rowId: RowId) => {
@@ -247,28 +281,38 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     }
   }
 
-  private buildGroupKeyFunction(keyExpr: any): (doc: Document, rowId: RowId) => DocumentValue {
+  private buildGroupKeyFunction(
+    keyExpr: any
+  ): (doc: Document, rowId: RowId) => DocumentValue {
     if (typeof keyExpr === 'string' && keyExpr.startsWith('$')) {
       const field = keyExpr.substring(1);
       const fieldAccess = this.generateFieldAccess(field);
-      
+
       try {
-        return new Function('doc', 'rowId', `
+        return new Function(
+          'doc',
+          'rowId',
+          `
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
-        `) as (doc: Document, rowId: RowId) => DocumentValue;
+        `
+        ) as (doc: Document, rowId: RowId) => DocumentValue;
       } catch (error) {
         return (doc: Document) => this.getFieldValue(doc, field);
       }
     } else if (typeof keyExpr === 'object' && keyExpr !== null) {
       // Complex grouping expression
       const exprCode = this.generateExpressionCode(keyExpr);
-      
+
       try {
-        return new Function('doc', 'rowId', `
+        return new Function(
+          'doc',
+          'rowId',
+          `
           ${this.generateFieldAccessors()}
           return ${exprCode};
-        `) as (doc: Document, rowId: RowId) => DocumentValue;
+        `
+        ) as (doc: Document, rowId: RowId) => DocumentValue;
       } catch (error) {
         return (doc: Document) => this.evaluateExpression(keyExpr, doc);
       }
@@ -278,18 +322,24 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     }
   }
 
-  private buildAccumulatorValueFunction(accField: any): (doc: Document, rowId: RowId) => DocumentValue {
+  private buildAccumulatorValueFunction(
+    accField: any
+  ): (doc: Document, rowId: RowId) => DocumentValue {
     if (accField === 1) {
       return () => 1; // Count
     } else if (typeof accField === 'string' && accField.startsWith('$')) {
       const field = accField.substring(1);
       const fieldAccess = this.generateFieldAccess(field);
-      
+
       try {
-        return new Function('doc', 'rowId', `
+        return new Function(
+          'doc',
+          'rowId',
+          `
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
-        `) as (doc: Document, rowId: RowId) => DocumentValue;
+        `
+        ) as (doc: Document, rowId: RowId) => DocumentValue;
       } catch (error) {
         return (doc: Document) => this.getFieldValue(doc, field);
       }
@@ -302,11 +352,11 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     // Generate safe field access code with dot notation support
     const parts = fieldPath.split('.');
     let access = 'doc';
-    
+
     for (const part of parts) {
       access = `(${access} && typeof ${access} === 'object' ? ${access}.${part} : undefined)`;
     }
-    
+
     return access;
   }
 
@@ -378,42 +428,46 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     `;
   }
 
-  private generateConditionCode(fieldAccess: string, operator: string, value: any): string {
+  private generateConditionCode(
+    fieldAccess: string,
+    operator: string,
+    value: any
+  ): string {
     const jsonValue = JSON.stringify(value);
-    
+
     switch (operator) {
       case '$eq':
         return `${fieldAccess} === ${jsonValue}`;
-      
+
       case '$ne':
         return `${fieldAccess} !== ${jsonValue}`;
-      
+
       case '$gt':
         return `${fieldAccess} > ${jsonValue}`;
-      
+
       case '$gte':
         return `${fieldAccess} >= ${jsonValue}`;
-      
+
       case '$lt':
         return `${fieldAccess} < ${jsonValue}`;
-      
+
       case '$lte':
         return `${fieldAccess} <= ${jsonValue}`;
-      
+
       case '$in':
         if (Array.isArray(value)) {
           const valueSet = JSON.stringify(value);
           return `${valueSet}.includes(${fieldAccess})`;
         }
         return 'false';
-      
+
       case '$nin':
         if (Array.isArray(value)) {
           const valueSet = JSON.stringify(value);
           return `!${valueSet}.includes(${fieldAccess})`;
         }
         return 'true';
-      
+
       case '$regex':
         // Handle regex patterns
         if (typeof value === 'string') {
@@ -424,22 +478,25 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           return `new RegExp(${pattern}, ${JSON.stringify(flags)}).test(${fieldAccess})`;
         }
         return 'false';
-      
+
       case '$all':
         if (Array.isArray(value)) {
-          const checks = value.map(v => `(${fieldAccess} && Array.isArray(${fieldAccess}) && ${fieldAccess}.includes(${JSON.stringify(v)}))`);
+          const checks = value.map(
+            v =>
+              `(${fieldAccess} && Array.isArray(${fieldAccess}) && ${fieldAccess}.includes(${JSON.stringify(v)}))`
+          );
           return checks.join(' && ');
         }
         return 'false';
-      
+
       case '$size':
         return `(Array.isArray(${fieldAccess}) && ${fieldAccess}.length === ${JSON.stringify(value)})`;
-      
+
       case '$exists':
-        return value 
+        return value
           ? `${fieldAccess} !== undefined`
           : `${fieldAccess} === undefined`;
-      
+
       default:
         return 'true'; // Unsupported operator
     }
@@ -457,7 +514,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       if (this.isPlainObject(expr)) {
         // Generate code to create an object with each field evaluated
         const fields = Object.entries(expr)
-          .map(([key, value]) => `"${key}": ${this.generateExpressionCode(value)}`)
+          .map(
+            ([key, value]) => `"${key}": ${this.generateExpressionCode(value)}`
+          )
           .join(', ');
         return `{${fields}}`;
       } else {
@@ -472,7 +531,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private isPlainObject(obj: any): boolean {
     // Check if object contains only string keys and no MongoDB operators
     if (typeof obj !== 'object' || obj === null) return false;
-    
+
     for (const key of Object.keys(obj)) {
       if (key.startsWith('$')) {
         return false; // Contains MongoDB operator, not a plain object
@@ -492,9 +551,13 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // Logical operators
         switch (field) {
           case '$and':
-            return (condition as any[]).every(cond => this.evaluateMatchExpression(cond, doc));
+            return (condition as any[]).every(cond =>
+              this.evaluateMatchExpression(cond, doc)
+            );
           case '$or':
-            return (condition as any[]).some(cond => this.evaluateMatchExpression(cond, doc));
+            return (condition as any[]).some(cond =>
+              this.evaluateMatchExpression(cond, doc)
+            );
           case '$not':
             return !this.evaluateMatchExpression(condition, doc);
         }
@@ -512,7 +575,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   private evaluateProjectExpression(expr: any, doc: Document): Document {
     const result: Document = {};
-    
+
     for (const [field, projection] of Object.entries(expr)) {
       if (projection === 1 || projection === true) {
         result[field] = this.getFieldValue(doc, field);
@@ -524,7 +587,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         result[field] = projection;
       }
     }
-    
+
     return result;
   }
 
@@ -562,7 +625,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             if (!(docValue <= value)) return false;
             break;
           case '$in':
-            if (!Array.isArray(value) || !value.includes(docValue)) return false;
+            if (!Array.isArray(value) || !value.includes(docValue))
+              return false;
             break;
           case '$nin':
             if (Array.isArray(value) && value.includes(docValue)) return false;
@@ -575,14 +639,14 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     } else {
       return docValue === condition;
     }
-    
+
     return true;
   }
 
   private getFieldValue(doc: Document, fieldPath: string): any {
     const parts = fieldPath.split('.');
     let value = doc;
-    
+
     for (const part of parts) {
       if (value && typeof value === 'object') {
         value = (value as any)[part];
@@ -590,7 +654,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         return undefined;
       }
     }
-    
+
     return value;
   }
 }
@@ -630,16 +694,16 @@ export class PerformanceEngineImpl implements PerformanceEngine {
 
     for (const stage of stages) {
       const stageType = Object.keys(stage)[0];
-      
+
       switch (stageType) {
         case '$match':
           this.extractMatchFields(stage.$match, dimensions);
           break;
-        
+
         case '$group':
           this.extractGroupFields(stage.$group, dimensions);
           break;
-        
+
         case '$sort':
           this.extractSortFields(stage.$sort, dimensions);
           break;
@@ -652,7 +716,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
   optimizePipeline(pipeline: Pipeline): ExecutionPlan {
     const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
     const compiledStages: CompiledStage[] = [];
-    
+
     let canFullyIncrement = true;
     let canFullyDecrement = true;
     let hasSort = false;
@@ -663,7 +727,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     for (let i = 0; i < stages.length; i++) {
       const stage = stages[i];
       const stageType = Object.keys(stage)[0];
-      
+
       const compiledStage: CompiledStage = {
         type: stageType,
         canIncrement: this.canStageIncrement(stage),
@@ -695,8 +759,9 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     const primaryDimensions = this.getOptimalDimensions(pipeline);
 
     // Estimate complexity
-    let estimatedComplexity: 'O(1)' | 'O(log n)' | 'O(n)' | 'O(n log n)' = 'O(1)';
-    
+    let estimatedComplexity: 'O(1)' | 'O(log n)' | 'O(n)' | 'O(n log n)' =
+      'O(1)';
+
     if (hasSort && !hasSortLimit) {
       estimatedComplexity = 'O(n log n)';
     } else if (hasSort || hasGroupBy) {
@@ -722,16 +787,16 @@ export class PerformanceEngineImpl implements PerformanceEngine {
   reorderStagesForEfficiency(stages: CompiledStage[]): CompiledStage[] {
     // Reorder stages for optimal performance
     // E.g., move $match stages before $group, combine adjacent $project stages
-    
+
     const reordered = [...stages];
-    
+
     // Move $match stages to the front
     reordered.sort((a, b) => {
       if (a.type === '$match' && b.type !== '$match') return -1;
       if (a.type !== '$match' && b.type === '$match') return 1;
       return 0;
     });
-    
+
     return reordered;
   }
 
@@ -761,7 +826,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     // Accumulator fields
     for (const [field, expr] of Object.entries(groupExpr)) {
       if (field === '_id') continue;
-      
+
       if (typeof expr === 'object' && expr !== null) {
         for (const [accType, accField] of Object.entries(expr)) {
           if (typeof accField === 'string' && accField.startsWith('$')) {
@@ -782,18 +847,36 @@ export class PerformanceEngineImpl implements PerformanceEngine {
 
   private canStageIncrement(stage: any): boolean {
     const stageType = Object.keys(stage)[0];
-    
+
     // Define which stages support incremental updates
-    const incrementalStages = ['$match', '$project', '$group', '$sort', '$limit', '$skip', '$addFields', '$set'];
+    const incrementalStages = [
+      '$match',
+      '$project',
+      '$group',
+      '$sort',
+      '$limit',
+      '$skip',
+      '$addFields',
+      '$set',
+    ];
     return incrementalStages.includes(stageType);
   }
 
   private canStageDecrement(stage: any): boolean {
     const stageType = Object.keys(stage)[0];
-    
+
     // Most incremental stages also support decremental updates
     // Some might have limitations (e.g., $push with ordering)
-    const decrementalStages = ['$match', '$project', '$group', '$sort', '$limit', '$skip', '$addFields', '$set'];
+    const decrementalStages = [
+      '$match',
+      '$project',
+      '$group',
+      '$sort',
+      '$limit',
+      '$skip',
+      '$addFields',
+      '$set',
+    ];
     return decrementalStages.includes(stageType);
   }
 
@@ -806,15 +889,15 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       case '$match':
         this.extractMatchFields(stageData, fields);
         break;
-      
+
       case '$group':
         this.extractGroupFields(stageData, fields);
         break;
-      
+
       case '$sort':
         this.extractSortFields(stageData, fields);
         break;
-      
+
       case '$project':
         // Input fields are those referenced in expressions
         for (const [field, expr] of Object.entries(stageData)) {
@@ -836,11 +919,13 @@ export class PerformanceEngineImpl implements PerformanceEngine {
 
     switch (stageType) {
       case '$project':
-        return Object.keys(stageData).filter(field => stageData[field] !== 0 && stageData[field] !== false);
-      
+        return Object.keys(stageData).filter(
+          field => stageData[field] !== 0 && stageData[field] !== false
+        );
+
       case '$group':
         return Object.keys(stageData);
-      
+
       default:
         return []; // Other stages don't change field structure
     }

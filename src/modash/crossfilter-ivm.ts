@@ -1,9 +1,9 @@
 /**
  * Crossfilter-Inspired Incremental View Maintenance (IVM) System
- * 
+ *
  * Provides comprehensive incremental processing for MongoDB aggregation pipelines
  * with multi-dimensional indexing and true add/remove support.
- * 
+ *
  * Architecture inspired by crossfilter.js concepts but adapted for MongoDB syntax.
  */
 
@@ -58,7 +58,7 @@ export interface Dimension {
   readonly sortedValues: DocumentValue[]; // All values in sorted order
   readonly rowToValue: Map<RowId, DocumentValue>; // rowId -> value
   type: ColumnType;
-  
+
   // Statistics for optimization
   cardinality: number; // Number of distinct values
   selectivity: number; // Estimated selectivity (0-1)
@@ -72,7 +72,7 @@ export interface RefCountedMultiSet<T> {
   readonly values: Map<T, number>; // value -> count
   readonly sortedKeys: T[]; // Keys in sorted order
   size: number; // Total number of items (sum of counts)
-  
+
   add(value: T): void;
   remove(value: T): boolean; // Returns true if value was present
   getMin(): T | undefined;
@@ -99,7 +99,7 @@ export interface OrderStatNode<T> {
 export interface OrderStatTree<T> {
   root?: OrderStatNode<T>;
   size: number;
-  
+
   insert(key: T, value: any, rowId: RowId): void;
   remove(key: T, rowId: RowId): boolean;
   kth(k: number): OrderStatNode<T> | undefined; // 0-indexed
@@ -112,27 +112,27 @@ export interface OrderStatTree<T> {
  */
 export interface GroupState {
   readonly groupKey: DocumentValue;
-  
+
   // Basic counters
   count: number;
-  
-  // Sum aggregations  
+
+  // Sum aggregations
   sums: Map<string, number>;
-  
+
   // Min/Max with deletion support
   mins: Map<string, RefCountedMultiSet<DocumentValue>>;
   maxs: Map<string, RefCountedMultiSet<DocumentValue>>;
-  
+
   // Average tracking (sum + count for precision)
   avgData: Map<string, { sum: number; count: number }>;
-  
+
   // Array accumulations
   pushArrays: Map<string, DocumentValue[]>;
   addToSets: Map<string, Set<DocumentValue>>;
-  
+
   // Document tracking for removal
   contributingDocs: Set<RowId>;
-  
+
   // First/Last with ordering support
   firstLast: Map<string, OrderStatTree<DocumentValue>>;
 }
@@ -144,14 +144,14 @@ export interface CompiledStage {
   type: string; // $match, $group, etc.
   canIncrement: boolean;
   canDecrement: boolean;
-  
+
   // Compiled expressions/predicates
   compiledExpr?: (doc: Document, rowId: RowId) => any;
-  
+
   // Field dependencies
   inputFields: string[];
   outputFields: string[];
-  
+
   // Stage-specific data
   stageData: any;
 }
@@ -163,13 +163,13 @@ export interface ExecutionPlan {
   readonly stages: CompiledStage[];
   canFullyIncrement: boolean;
   canFullyDecrement: boolean;
-  
+
   // Optimization hints
   hasSort: boolean;
   hasSortLimit: boolean; // Sort followed by limit (top-k optimization)
   hasGroupBy: boolean;
   primaryDimensions: string[]; // Most selective dimensions to create
-  
+
   // Performance characteristics
   estimatedComplexity: 'O(1)' | 'O(log n)' | 'O(n)' | 'O(n log n)';
 }
@@ -183,13 +183,13 @@ export interface CrossfilterStore {
   readonly liveSet: LiveSet; // Which documents are currently active
   readonly columns: Map<string, ColumnStore>; // Columnar field storage
   readonly rowIdCounter: { current: RowId }; // Stable ID assignment
-  
+
   // Multi-dimensional indexing (crossfilter concept)
   readonly dimensions: Map<string, Dimension>;
-  
+
   // Aggregation state
   readonly groups: Map<string, Map<DocumentValue, GroupState>>; // dimensionKey -> groupKey -> state
-  
+
   // Performance tracking
   readonly stats: {
     totalDocs: number;
@@ -206,14 +206,14 @@ export interface IVMOperator {
   readonly type: string;
   readonly canIncrement: boolean;
   readonly canDecrement: boolean;
-  
+
   // Delta processing
   onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[];
   onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[];
-  
+
   // Result materialization
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document>;
-  
+
   // Optimization
   estimateComplexity(): string;
   getInputFields(): string[];
@@ -228,7 +228,7 @@ export interface IVMContext {
   readonly stageIndex: number;
   readonly compiledStage: CompiledStage;
   readonly executionPlan: ExecutionPlan;
-  
+
   // Temporary state
   readonly tempState: Map<string, any>;
 }
@@ -248,7 +248,7 @@ export interface ExpressionCompiler {
       getValue: (doc: Document, rowId: RowId) => DocumentValue;
     }>;
   };
-  
+
   // Optimization
   canVectorize(expr: any): boolean;
   createVectorizedFn(expr: any): (docs: Document[], rowIds: RowId[]) => any[];
@@ -261,11 +261,11 @@ export interface PerformanceEngine {
   // Memory management
   shouldCompactColumns(): boolean;
   compactColumns(store: CrossfilterStore): void;
-  
-  // Index optimization  
+
+  // Index optimization
   shouldCreateDimension(fieldPath: string, selectivity: number): boolean;
   getOptimalDimensions(pipeline: Pipeline): string[];
-  
+
   // Query optimization
   optimizePipeline(pipeline: Pipeline): ExecutionPlan;
   reorderStagesForEfficiency(stages: CompiledStage[]): CompiledStage[];
@@ -293,23 +293,26 @@ export interface CrossfilterIVMEngine {
   readonly compiler: ExpressionCompiler;
   readonly performance: PerformanceEngine;
   readonly operatorFactory: IVMOperatorFactory;
-  
+
   // Pipeline management
   compilePipeline(pipeline: Pipeline): ExecutionPlan;
-  
+
   // Data operations
   addDocument(doc: Document): RowId;
   addDocuments(docs: Document[]): RowId[];
   removeDocument(rowId: RowId): boolean;
   removeDocuments(rowIds: RowId[]): number;
-  
+
   // Incremental processing
   applyDelta(delta: Delta, executionPlan: ExecutionPlan): Collection<Document>;
-  applyDeltas(deltas: Delta[], executionPlan: ExecutionPlan): Collection<Document>;
-  
+  applyDeltas(
+    deltas: Delta[],
+    executionPlan: ExecutionPlan
+  ): Collection<Document>;
+
   // Full materialization
   execute(pipeline: Pipeline): Collection<Document>;
-  
+
   // Optimization and maintenance
   optimize(): void;
   getStatistics(): any;

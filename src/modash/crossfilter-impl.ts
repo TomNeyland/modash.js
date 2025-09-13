@@ -31,7 +31,7 @@ export class RefCountedMultiSetImpl<T> implements RefCountedMultiSet<T> {
       // New value, insert into sorted position
       this.insertSorted(value);
     }
-    
+
     this.values.set(value, currentCount + 1);
     this.size++;
   }
@@ -62,8 +62,8 @@ export class RefCountedMultiSetImpl<T> implements RefCountedMultiSet<T> {
   }
 
   getMax(): T | undefined {
-    return this.sortedKeys.length > 0 
-      ? this.sortedKeys[this.sortedKeys.length - 1] 
+    return this.sortedKeys.length > 0
+      ? this.sortedKeys[this.sortedKeys.length - 1]
       : undefined;
   }
 
@@ -82,7 +82,7 @@ export class RefCountedMultiSetImpl<T> implements RefCountedMultiSet<T> {
     // Binary search for insertion point
     let left = 0;
     let right = this.sortedKeys.length;
-    
+
     while (left < right) {
       const mid = Math.floor((left + right) / 2);
       if (this.compareValues(this.sortedKeys[mid], value) < 0) {
@@ -152,7 +152,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     }
 
     const cmp = this.compareNodes(key, rowId, node.key, node.rowId);
-    
+
     if (cmp < 0) {
       node.left = this.insertNode(node.left, key, value, rowId);
     } else if (cmp > 0) {
@@ -186,7 +186,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     } else {
       // Found node to delete
       this.size--;
-      
+
       if (!node.left && !node.right) {
         return undefined;
       } else if (!node.left) {
@@ -199,7 +199,11 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
         node.key = successor.key;
         node.value = successor.value;
         node.rowId = successor.rowId;
-        node.right = this.removeNode(node.right, successor.key, successor.rowId);
+        node.right = this.removeNode(
+          node.right,
+          successor.key,
+          successor.rowId
+        );
       }
     }
 
@@ -214,7 +218,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     if (!node) return undefined;
 
     const leftSize = node.left?.size || 0;
-    
+
     if (k < leftSize) {
       return this.selectKth(node.left, k);
     } else if (k === leftSize) {
@@ -233,7 +237,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     if (!node) return -1;
 
     const cmp = this.compareNodes(key, rowId, node.key, node.rowId);
-    
+
     if (cmp < 0) {
       return this.getRank(node.left, key, rowId, rank);
     } else if (cmp > 0) {
@@ -250,7 +254,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     // Primary comparison by key
     if (key1 < key2) return -1;
     if (key1 > key2) return 1;
-    
+
     // Tie-break by rowId for stable ordering
     return rowId1 - rowId2;
   }
@@ -260,7 +264,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     const rightHeight = node.right?.height || 0;
     const leftSize = node.left?.size || 0;
     const rightSize = node.right?.size || 0;
-    
+
     node.height = Math.max(leftHeight, rightHeight) + 1;
     node.size = leftSize + rightSize + 1;
   }
@@ -274,7 +278,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     if (balanceFactor > 1) {
       const leftLeftHeight = node.left?.left?.height || 0;
       const leftRightHeight = node.left?.right?.height || 0;
-      
+
       if (leftRightHeight > leftLeftHeight) {
         // Left-Right case
         node.left = this.rotateLeft(node.left!);
@@ -287,7 +291,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     if (balanceFactor < -1) {
       const rightLeftHeight = node.right?.left?.height || 0;
       const rightRightHeight = node.right?.right?.height || 0;
-      
+
       if (rightLeftHeight > rightRightHeight) {
         // Right-Left case
         node.right = this.rotateRight(node.right!);
@@ -303,10 +307,10 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     const newRoot = node.right!;
     node.right = newRoot.left;
     newRoot.left = node;
-    
+
     this.updateNode(node);
     this.updateNode(newRoot);
-    
+
     return newRoot;
   }
 
@@ -314,10 +318,10 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     const newRoot = node.left!;
     node.left = newRoot.right;
     newRoot.right = node;
-    
+
     this.updateNode(node);
     this.updateNode(newRoot);
-    
+
     return newRoot;
   }
 
@@ -344,11 +348,11 @@ export class LiveSetImpl implements LiveSet {
 
   set(rowId: RowId): void {
     this.ensureCapacity(rowId);
-    
+
     const wordIndex = Math.floor(rowId / 32);
     const bitIndex = rowId % 32;
     const mask = 1 << bitIndex;
-    
+
     if (!(this.bitset[wordIndex] & mask)) {
       this.bitset[wordIndex] |= mask;
       this.count++;
@@ -358,27 +362,27 @@ export class LiveSetImpl implements LiveSet {
 
   unset(rowId: RowId): boolean {
     if (rowId > this.maxRowId) return false;
-    
+
     const wordIndex = Math.floor(rowId / 32);
     const bitIndex = rowId % 32;
     const mask = 1 << bitIndex;
-    
+
     if (this.bitset[wordIndex] & mask) {
       this.bitset[wordIndex] &= ~mask;
       this.count--;
       return true;
     }
-    
+
     return false;
   }
 
   isSet(rowId: RowId): boolean {
     if (rowId > this.maxRowId) return false;
-    
+
     const wordIndex = Math.floor(rowId / 32);
     const bitIndex = rowId % 32;
     const mask = 1 << bitIndex;
-    
+
     return !!(this.bitset[wordIndex] & mask);
   }
 
@@ -390,7 +394,7 @@ export class LiveSetImpl implements LiveSet {
 
   private ensureCapacity(rowId: RowId): void {
     const requiredWords = Math.ceil((rowId + 1) / 32);
-    
+
     if (requiredWords > this.bitset.length) {
       const newBitset = new Uint32Array(requiredWords * 2); // Grow by 2x
       newBitset.set(this.bitset);
@@ -402,7 +406,7 @@ export class LiveSetImpl implements LiveSet {
     for (let wordIndex = 0; wordIndex < this.bitset.length; wordIndex++) {
       const word = this.bitset[wordIndex];
       if (word === 0) continue;
-      
+
       for (let bitIndex = 0; bitIndex < 32; bitIndex++) {
         if (word & (1 << bitIndex)) {
           yield wordIndex * 32 + bitIndex;
@@ -430,17 +434,17 @@ export class DimensionImpl implements Dimension {
 
   addDocument(doc: Document, rowId: RowId): void {
     const value = this.getFieldValue(doc, this.fieldPath);
-    
+
     // Remove old value if it exists
     const oldValue = this.rowToValue.get(rowId);
     if (oldValue !== undefined) {
       this.removeValue(oldValue, rowId);
     }
-    
+
     // Add new value
     this.addValue(value, rowId);
     this.rowToValue.set(rowId, value);
-    
+
     // Update type information
     this.updateType(value);
   }
@@ -448,10 +452,10 @@ export class DimensionImpl implements Dimension {
   removeDocument(rowId: RowId): boolean {
     const value = this.rowToValue.get(rowId);
     if (value === undefined) return false;
-    
+
     this.removeValue(value, rowId);
     this.rowToValue.delete(rowId);
-    
+
     return true;
   }
 
@@ -461,7 +465,7 @@ export class DimensionImpl implements Dimension {
 
   getDocumentsByRange(min: DocumentValue, max: DocumentValue): Set<RowId> {
     const result = new Set<RowId>();
-    
+
     for (const value of this.sortedValues) {
       if (value >= min && value <= max) {
         const rowIds = this.valueIndex.get(value);
@@ -474,20 +478,20 @@ export class DimensionImpl implements Dimension {
         break; // Sorted array, no more matches
       }
     }
-    
+
     return result;
   }
 
   private addValue(value: DocumentValue, rowId: RowId): void {
     let rowIds = this.valueIndex.get(value);
-    
+
     if (!rowIds) {
       rowIds = new Set();
       this.valueIndex.set(value, rowIds);
       this.insertSorted(value);
       this.cardinality++;
     }
-    
+
     rowIds.add(rowId);
     this.updateSelectivity();
   }
@@ -495,9 +499,9 @@ export class DimensionImpl implements Dimension {
   private removeValue(value: DocumentValue, rowId: RowId): void {
     const rowIds = this.valueIndex.get(value);
     if (!rowIds) return;
-    
+
     rowIds.delete(rowId);
-    
+
     if (rowIds.size === 0) {
       this.valueIndex.delete(value);
       const index = this.sortedValues.indexOf(value);
@@ -506,7 +510,7 @@ export class DimensionImpl implements Dimension {
       }
       this.cardinality--;
     }
-    
+
     this.updateSelectivity();
   }
 
@@ -515,11 +519,11 @@ export class DimensionImpl implements Dimension {
       this.sortedValues.push(value);
       return;
     }
-    
+
     // Binary search for insertion point
     let left = 0;
     let right = this.sortedValues.length;
-    
+
     while (left < right) {
       const mid = Math.floor((left + right) / 2);
       if (this.sortedValues[mid] < value) {
@@ -528,7 +532,7 @@ export class DimensionImpl implements Dimension {
         right = mid;
       }
     }
-    
+
     this.sortedValues.splice(left, 0, value);
   }
 
@@ -548,16 +552,18 @@ export class DimensionImpl implements Dimension {
   private updateSelectivity(): void {
     // Selectivity = unique values / total documents
     // Higher selectivity means more filtering power
-    const totalDocs = Array.from(this.valueIndex.values())
-      .reduce((sum, set) => sum + set.size, 0);
-    
+    const totalDocs = Array.from(this.valueIndex.values()).reduce(
+      (sum, set) => sum + set.size,
+      0
+    );
+
     this.selectivity = totalDocs > 0 ? this.cardinality / totalDocs : 0;
   }
 
   private getFieldValue(doc: Document, fieldPath: string): DocumentValue {
     const parts = fieldPath.split('.');
     let value: any = doc;
-    
+
     for (const part of parts) {
       if (value && typeof value === 'object') {
         value = value[part];
@@ -565,7 +571,7 @@ export class DimensionImpl implements Dimension {
         return undefined;
       }
     }
-    
+
     return value;
   }
 }
@@ -591,10 +597,10 @@ export class GroupStateImpl implements GroupState {
 
   addDocument(rowId: RowId, doc: Document, accumulators: any): void {
     if (this.contributingDocs.has(rowId)) return; // Already added
-    
+
     this.contributingDocs.add(rowId);
     this.count++;
-    
+
     for (const [field, accumExpr] of Object.entries(accumulators)) {
       this.updateAccumulator(field, accumExpr, doc, rowId, 1);
     }
@@ -602,14 +608,14 @@ export class GroupStateImpl implements GroupState {
 
   removeDocument(rowId: RowId, doc: Document, accumulators: any): boolean {
     if (!this.contributingDocs.has(rowId)) return false;
-    
+
     this.contributingDocs.delete(rowId);
     this.count--;
-    
+
     for (const [field, accumExpr] of Object.entries(accumulators)) {
       this.updateAccumulator(field, accumExpr, doc, rowId, -1);
     }
-    
+
     return true;
   }
 
@@ -621,35 +627,35 @@ export class GroupStateImpl implements GroupState {
     sign: 1 | -1
   ): void {
     if (typeof accumExpr !== 'object' || accumExpr === null) return;
-    
+
     for (const [accType, accField] of Object.entries(accumExpr)) {
       const value = this.getAccumulatorValue(accField, doc);
-      
+
       switch (accType) {
         case '$sum':
           this.updateSum(field, value, sign);
           break;
-        
+
         case '$min':
           this.updateMin(field, value, sign);
           break;
-        
+
         case '$max':
           this.updateMax(field, value, sign);
           break;
-        
+
         case '$avg':
           this.updateAvg(field, value, sign);
           break;
-        
+
         case '$push':
           this.updatePush(field, value, sign);
           break;
-        
+
         case '$addToSet':
           this.updateAddToSet(field, value, sign);
           break;
-        
+
         case '$first':
         case '$last':
           this.updateFirstLast(field, accType, value, rowId, sign);
@@ -661,7 +667,7 @@ export class GroupStateImpl implements GroupState {
   private updateSum(field: string, value: DocumentValue, sign: 1 | -1): void {
     const numValue = Number(value) || 0;
     const current = this.sums.get(field) || 0;
-    this.sums.set(field, current + (numValue * sign));
+    this.sums.set(field, current + numValue * sign);
   }
 
   private updateMin(field: string, value: DocumentValue, sign: 1 | -1): void {
@@ -670,7 +676,7 @@ export class GroupStateImpl implements GroupState {
       multiset = new RefCountedMultiSetImpl();
       this.mins.set(field, multiset);
     }
-    
+
     if (sign === 1) {
       multiset.add(value);
     } else {
@@ -684,7 +690,7 @@ export class GroupStateImpl implements GroupState {
       multiset = new RefCountedMultiSetImpl();
       this.maxs.set(field, multiset);
     }
-    
+
     if (sign === 1) {
       multiset.add(value);
     } else {
@@ -695,12 +701,12 @@ export class GroupStateImpl implements GroupState {
   private updateAvg(field: string, value: DocumentValue, sign: 1 | -1): void {
     const numValue = Number(value) || 0;
     let avgData = this.avgData.get(field);
-    
+
     if (!avgData) {
       avgData = { sum: 0, count: 0 };
       this.avgData.set(field, avgData);
     }
-    
+
     avgData.sum += numValue * sign;
     avgData.count += sign;
   }
@@ -711,7 +717,7 @@ export class GroupStateImpl implements GroupState {
       arr = [];
       this.pushArrays.set(field, arr);
     }
-    
+
     if (sign === 1) {
       arr.push(value);
     } else {
@@ -724,13 +730,17 @@ export class GroupStateImpl implements GroupState {
     }
   }
 
-  private updateAddToSet(field: string, value: DocumentValue, sign: 1 | -1): void {
+  private updateAddToSet(
+    field: string,
+    value: DocumentValue,
+    sign: 1 | -1
+  ): void {
     let set = this.addToSets.get(field);
     if (!set) {
       set = new Set();
       this.addToSets.set(field, set);
     }
-    
+
     if (sign === 1) {
       set.add(value);
     } else {
@@ -750,7 +760,7 @@ export class GroupStateImpl implements GroupState {
       tree = new OrderStatTreeImpl();
       this.firstLast.set(field, tree);
     }
-    
+
     if (sign === 1) {
       tree.insert(rowId, value, rowId); // Use rowId as both key and tie-breaker
     } else {
@@ -769,20 +779,32 @@ export class GroupStateImpl implements GroupState {
     } else if (typeof accField === 'object' && accField !== null) {
       // Complex expression - handle basic operators
       if (accField.$multiply && Array.isArray(accField.$multiply)) {
-        const values = accField.$multiply.map(field => this.getAccumulatorValue(field, doc));
+        const values = accField.$multiply.map(field =>
+          this.getAccumulatorValue(field, doc)
+        );
         return values.reduce((a, b) => (Number(a) || 0) * (Number(b) || 0), 1);
       }
       if (accField.$add && Array.isArray(accField.$add)) {
-        const values = accField.$add.map(field => this.getAccumulatorValue(field, doc));
+        const values = accField.$add.map(field =>
+          this.getAccumulatorValue(field, doc)
+        );
         return values.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
       }
-      if (accField.$subtract && Array.isArray(accField.$subtract) && accField.$subtract.length === 2) {
+      if (
+        accField.$subtract &&
+        Array.isArray(accField.$subtract) &&
+        accField.$subtract.length === 2
+      ) {
         const [left, right] = accField.$subtract;
         const leftVal = this.getAccumulatorValue(left, doc);
         const rightVal = this.getAccumulatorValue(right, doc);
         return (Number(leftVal) || 0) - (Number(rightVal) || 0);
       }
-      if (accField.$divide && Array.isArray(accField.$divide) && accField.$divide.length === 2) {
+      if (
+        accField.$divide &&
+        Array.isArray(accField.$divide) &&
+        accField.$divide.length === 2
+      ) {
         const [left, right] = accField.$divide;
         const leftVal = this.getAccumulatorValue(left, doc);
         const rightVal = this.getAccumulatorValue(right, doc);
@@ -799,7 +821,7 @@ export class GroupStateImpl implements GroupState {
   private getFieldValue(doc: Document, fieldPath: string): DocumentValue {
     const parts = fieldPath.split('.');
     let value: any = doc;
-    
+
     for (const part of parts) {
       if (value && typeof value === 'object') {
         value = value[part];
@@ -807,43 +829,43 @@ export class GroupStateImpl implements GroupState {
         return undefined;
       }
     }
-    
+
     return value;
   }
 
   materializeResult(): Document {
     const result: Document = { _id: this.groupKey };
-    
+
     // Add count-based sums
     for (const [field, sum] of this.sums.entries()) {
       result[field] = sum;
     }
-    
+
     // Add mins
     for (const [field, multiset] of this.mins.entries()) {
       result[field] = multiset.getMin();
     }
-    
+
     // Add maxs
     for (const [field, multiset] of this.maxs.entries()) {
       result[field] = multiset.getMax();
     }
-    
+
     // Add averages
     for (const [field, avgData] of this.avgData.entries()) {
       result[field] = avgData.count > 0 ? avgData.sum / avgData.count : 0;
     }
-    
+
     // Add arrays
     for (const [field, arr] of this.pushArrays.entries()) {
       result[field] = [...arr]; // Copy array
     }
-    
+
     // Add sets
     for (const [field, set] of this.addToSets.entries()) {
       result[field] = Array.from(set);
     }
-    
+
     // Add first/last
     for (const [field, tree] of this.firstLast.entries()) {
       if (tree.size > 0) {
@@ -851,7 +873,7 @@ export class GroupStateImpl implements GroupState {
         result[field] = first?.value;
       }
     }
-    
+
     return result;
   }
 }
