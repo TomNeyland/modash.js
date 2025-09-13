@@ -1,28 +1,34 @@
 import Modash from '../src/index.ts';
-import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.ts';
+import {
+  createStreamingCollection,
+  aggregateStreaming,
+} from '../src/modash/streaming.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
   const nonStreamingResult = Modash.aggregate(collection, pipeline);
-  
+
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
-  
+
   // Also test with aggregateStreaming function
   const aggregateStreamingResult = aggregateStreaming(collection, pipeline);
-  const aggregateStreamingCollectionResult = aggregateStreaming(streamingCollection, pipeline);
-  
+  const aggregateStreamingCollectionResult = aggregateStreaming(
+    streamingCollection,
+    pipeline
+  );
+
   // Clean up
   streamingCollection.destroy();
-  
+
   return {
     nonStreaming: nonStreamingResult,
     streaming: streamingResult,
     aggregateStreamingArray: aggregateStreamingResult,
-    aggregateStreamingCollection: aggregateStreamingCollectionResult
+    aggregateStreamingCollection: aggregateStreamingCollectionResult,
   };
 };
 
@@ -30,34 +36,50 @@ describe('New Aggregation Operators', () => {
   describe('$match', () => {
     it('should filter documents based on criteria', () => {
       const pipeline = [{ $match: { qty: { $gte: 250 } } }];
-      
+
       // Test traditional aggregation
       const result = Modash.aggregate(testData.inventory, pipeline);
       expect(result).to.have.lengthOf(3);
       expect(result.every(item => item.qty >= 250)).to.be.true;
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(testData.inventory, pipeline, '$match with $gte');
+      const results = compareStreamingResults(
+        testData.inventory,
+        pipeline,
+        '$match with $gte'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.have.lengthOf(3);
       expect(results.streaming.every(item => item.qty >= 250)).to.be.true;
     });
 
     it('should handle simple equality matching', () => {
       const pipeline = [{ $match: { item: 'abc1' } }];
-      
+
       // Test traditional aggregation
       const result = Modash.aggregate(testData.inventory, pipeline);
       expect(result).to.have.lengthOf(1);
       expect(result[0].item).to.equal('abc1');
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(testData.inventory, pipeline, '$match with equality');
+      const results = compareStreamingResults(
+        testData.inventory,
+        pipeline,
+        '$match with equality'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.have.lengthOf(1);
       expect(results.streaming[0].item).to.equal('abc1');
     });
@@ -115,10 +137,18 @@ describe('New Aggregation Operators', () => {
       expect(result[0]).to.have.property('category');
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(testData.inventory, pipeline, 'complex multi-stage pipeline');
+      const results = compareStreamingResults(
+        testData.inventory,
+        pipeline,
+        'complex multi-stage pipeline'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.have.lengthOf(3);
       expect(results.streaming[0]).to.have.property('category');
     });

@@ -8,7 +8,10 @@ const mapValues = (obj, mapFn) => {
 };
 
 import Modash from '../src/index.ts';
-import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.ts';
+import {
+  createStreamingCollection,
+  aggregateStreaming,
+} from '../src/modash/streaming.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
@@ -17,23 +20,26 @@ let db;
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
   const nonStreamingResult = Modash.aggregate(collection, pipeline);
-  
+
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
-  
+
   // Also test with aggregateStreaming function
   const aggregateStreamingResult = aggregateStreaming(collection, pipeline);
-  const aggregateStreamingCollectionResult = aggregateStreaming(streamingCollection, pipeline);
-  
+  const aggregateStreamingCollectionResult = aggregateStreaming(
+    streamingCollection,
+    pipeline
+  );
+
   // Clean up
   streamingCollection.destroy();
-  
+
   return {
     nonStreaming: nonStreamingResult,
     streaming: streamingResult,
     aggregateStreamingArray: aggregateStreamingResult,
-    aggregateStreamingCollection: aggregateStreamingCollectionResult
+    aggregateStreamingCollection: aggregateStreamingCollectionResult,
   };
 };
 
@@ -123,10 +129,18 @@ describe('Modash Aggregation', () => {
       expect(grouping).to.deep.equal(expectedResult);
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(db.sales2.value(), pipeline, 'group by date fields');
+      const results = compareStreamingResults(
+        db.sales2.value(),
+        pipeline,
+        'group by date fields'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
@@ -146,10 +160,18 @@ describe('Modash Aggregation', () => {
       expect(nullGrouping).to.deep.equal(expectedResult);
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(db.sales2.value(), pipeline, 'null grouping');
+      const results = compareStreamingResults(
+        db.sales2.value(),
+        pipeline,
+        'null grouping'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
@@ -172,16 +194,24 @@ describe('Modash Aggregation', () => {
       expect(distinctGrouping).to.deep.equal(expectedResult);
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(db.sales2.value(), pipeline, 'distinct values');
+      const results = compareStreamingResults(
+        db.sales2.value(),
+        pipeline,
+        'distinct values'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
     it('should pivot the data in the books collection to have titles grouped by authors', () => {
       const pipeline = [{ $group: titleByAuthorConfig }];
-      
+
       // Test traditional aggregation
       const pivotGrouping = db.books2.aggregate(pipeline).reverse();
       const expectedResult = [
@@ -197,13 +227,24 @@ describe('Modash Aggregation', () => {
       expect(pivotGrouping).to.deep.equal(expectedResult);
 
       // Test streaming vs non-streaming results are identical (without reverse, since order may vary)
-      const results = compareStreamingResults(db.books2.value(), pipeline, 'books by author');
-      
+      const results = compareStreamingResults(
+        db.books2.value(),
+        pipeline,
+        'books by author'
+      );
+
       // For this test, we'll compare sorted versions since $group order is not guaranteed
-      const sortByAuthor = (arr) => [...arr].sort((a, b) => a._id.localeCompare(b._id));
-      expect(sortByAuthor(results.streaming)).to.deep.equal(sortByAuthor(results.nonStreaming));
-      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(sortByAuthor(results.nonStreaming));
-      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(sortByAuthor(results.nonStreaming));
+      const sortByAuthor = arr =>
+        [...arr].sort((a, b) => a._id.localeCompare(b._id));
+      expect(sortByAuthor(results.streaming)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
+      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
+      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
     });
 
     it('should use the $$ROOT system variable to group the documents by authors.', () => {
@@ -265,24 +306,37 @@ describe('Modash Aggregation', () => {
       expect(pivotGrouping).to.deep.equal(expectedResult);
 
       // Test streaming vs non-streaming results are identical (compare sorted versions)
-      const results = compareStreamingResults(db.books2.value(), pipeline, '$$ROOT grouping');
-      
+      const results = compareStreamingResults(
+        db.books2.value(),
+        pipeline,
+        '$$ROOT grouping'
+      );
+
       // Sort by author ID for consistent comparison (since $group order is not guaranteed)
-      const sortByAuthor = (arr) => [...arr].sort((a, b) => a._id.localeCompare(b._id));
-      expect(sortByAuthor(results.streaming)).to.deep.equal(sortByAuthor(results.nonStreaming));
-      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(sortByAuthor(results.nonStreaming));
-      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(sortByAuthor(results.nonStreaming));
+      const sortByAuthor = arr =>
+        [...arr].sort((a, b) => a._id.localeCompare(b._id));
+      expect(sortByAuthor(results.streaming)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
+      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
+      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
+        sortByAuthor(results.nonStreaming)
+      );
     });
   });
 
   describe('$project', () => {
     it('should include specific fields in output documents', () => {
-      const pipeline = [{
-        $project: {
-          title: 1,
-          author: 1,
+      const pipeline = [
+        {
+          $project: {
+            title: 1,
+            author: 1,
+          },
         },
-      }];
+      ];
 
       // Test traditional aggregation
       const projection = db.BOOKS.aggregate(pipeline);
@@ -297,21 +351,31 @@ describe('Modash Aggregation', () => {
       expect(projection[0]).to.deep.equal(expectedFirstResult);
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(db.BOOKS.value(), pipeline, '$project with inclusion');
+      const results = compareStreamingResults(
+        db.BOOKS.value(),
+        pipeline,
+        '$project with inclusion'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming[0]).to.deep.equal(expectedFirstResult);
     });
 
     it('should suppress _id field in the output documents', () => {
-      const pipeline = [{
-        $project: {
-          _id: 0,
-          title: 1,
-          author: 1,
+      const pipeline = [
+        {
+          $project: {
+            _id: 0,
+            title: 1,
+            author: 1,
+          },
         },
-      }];
+      ];
 
       // Test traditional aggregation
       const projection = db.BOOKS.aggregate(pipeline);
@@ -325,10 +389,18 @@ describe('Modash Aggregation', () => {
       expect(projection[0]).to.deep.equal(expectedFirstResult);
 
       // Test streaming vs non-streaming results are identical
-      const results = compareStreamingResults(db.BOOKS.value(), pipeline, '$project with _id suppression');
+      const results = compareStreamingResults(
+        db.BOOKS.value(),
+        pipeline,
+        '$project with _id suppression'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingCollection).to.deep.equal(results.nonStreaming);
+      expect(results.aggregateStreamingArray).to.deep.equal(
+        results.nonStreaming
+      );
+      expect(results.aggregateStreamingCollection).to.deep.equal(
+        results.nonStreaming
+      );
       expect(results.streaming[0]).to.deep.equal(expectedFirstResult);
     });
 

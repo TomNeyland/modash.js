@@ -14,7 +14,11 @@ import {
 } from './aggregation.js';
 import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
-import { createStreamingCollection, aggregateStreaming, StreamingCollection } from './streaming.js';
+import {
+  createStreamingCollection,
+  aggregateStreaming,
+  StreamingCollection,
+} from './streaming.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -46,7 +50,7 @@ const transparentAggregate = <T extends Document = Document>(
  *
  * Provides a clean, elegant API for processing JavaScript arrays using
  * MongoDB aggregation pipeline syntax and operators.
- * 
+ *
  * Now includes transparent streaming support - all aggregations automatically
  * work with both regular arrays and streaming collections.
  */

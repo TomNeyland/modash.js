@@ -43,6 +43,16 @@ export type {
   NonEmptyArray,
 } from './modash/types.js';
 
+// Import the basic types for use in Expression definition
+import type {
+  DocumentValue,
+  FieldPath,
+  SystemVariable,
+  Collection,
+  Document,
+} from './modash/expressions.js';
+import type { QueryExpression } from './modash/aggregation.js';
+
 // Expression type - used in $project, $addFields, etc.
 export type Expression =
   | DocumentValue
@@ -369,12 +379,9 @@ export {
 } from './modash/streaming.js';
 
 // Re-export streaming types
-export type { 
-  StreamingEvents, 
+export type {
+  StreamingEvents,
   AggregationState,
   EventTransform,
-  EventConsumerConfig 
+  EventConsumerConfig,
 } from './modash/streaming.js';
-
-// Import StreamingCollection for type checking
-import type { StreamingCollection } from './modash/streaming.js';

@@ -15,7 +15,11 @@ import { aggregate } from './aggregation.js';
  */
 export interface StreamingEvents {
   'data-added': { newDocuments: Document[]; totalCount: number };
-  'data-removed': { removedDocuments: Document[]; removedCount: number; totalCount: number };
+  'data-removed': {
+    removedDocuments: Document[];
+    removedCount: number;
+    totalCount: number;
+  };
   'result-updated': { result: Collection<Document>; pipeline: Pipeline };
   'transform-error': { error: Error; originalEvent: any; eventName: string };
 }
@@ -71,7 +75,7 @@ export interface AggregationState {
 export class StreamingCollection<
   T extends Document = Document,
 > extends EventEmitter {
-  private documents: Collection<T> = [];
+  private documents: T[] = [];
   private aggregationStates = new Map<string, AggregationState>();
   private activePipelines = new Map<string, Pipeline>();
   private eventConsumers = new Map<string, EventConsumerConfig<T>>();
@@ -146,8 +150,8 @@ export class StreamingCollection<
    * Remove documents by ID (assumes documents have an 'id' or '_id' field)
    */
   removeById(id: any): T | null {
-    const removed = this.remove((doc) => 
-      (doc as any).id === id || (doc as any)._id === id
+    const removed = this.remove(
+      doc => (doc as any).id === id || (doc as any)._id === id
     );
     return removed.length > 0 ? removed[0] : null;
   }
@@ -157,8 +161,8 @@ export class StreamingCollection<
    */
   removeByIds(ids: any[]): T[] {
     const idSet = new Set(ids);
-    return this.remove((doc) => 
-      idSet.has((doc as any).id) || idSet.has((doc as any)._id)
+    return this.remove(
+      doc => idSet.has((doc as any).id) || idSet.has((doc as any)._id)
     );
   }
 
@@ -166,7 +170,7 @@ export class StreamingCollection<
    * Remove documents by matching query (similar to MongoDB deleteMany)
    */
   removeByQuery(query: Partial<T>): T[] {
-    return this.remove((doc) => {
+    return this.remove(doc => {
       return Object.entries(query).every(([key, value]) => {
         return (doc as any)[key] === value;
       });
@@ -178,7 +182,7 @@ export class StreamingCollection<
    */
   removeFirst(count: number = 1): T[] {
     const removed = this.documents.splice(0, count);
-    
+
     if (removed.length > 0) {
       // Emit data-removed event
       this.emit('data-removed', {
@@ -200,7 +204,7 @@ export class StreamingCollection<
   removeLast(count: number = 1): T[] {
     const startIndex = Math.max(0, this.documents.length - count);
     const removed = this.documents.splice(startIndex, count);
-    
+
     if (removed.length > 0) {
       // Emit data-removed event
       this.emit('data-removed', {
@@ -259,19 +263,23 @@ export class StreamingCollection<
 
         if (config.transform) {
           const transformed = config.transform(eventData, config.eventName);
-          
+
           if (!transformed) {
             return; // Transform returned null/undefined, skip this event
           }
 
-          documentsToAdd = Array.isArray(transformed) ? transformed : [transformed];
+          documentsToAdd = Array.isArray(transformed)
+            ? transformed
+            : [transformed];
         } else {
           // No transform, assume eventData is the document(s)
           documentsToAdd = Array.isArray(eventData) ? eventData : [eventData];
         }
 
         // Filter out any null/undefined values
-        documentsToAdd = documentsToAdd.filter(doc => doc != null);
+        documentsToAdd = documentsToAdd.filter(
+          doc => doc !== null && doc !== undefined
+        );
 
         if (documentsToAdd.length > 0) {
           this.addBulk(documentsToAdd);
@@ -305,7 +313,11 @@ export class StreamingCollection<
   /**
    * Get list of active event consumers
    */
-  getEventConsumers(): Array<{ id: string; eventName: string; hasTransform: boolean }> {
+  getEventConsumers(): Array<{
+    id: string;
+    eventName: string;
+    hasTransform: boolean;
+  }> {
     return Array.from(this.eventConsumers.entries()).map(([id, config]) => ({
       id,
       eventName: config.eventName,
@@ -454,7 +466,7 @@ export class StreamingCollection<
     for (const consumerId of this.eventConsumers.keys()) {
       this.stopEventConsumer(consumerId);
     }
-    
+
     this.documents = [];
     this.aggregationStates.clear();
     this.activePipelines.clear();

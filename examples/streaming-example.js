@@ -49,7 +49,7 @@ console.log('\n🌐 Setting up external event sources...\n');
 // 1. Payment Processing Service
 const paymentService = new EventEmitter();
 
-// 2. Inventory Management System  
+// 2. Inventory Management System
 const inventoryService = new EventEmitter();
 
 // 3. Customer Service Events
@@ -112,7 +112,7 @@ const paymentConsumerId = streamingOrders.connectEventSource({
       date: new Date(eventData.timestamp),
       category: eventData.category,
       status: 'paid',
-      source: 'payment-service'
+      source: 'payment-service',
     };
   },
 });
@@ -121,20 +121,24 @@ const paymentConsumerId = streamingOrders.connectEventSource({
 streamingOrders.connectEventSource({
   source: inventoryService,
   eventName: 'inventory-sold',
-  transform: (eventData) => {
-    console.log(`📦 Inventory update for ${eventData.items?.length || 0} items`);
+  transform: eventData => {
+    console.log(
+      `📦 Inventory update for ${eventData.items?.length || 0} items`
+    );
     // Transform batch inventory updates into individual order records
-    return eventData.items?.map((item, index) => ({
-      id: eventData.batchId * 100 + index,
-      customerId: item.customerId,
-      item: item.productName,
-      price: item.unitPrice,
-      quantity: item.quantity,
-      date: new Date(eventData.timestamp),
-      category: item.category,
-      status: 'inventory-confirmed',
-      source: 'inventory-service'
-    })) || [];
+    return (
+      eventData.items?.map((item, index) => ({
+        id: eventData.batchId * 100 + index,
+        customerId: item.customerId,
+        item: item.productName,
+        price: item.unitPrice,
+        quantity: item.quantity,
+        date: new Date(eventData.timestamp),
+        category: item.category,
+        status: 'inventory-confirmed',
+        source: 'inventory-service',
+      })) || []
+    );
   },
 });
 
@@ -142,14 +146,14 @@ streamingOrders.connectEventSource({
 streamingOrders.connectEventSource({
   source: customerService,
   eventName: 'order-created',
-  transform: (eventData) => {
+  transform: eventData => {
     // Only process orders over $50 (filter small transactions)
     const orderValue = eventData.price * eventData.quantity;
     if (orderValue < 50) {
       console.log(`⚠️ Skipping small order: $${orderValue}`);
       return null; // Skip this event
     }
-    
+
     console.log(`👤 Customer order: $${orderValue}`);
     return {
       id: eventData.orderId,
@@ -160,7 +164,7 @@ streamingOrders.connectEventSource({
       date: new Date(),
       category: eventData.product.category,
       status: 'pending',
-      source: 'customer-service'
+      source: 'customer-service',
     };
   },
 });
@@ -169,7 +173,7 @@ streamingOrders.connectEventSource({
 streamingOrders.connectEventSource({
   source: shippingService,
   eventName: 'package-shipped',
-  transform: (eventData) => {
+  transform: eventData => {
     console.log(`🚚 Package shipped: ${eventData.trackingNumber}`);
     return {
       id: eventData.orderId,
@@ -181,7 +185,7 @@ streamingOrders.connectEventSource({
       category: 'shipped-items',
       status: 'shipped',
       trackingNumber: eventData.trackingNumber,
-      source: 'shipping-service'
+      source: 'shipping-service',
     };
   },
 });
@@ -203,7 +207,10 @@ streamingOrders.on('result-updated', event => {
 });
 
 streamingOrders.on('transform-error', event => {
-  console.error(`❌ Transform error for ${event.eventName}:`, event.error.message);
+  console.error(
+    `❌ Transform error for ${event.eventName}:`,
+    event.error.message
+  );
 });
 
 // Helper function to display results nicely
@@ -226,11 +233,13 @@ function displayResults() {
       `   ${index + 1}. Customer #${result._id}: $${result.totalSpent} (${result.orderCount} orders)`
     );
   });
-  
+
   console.log('\n🔌 Active Event Sources:');
   const consumers = streamingOrders.getEventConsumers();
   consumers.forEach(consumer => {
-    console.log(`   - ${consumer.eventName} (Transform: ${consumer.hasTransform ? '✅' : '❌'})`);
+    console.log(
+      `   - ${consumer.eventName} (Transform: ${consumer.hasTransform ? '✅' : '❌'})`
+    );
   });
 }
 
@@ -253,8 +262,8 @@ setTimeout(() => {
       date: new Date('2024-01-16'),
       category: 'electronics',
       status: 'shipped',
-      source: 'direct'
-    }
+      source: 'direct',
+    },
   ]);
 
   setTimeout(() => displayResults(), 100);
@@ -263,7 +272,7 @@ setTimeout(() => {
 // Payment service events
 setTimeout(() => {
   console.log('\n⏰ [10:45 AM] Payment confirmations arriving...');
-  
+
   paymentService.emit('payment-completed', {
     orderId: 200,
     customerId: 104,
@@ -271,7 +280,7 @@ setTimeout(() => {
     amount: 150,
     quantity: 1,
     timestamp: '2024-01-16T10:45:00Z',
-    category: 'electronics'
+    category: 'electronics',
   });
 
   setTimeout(() => displayResults(), 100);
@@ -280,7 +289,7 @@ setTimeout(() => {
 // Inventory service events (bulk)
 setTimeout(() => {
   console.log('\n⏰ [11:00 AM] Inventory batch processing...');
-  
+
   inventoryService.emit('inventory-sold', {
     batchId: 3,
     timestamp: '2024-01-16T11:00:00Z',
@@ -290,16 +299,16 @@ setTimeout(() => {
         productName: 'office chair',
         unitPrice: 250,
         quantity: 1,
-        category: 'furniture'
+        category: 'furniture',
       },
       {
         customerId: 106,
         productName: 'standing desk',
         unitPrice: 400,
         quantity: 1,
-        category: 'furniture'
-      }
-    ]
+        category: 'furniture',
+      },
+    ],
   });
 
   setTimeout(() => displayResults(), 100);
@@ -308,23 +317,23 @@ setTimeout(() => {
 // Customer service events (some filtered out)
 setTimeout(() => {
   console.log('\n⏰ [11:15 AM] Customer orders (with filtering)...');
-  
+
   // This will be processed (over $50)
   customerService.emit('order-created', {
     orderId: 400,
     customer: { id: 107 },
     product: { name: 'gaming mouse', category: 'electronics' },
     price: 75,
-    quantity: 1
+    quantity: 1,
   });
-  
+
   // This will be skipped (under $50)
   customerService.emit('order-created', {
     orderId: 401,
     customer: { id: 108 },
     product: { name: 'mouse pad', category: 'accessories' },
     price: 15,
-    quantity: 1
+    quantity: 1,
   });
 
   setTimeout(() => displayResults(), 100);
@@ -333,14 +342,14 @@ setTimeout(() => {
 // Shipping confirmations
 setTimeout(() => {
   console.log('\n⏰ [11:30 AM] Shipping confirmations...');
-  
+
   shippingService.emit('package-shipped', {
     orderId: 500,
     customerId: 109,
     itemName: 'laptop backpack',
     value: 80,
     trackingNumber: 'TRK123456789',
-    shippedAt: '2024-01-16T11:30:00Z'
+    shippedAt: '2024-01-16T11:30:00Z',
   });
 
   setTimeout(() => displayResults(), 100);
@@ -349,7 +358,7 @@ setTimeout(() => {
 // Error handling demo
 setTimeout(() => {
   console.log('\n⏰ [11:45 AM] Testing error handling...');
-  
+
   // This will cause a transform error
   streamingOrders.connectEventSource({
     source: paymentService,
@@ -358,7 +367,7 @@ setTimeout(() => {
       throw new Error('Intentional transform error for demo');
     },
   });
-  
+
   paymentService.emit('payment-failed', { orderId: 999 });
 
   setTimeout(() => displayResults(), 200);
@@ -369,7 +378,7 @@ setTimeout(() => {
   console.log('\n✨ ENHANCED STREAMING DEMO COMPLETE!');
   console.log('\n🎯 New Features Demonstrated:');
   console.log('   ✅ Generic event consumption from any EventEmitter');
-  console.log('   ✅ Event transforms for data normalization'); 
+  console.log('   ✅ Event transforms for data normalization');
   console.log('   ✅ Conditional event processing (filtering)');
   console.log('   ✅ Bulk event transformation (array results)');
   console.log('   ✅ Multiple concurrent event sources');
@@ -389,7 +398,7 @@ setTimeout(() => {
   console.log('   • Graceful error handling prevents pipeline failures');
   console.log('   • Memory-efficient event processing');
   console.log('   • Full backward compatibility maintained');
-  
+
   // Cleanup
   streamingOrders.destroy();
   console.log('   • Proper resource cleanup on destroy()');
