@@ -130,7 +130,8 @@ function $expression(
 function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
   // slice the $ and use the regular get
   const cleanPath = path.slice(1);
-  return get(obj, cleanPath) as DocumentValue;
+  // Optimize for simple property access - use direct access when no dots in path
+  return cleanPath.includes('.') ? get(obj, cleanPath) : obj[cleanPath];
 }
 
 function $expressionOperator(
@@ -176,7 +177,8 @@ function $expressionObject(
     if (path.indexOf('.') !== -1) {
       const pathParts = path.split('.');
       const headPath = pathParts.shift()!;
-      const head = get(obj, headPath);
+      // Optimize for simple property access when headPath doesn't contain dots
+      const head = headPath.includes('.') ? get(obj, headPath) : obj[headPath];
 
       if (Array.isArray(head)) {
         const setResult = set(
@@ -218,7 +220,8 @@ function $expressionObject(
         !isExpressionOperator(expression)
       ) {
         // Check if this is a nested projection (field projection) or computed object (expression object)
-        const fieldValue = get(obj, path);
+        // Optimize for simple property access when path doesn't contain dots
+        const fieldValue = path.includes('.') ? get(obj, path) : obj[path];
         const isFieldProjection = fieldValue && typeof fieldValue === 'object';
 
         if (isFieldProjection) {
