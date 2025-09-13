@@ -3,9 +3,9 @@
 [![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 [![Tag](https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 
-**Modern MongoDB-inspired aggregation library for TypeScript**
+**TypeScript-native MongoDB aggregation library for modern JavaScript**
 
-A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Built TypeScript-first with full type safety and modern language features.
+A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Built TypeScript-first with full type safety, zero build steps, and modern ES2022+ features.
 
 ## ✨ Features
 
@@ -13,10 +13,11 @@ A clean, elegant API for processing JavaScript arrays using MongoDB aggregation 
 - **Rich Expression Operators**: 40+ operators including boolean, comparison, arithmetic, string, date, array, and set operations
 - **Enhanced Query Operators**: Advanced `$match` with `$regex`, `$exists`, `$elemMatch`, `$all`, `$and`, `$or`, `$nor`
 - **Array Manipulation**: Comprehensive array operators like `$arrayElemAt`, `$filter`, `$map`, `$slice`, `$concatArrays`
-- **TypeScript-First**: Built with TypeScript for complete type safety and excellent developer experience
-- **Modern ES2022+**: Native modules, latest JavaScript features, compiled output for maximum compatibility
+- **TypeScript-Native**: Direct TypeScript execution with zero build steps - no compilation needed
+- **Complete Type Safety**: Full TypeScript definitions with generics and IntelliSense support
+- **Modern ES2022+**: Native modules, latest JavaScript features, works directly with tsx/esm
 - **Zero Security Vulnerabilities**: Completely modernized dependency tree
-- **Production Ready**: 66+ comprehensive tests, battle-tested implementations
+- **Production Ready**: 80+ comprehensive tests, battle-tested implementations
 
 ## 🚀 Installation
 
@@ -24,20 +25,29 @@ A clean, elegant API for processing JavaScript arrays using MongoDB aggregation 
 npm install modash
 ```
 
+> **TypeScript Native**: This library runs TypeScript directly without compilation. Use with `tsx`, `ts-node`, or any modern TypeScript runtime.
+
 ## 📖 Usage
 
-### Quick Start
+### Quick Start (TypeScript)
 
-```javascript
-import Modash from 'modash';
+```typescript
+import Modash, { type Collection, type Document } from 'modash';
 
-const sales = [
+interface Sale extends Document {
+  item: string;
+  price: number;
+  quantity: number;
+  date: Date;
+}
+
+const sales: Collection<Sale> = [
   { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
   { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
   { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
 ];
 
-// Calculate total revenue by date
+// TypeScript provides full type safety and intellisense
 const revenueByDate = Modash.aggregate(sales, [
   {
     $project: {
@@ -61,32 +71,19 @@ console.log(revenueByDate);
 // ]
 ```
 
-### TypeScript Example
+### JavaScript Usage
 
-```typescript
-import Modash, { type Document, type Collection } from 'modash';
+```javascript
+import Modash from 'modash';
 
-interface Sale extends Document {
-  item: string;
-  price: number;
-  quantity: number;
-  date: Date;
-}
-
-interface DailyRevenue extends Document {
-  _id: number;
-  totalRevenue: number;
-  itemCount: number;
-}
-
-const sales: Collection<Sale> = [
+const sales = [
   { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
   { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
   { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
 ];
 
-// TypeScript provides full type safety and intellisense
-const revenueByDate: Collection<DailyRevenue> = Modash.aggregate(sales, [
+// Works seamlessly with plain JavaScript too
+const revenueByDate = Modash.aggregate(sales, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
@@ -628,55 +625,187 @@ const trendingContent = Modash.aggregate(socialPosts, [
 
 ## 🏷️ TypeScript Support
 
-Modash.js includes comprehensive TypeScript definitions for excellent developer experience:
+Modash.js is built TypeScript-first with zero compilation steps needed. It provides comprehensive type definitions for exceptional developer experience:
 
 ```typescript
 import Modash, { type Collection, type Pipeline, type Document } from 'modash';
 
-// Define your document types
+// Define your document types with full type safety
 interface Customer extends Document {
   _id: number;
   name: string;
   email: string;
   age: number;
   orders: Order[];
+  address: {
+    street: string;
+    city: string;
+    country: string;
+  };
 }
 
 interface Order extends Document {
   _id: string;
   total: number;
   items: string[];
+  status: 'pending' | 'shipped' | 'delivered';
 }
 
-// Type-safe collections
+// Type-safe collections with IntelliSense
 const customers: Collection<Customer> = [
-  { _id: 1, name: 'Alice', email: 'alice@example.com', age: 30, orders: [] },
+  {
+    _id: 1,
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
+    age: 30,
+    orders: [],
+    address: { street: '123 Main St', city: 'Seattle', country: 'USA' },
+  },
 ];
 
-// Type-safe pipelines with IntelliSense
+// Fully typed pipelines with compile-time validation
 const pipeline: Pipeline = [
-  { $match: { age: { $gte: 25 } } },
+  // $match with typed query operators
+  { $match: { age: { $gte: 25 }, 'address.country': 'USA' } },
+
+  // $addFields with expression type checking
   {
     $addFields: {
       orderCount: { $size: '$orders' },
       isVip: { $gte: [{ $size: '$orders' }, 5] },
+      fullAddress: {
+        $concat: [
+          '$address.street',
+          ', ',
+          '$address.city',
+          ', ',
+          '$address.country',
+        ],
+      },
+      customerTier: {
+        $cond: {
+          if: { $gte: ['$age', 35] },
+          then: 'senior',
+          else: 'standard',
+        },
+      },
     },
   },
+
+  // $project with field selection and computed fields
+  {
+    $project: {
+      name: 1,
+      email: 1,
+      orderCount: 1,
+      isVip: 1,
+      customerTier: 1,
+      fullAddress: 1,
+      _id: 0, // Exclude _id field
+    },
+  },
+
   { $sort: { orderCount: -1 } },
 ];
 
-// Fully typed results
+// Fully typed results with IntelliSense support
 const result = Modash.aggregate(customers, pipeline);
-// TypeScript knows: result is Collection<Customer & { orderCount: number, isVip: boolean }>
+// TypeScript infers: Collection<{name: string, email: string, orderCount: number, isVip: boolean, ...}>
+
+// Type-safe individual stage operations
+const activeCustomers = Modash.$match(customers, {
+  age: { $gte: 18 },
+  'orders.status': { $in: ['pending', 'shipped'] },
+});
+
+const customerSummary = Modash.$group(activeCustomers, {
+  _id: '$address.country',
+  totalCustomers: { $sum: 1 },
+  avgAge: { $avg: '$age' },
+  customerNames: { $push: '$name' },
+});
+```
+
+### Advanced TypeScript Features
+
+```typescript
+// Generic helper for typed aggregation results
+function typedAggregate<TInput extends Document, TOutput extends Document>(
+  collection: Collection<TInput>,
+  pipeline: Pipeline
+): Collection<TOutput> {
+  return Modash.aggregate(collection, pipeline);
+}
+
+// Custom document interfaces with nested objects
+interface ProductSale extends Document {
+  productId: string;
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  product: {
+    name: string;
+    category: string;
+    price: number;
+  };
+  quantity: number;
+  saleDate: Date;
+  tags: string[];
+}
+
+// Complex aggregation with full type safety
+const salesAnalysis = Modash.aggregate(sales, [
+  {
+    $match: {
+      'product.category': { $in: ['electronics', 'computers'] },
+      quantity: { $gte: 1 },
+      saleDate: { $gte: new Date('2023-01-01') },
+    },
+  },
+  {
+    $addFields: {
+      revenue: { $multiply: ['$product.price', '$quantity'] },
+      customerEmail: '$customer.email',
+      isHighValue: {
+        $gte: [{ $multiply: ['$product.price', '$quantity'] }, 1000],
+      },
+      monthYear: {
+        $concat: [
+          { $toString: { $month: '$saleDate' } },
+          '-',
+          { $toString: { $year: '$saleDate' } },
+        ],
+      },
+    },
+  },
+  {
+    $group: {
+      _id: {
+        category: '$product.category',
+        month: '$monthYear',
+      },
+      totalRevenue: { $sum: '$revenue' },
+      avgOrderValue: { $avg: '$revenue' },
+      customerCount: { $addToSet: '$customer.id' },
+      highValueSales: { $sum: { $cond: ['$isHighValue', 1, 0] } },
+      topProducts: { $push: '$product.name' },
+    },
+  },
+]);
 ```
 
 ### Key TypeScript Features
 
-- **Complete type coverage** for all 40+ operators
-- **Generic document types** - work with your custom interfaces
-- **Pipeline type safety** - catch errors at compile time
-- **Expression validation** - ensure correct operator usage
-- **IntelliSense support** - autocomplete for all operators and options
+- **Zero Build Step**: Direct execution with `tsx` - no compilation needed
+- **Complete Type Coverage**: All 40+ operators with full type definitions
+- **Generic Document Types**: Work with your custom interfaces seamlessly
+- **Pipeline Type Safety**: Catch errors at compile-time before runtime
+- **Expression Validation**: Ensure correct operator usage and field references
+- **IntelliSense Support**: Full autocomplete for operators, fields, and options
+- **Nested Object Support**: Type-safe access to embedded document fields
+- **Union Types**: Support for complex data structures and conditional logic
 
 ## 🎯 Real-World Examples
 
@@ -831,19 +960,46 @@ const userPostStats = Modash.aggregate(users, [
 
 ## 🏗️ Development
 
+This project uses TypeScript natively with zero build steps:
+
 ```bash
 # Install dependencies
 npm install
 
-# Run tests
+# Run tests (TypeScript executed directly via tsx)
 npm test
 
-# Lint code
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Lint code (ESLint with TypeScript support)
 npm run lint
 
-# Build
-npm run build
+# Auto-fix linting issues
+npm run lint:fix
+
+# Format code with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Run all quality checks
+npm run quality
+
+# No build step needed - TypeScript runs directly!
+npm run build  # Just echoes "No build step needed"
 ```
+
+### Development Workflow
+
+1. **Direct TypeScript Execution**: No compilation step - use `tsx` for direct TS execution
+2. **Type-Safe Development**: Full TypeScript checking in your IDE
+3. **Test-Driven Development**: Comprehensive test suite with 80+ tests
+4. **Modern Tooling**: ESLint + Prettier for code quality
 
 ## 🔄 Migration from v0.7.x
 
@@ -864,11 +1020,12 @@ _.mixin(Modash);
 const result = _(data).aggregate([...]).value();
 ```
 
-### After (v0.8.0+)
+### After (v0.8.0+ - TypeScript Native)
 
-```javascript
+```typescript
 import Modash from 'modash';
 
+// Direct TypeScript execution - no build step needed
 const result = Modash.aggregate(data, [...]);
 ```
 
