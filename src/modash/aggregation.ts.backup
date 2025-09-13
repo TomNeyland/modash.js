@@ -1,5 +1,6 @@
 // Modern JavaScript - use our utility functions instead of lodash
 import { get as lodashGet } from './util.js';
+import { PerformanceOptimizedEngine } from './performance-optimized-engine.js';
 
 import {
   $expressionObject,
@@ -21,6 +22,9 @@ import type {
   LookupStage,
   AddFieldsStage,
 } from '../index.js';
+
+// Create a singleton optimized engine instance
+const optimizedEngine = new PerformanceOptimizedEngine();
 
 // Match-related type definitions
 // Comparison operators for $match
@@ -452,8 +456,34 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
-  // Execute using native JavaScript pipeline processing
+  // Try optimized execution for larger collections with compatible stages
+  const shouldOptimize = collection.length > 100 && isOptimizable(stages);
+
+  if (shouldOptimize) {
+    try {
+      return optimizedEngine.aggregate(collection, stages);
+    } catch (error) {
+      // Fallback to traditional execution if optimization fails
+      console.warn(
+        'Optimized execution failed, falling back to traditional:',
+        error
+      );
+    }
+  }
+
+  // Traditional execution using native JavaScript
   return traditionalAggregate(collection, stages);
+}
+
+// Check if pipeline stages are optimizable
+function isOptimizable(stages: PipelineStage[]): boolean {
+  for (const stage of stages) {
+    // Skip optimization for complex stages that need special handling
+    if ('$lookup' in stage || '$unwind' in stage) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function traditionalAggregate<T extends Document = Document>(

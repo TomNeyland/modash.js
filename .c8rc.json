@@ -10,7 +10,7 @@
     "scripts/**",
     "gulp/**"
   ],
-  "include": ["src/**/*.js"],
+  "include": ["src/**/*.ts", "src/**/*.js"],
   "check-coverage": true,
   "lines": 80,
   "functions": 80,

@@ -21,7 +21,10 @@ describe('Streaming Collection', () => {
 
   afterEach(() => {
     // Clean up after each test
-    if (streamingCollection && typeof streamingCollection.destroy === 'function') {
+    if (
+      streamingCollection &&
+      typeof streamingCollection.destroy === 'function'
+    ) {
       streamingCollection.destroy();
     }
   });
@@ -91,7 +94,7 @@ describe('Streaming Collection', () => {
 
     it('should properly destroy and clean up resources', () => {
       const mockSource = new EventEmitter();
-      
+
       // Set up event consumer
       const consumerId = streamingCollection.connectEventSource({
         source: mockSource,
@@ -102,10 +105,10 @@ describe('Streaming Collection', () => {
 
       // Destroy should clean up everything
       streamingCollection.destroy();
-      
+
       expect(streamingCollection.count()).to.equal(0);
       expect(streamingCollection.getEventConsumers()).to.have.length(0);
-      
+
       // Should not crash when emitting to disconnected source
       expect(() => mockSource.emit('test-event', { id: 999 })).to.not.throw();
     });
@@ -156,7 +159,7 @@ describe('Streaming Collection', () => {
 
     it('should emit transform-error event when transform function fails', done => {
       const mockSource = new EventEmitter();
-      
+
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'test-event',
@@ -193,10 +196,10 @@ describe('Streaming Collection', () => {
 
       streamingCollection.once('data-added', event => {
         expect(event.newDocuments).to.have.length(1);
-        expect(event.newDocuments[0]).to.deep.equal({ 
-          id: 4, 
-          name: 'External', 
-          type: 'external' 
+        expect(event.newDocuments[0]).to.deep.equal({
+          id: 4,
+          name: 'External',
+          type: 'external',
         });
         expect(streamingCollection.count()).to.equal(originalCount + 1);
         done();
@@ -211,10 +214,10 @@ describe('Streaming Collection', () => {
       expect(streamingCollection.getEventConsumers()).to.have.length(1);
 
       // Emit event
-      mockSource.emit('new-document', { 
-        id: 4, 
-        name: 'External', 
-        type: 'external' 
+      mockSource.emit('new-document', {
+        id: 4,
+        name: 'External',
+        type: 'external',
       });
     });
 
@@ -260,16 +263,16 @@ describe('Streaming Collection', () => {
 
     it('should handle transform returning array of documents', done => {
       let addedCount = 0;
-      
+
       streamingCollection.on('data-added', event => {
         addedCount += event.newDocuments.length;
-        
+
         if (addedCount === 2) {
           expect(streamingCollection.count()).to.equal(5); // 3 original + 2 new
-          
+
           const docs = streamingCollection.getDocuments();
           const newDocs = docs.slice(-2);
-          
+
           expect(newDocs[0]).to.deep.equal({
             id: 4,
             name: 'User 1',
@@ -284,7 +287,7 @@ describe('Streaming Collection', () => {
             dept: 'bulk',
             salary: 70000,
           });
-          
+
           done();
         }
       });
@@ -292,13 +295,13 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'bulk-users',
-        transform: (eventData) => {
+        transform: eventData => {
           return eventData.users.map((user, index) => ({
-            id: user.id || (4 + index),
+            id: user.id || 4 + index,
             name: user.name,
             age: user.age,
             dept: 'bulk',
-            salary: 60000 + (index * 10000),
+            salary: 60000 + index * 10000,
           }));
         },
       });
@@ -318,28 +321,28 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'conditional-event',
-        transform: (eventData) => {
+        transform: eventData => {
           // Only process events with status 'active'
           return eventData.status === 'active' ? eventData : null;
         },
       });
 
       // Emit events - inactive should be skipped
-      mockSource.emit('conditional-event', { 
-        id: 4, 
-        name: 'Inactive', 
-        status: 'inactive' 
+      mockSource.emit('conditional-event', {
+        id: 4,
+        name: 'Inactive',
+        status: 'inactive',
       });
-      
+
       expect(streamingCollection.count()).to.equal(originalCount);
 
       // Active should be processed
-      mockSource.emit('conditional-event', { 
-        id: 5, 
-        name: 'Active', 
-        status: 'active' 
+      mockSource.emit('conditional-event', {
+        id: 5,
+        name: 'Active',
+        status: 'active',
       });
-      
+
       expect(streamingCollection.count()).to.equal(originalCount + 1);
     });
 
@@ -364,12 +367,12 @@ describe('Streaming Collection', () => {
     it('should manage multiple event sources', done => {
       const source1 = new EventEmitter();
       const source2 = new EventEmitter();
-      
+
       let receivedEvents = 0;
-      
+
       streamingCollection.on('data-added', () => {
         receivedEvents++;
-        
+
         if (receivedEvents === 2) {
           expect(streamingCollection.count()).to.equal(5); // 3 original + 2 new
           expect(streamingCollection.getEventConsumers()).to.have.length(2);
@@ -381,13 +384,13 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: source1,
         eventName: 'event1',
-        transform: (data) => ({ ...data, source: 'source1' }),
+        transform: data => ({ ...data, source: 'source1' }),
       });
 
       streamingCollection.connectEventSource({
         source: source2,
         eventName: 'event2',
-        transform: (data) => ({ ...data, source: 'source2' }),
+        transform: data => ({ ...data, source: 'source2' }),
       });
 
       // Emit from both sources
@@ -442,12 +445,12 @@ describe('Streaming Collection', () => {
       expect(() => {
         streamingCollection.startEventConsumer('invalid-id');
       }).to.throw('Event consumer invalid-id not found');
-      
+
       // Should not throw for stopping invalid consumer
       expect(() => {
         streamingCollection.stopEventConsumer('invalid-id');
       }).to.not.throw();
-      
+
       // Should not throw for disconnecting invalid consumer
       expect(() => {
         streamingCollection.disconnectEventSource('invalid-id');
@@ -464,12 +467,7 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'mixed-array',
-        transform: () => [
-          null,
-          { id: 4, name: 'Valid User' },
-          undefined,
-          null
-        ],
+        transform: () => [null, { id: 4, name: 'Valid User' }, undefined, null],
       });
 
       mockSource.emit('mixed-array', {});
@@ -557,7 +555,7 @@ describe('Streaming Collection', () => {
 
     it('should handle complex pipelines with event sources', done => {
       const mockSource = new EventEmitter();
-      
+
       // Set up complex analytics pipeline
       const pipeline = [
         { $match: { salary: { $gte: 80000 } } },
@@ -566,7 +564,7 @@ describe('Streaming Collection', () => {
             _id: '$dept',
             avgSalary: { $avg: '$salary' },
             count: { $sum: 1 },
-            employees: { $push: '$name' }
+            employees: { $push: '$name' },
           },
         },
         { $sort: { avgSalary: -1 } },
@@ -577,13 +575,19 @@ describe('Streaming Collection', () => {
       expect(initialResult).to.have.length(2);
 
       let updateCount = 0;
-      streamingCollection.on('result-updated', (event) => {
+      streamingCollection.on('result-updated', event => {
         updateCount++;
-        
+
         if (updateCount === 2) {
-          const engineeringGroup = event.result.find(g => g._id === 'engineering');
+          const engineeringGroup = event.result.find(
+            g => g._id === 'engineering'
+          );
           expect(engineeringGroup.count).to.equal(3); // Alice, Charlie, David
-          expect(engineeringGroup.employees).to.include.members(['Alice', 'Charlie', 'David']);
+          expect(engineeringGroup.employees).to.include.members([
+            'Alice',
+            'Charlie',
+            'David',
+          ]);
           done();
         }
       });
@@ -592,7 +596,7 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'new-hire',
-        transform: (eventData) => ({
+        transform: eventData => ({
           id: eventData.employeeId,
           name: eventData.fullName,
           age: eventData.age,
@@ -690,10 +694,10 @@ describe('Streaming Collection', () => {
 
     it('should handle live updates from event sources with streaming pipelines', done => {
       const mockSource = new EventEmitter();
-      
+
       const pipeline = [
         { $match: { dept: 'engineering' } },
-        { $project: { name: 1, salary: 1, age: 1 } }
+        { $project: { name: 1, salary: 1, age: 1 } },
       ];
 
       // Start streaming
@@ -712,7 +716,7 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'employee-hired',
-        transform: (data) => ({
+        transform: data => ({
           id: data.id,
           name: data.name,
           age: data.age,
@@ -758,11 +762,11 @@ describe('Streaming Collection', () => {
       for (let i = 0; i < 10; i++) {
         const source = new EventEmitter();
         sources.push(source);
-        
+
         const consumerId = streamingCollection.connectEventSource({
           source: source,
           eventName: `event-${i}`,
-          transform: (data) => ({ ...data, sourceIndex: i }),
+          transform: data => ({ ...data, sourceIndex: i }),
         });
         consumerIds.push(consumerId);
       }
@@ -784,10 +788,10 @@ describe('Streaming Collection', () => {
     it('should handle rapid event bursts without memory leaks', done => {
       const mockSource = new EventEmitter();
       let processedEvents = 0;
-      
+
       streamingCollection.on('data-added', () => {
         processedEvents++;
-        
+
         if (processedEvents === 100) {
           expect(streamingCollection.count()).to.equal(103); // 3 original + 100 new
           done();
@@ -839,7 +843,7 @@ describe('Streaming Collection', () => {
   describe('Edge Cases and Error Handling', () => {
     it('should handle event sources that emit non-object data', done => {
       const mockSource = new EventEmitter();
-      
+
       streamingCollection.once('data-added', event => {
         expect(event.newDocuments[0]).to.deep.equal({
           value: 'simple string',
@@ -851,7 +855,7 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'string-event',
-        transform: (data) => ({
+        transform: data => ({
           value: data,
           processed: true,
         }),
@@ -876,7 +880,7 @@ describe('Streaming Collection', () => {
 
     it('should handle circular references in event data gracefully', () => {
       const mockSource = new EventEmitter();
-      
+
       // Create circular reference
       const circularData = { name: 'Circular' };
       circularData.self = circularData;
@@ -885,7 +889,7 @@ describe('Streaming Collection', () => {
         streamingCollection.connectEventSource({
           source: mockSource,
           eventName: 'circular-event',
-          transform: (data) => ({
+          transform: data => ({
             id: 999,
             name: data.name,
             // Don't include the circular reference
@@ -902,7 +906,7 @@ describe('Streaming Collection', () => {
 
       streamingCollection.on('data-added', () => {
         addedCount++;
-        
+
         if (addedCount === 2) {
           expect(streamingCollection.count()).to.equal(5); // 3 original + 2 new
           done();
@@ -913,21 +917,27 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'user-action',
-        transform: (data) => data.type === 'login' ? {
-          id: data.userId,
-          name: `User ${data.userId}`,
-          action: 'login',
-        } : null,
+        transform: data =>
+          data.type === 'login'
+            ? {
+                id: data.userId,
+                name: `User ${data.userId}`,
+                action: 'login',
+              }
+            : null,
       });
 
       streamingCollection.connectEventSource({
         source: mockSource,
         eventName: 'user-action',
-        transform: (data) => data.type === 'signup' ? {
-          id: data.userId,
-          name: `New User ${data.userId}`,
-          action: 'signup',
-        } : null,
+        transform: data =>
+          data.type === 'signup'
+            ? {
+                id: data.userId,
+                name: `New User ${data.userId}`,
+                action: 'signup',
+              }
+            : null,
       });
 
       // Emit events
@@ -939,14 +949,14 @@ describe('Streaming Collection', () => {
     it('should maintain event source isolation', () => {
       const source1 = new EventEmitter();
       const source2 = new EventEmitter();
-      
+
       let source1Events = 0;
       let source2Events = 0;
 
       streamingCollection.connectEventSource({
         source: source1,
         eventName: 'test',
-        transform: (data) => {
+        transform: data => {
           source1Events++;
           return { ...data, source: 1 };
         },
@@ -955,7 +965,7 @@ describe('Streaming Collection', () => {
       streamingCollection.connectEventSource({
         source: source2,
         eventName: 'test',
-        transform: (data) => {
+        transform: data => {
           source2Events++;
           return { ...data, source: 2 };
         },

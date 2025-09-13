@@ -121,8 +121,20 @@ interface Order extends Document {
 
 // Create a streaming collection
 const liveOrders = createStreamingCollection<Order>([
-  { customerId: 1, item: 'laptop', price: 1200, quantity: 1, status: 'shipped' },
-  { customerId: 2, item: 'mouse', price: 25, quantity: 2, status: 'processing' }
+  {
+    customerId: 1,
+    item: 'laptop',
+    price: 1200,
+    quantity: 1,
+    status: 'shipped',
+  },
+  {
+    customerId: 2,
+    item: 'mouse',
+    price: 25,
+    quantity: 2,
+    status: 'processing',
+  },
 ]);
 
 // Set up live analytics pipeline
@@ -132,9 +144,9 @@ const revenueAnalytics = [
     $group: {
       _id: '$customerId',
       totalSpent: { $sum: { $multiply: ['$price', '$quantity'] } },
-      orderCount: { $sum: 1 }
-    }
-  }
+      orderCount: { $sum: 1 },
+    },
+  },
 ];
 
 // Start streaming - returns current results and keeps them updated
@@ -142,14 +154,26 @@ const results = liveOrders.stream(revenueAnalytics);
 console.log('Initial results:', results);
 
 // Listen for real-time updates
-liveOrders.on('result-updated', (event) => {
+liveOrders.on('result-updated', event => {
   console.log('Live results updated:', event.result);
 });
 
 // Add new data - automatically triggers recalculation
 liveOrders.addBulk([
-  { customerId: 1, item: 'monitor', price: 300, quantity: 1, status: 'shipped' },
-  { customerId: 3, item: 'keyboard', price: 75, quantity: 1, status: 'shipped' }
+  {
+    customerId: 1,
+    item: 'monitor',
+    price: 300,
+    quantity: 1,
+    status: 'shipped',
+  },
+  {
+    customerId: 3,
+    item: 'keyboard',
+    price: 75,
+    quantity: 1,
+    status: 'shipped',
+  },
 ]);
 
 // Results automatically update in real-time!
@@ -195,7 +219,14 @@ const paymentService = new EventEmitter();
 
 // Start with existing orders
 const liveOrders = createStreamingCollection<Order>([
-  { id: 'ord-1', customerId: 1, item: 'laptop', price: 1200, status: 'pending', processedAt: new Date() }
+  {
+    id: 'ord-1',
+    customerId: 1,
+    item: 'laptop',
+    price: 1200,
+    status: 'pending',
+    processedAt: new Date(),
+  },
 ]);
 
 // Connect EventEmitter with transform function
@@ -205,7 +236,7 @@ const consumerId = liveOrders.connectEventSource({
   transform: (eventData: PaymentEvent, eventName: string): Order | null => {
     // Skip failed payments
     if (eventData.status === 'failed') return null;
-    
+
     // Transform payment event to order format
     return {
       id: eventData.orderId,
@@ -213,20 +244,22 @@ const consumerId = liveOrders.connectEventSource({
       item: 'processed-payment',
       price: eventData.amount,
       status: 'paid',
-      processedAt: eventData.timestamp
+      processedAt: eventData.timestamp,
     };
-  }
+  },
 });
 
 // Set up real-time analytics
 const revenueAnalytics = [
   { $match: { status: 'paid' } },
-  { $group: { 
-    _id: '$customerId', 
-    totalSpent: { $sum: '$price' },
-    orderCount: { $sum: 1 } 
-  }},
-  { $sort: { totalSpent: -1 } }
+  {
+    $group: {
+      _id: '$customerId',
+      totalSpent: { $sum: '$price' },
+      orderCount: { $sum: 1 },
+    },
+  },
+  { $sort: { totalSpent: -1 } },
 ];
 
 // Start streaming - gets live updates from EventEmitter
@@ -234,11 +267,11 @@ const results = liveOrders.stream(revenueAnalytics);
 console.log('Initial revenue:', results);
 
 // Listen for real-time updates
-liveOrders.on('result-updated', (event) => {
+liveOrders.on('result-updated', event => {
   console.log('📊 Live analytics updated:', event.result);
 });
 
-liveOrders.on('data-added', (event) => {
+liveOrders.on('data-added', event => {
   console.log(`💰 ${event.newDocuments.length} new payments processed`);
 });
 
@@ -249,16 +282,16 @@ paymentService.emit('payment-completed', {
   amount: 750,
   currency: 'USD',
   status: 'completed',
-  timestamp: new Date()
+  timestamp: new Date(),
 });
 
 paymentService.emit('payment-completed', {
   orderId: 'ord-3',
   customerId: 2,
   amount: 400,
-  currency: 'USD', 
+  currency: 'USD',
   status: 'completed',
-  timestamp: new Date()
+  timestamp: new Date(),
 });
 
 // Results automatically update! Analytics now show:
@@ -280,12 +313,18 @@ const inventory = createStreamingCollection([
   { id: 1, product: 'laptop', quantity: 50, category: 'electronics' },
   { id: 2, product: 'mouse', quantity: 200, category: 'accessories' },
   { id: 3, product: 'monitor', quantity: 30, category: 'electronics' },
-  { id: 4, product: 'keyboard', quantity: 100, category: 'accessories' }
+  { id: 4, product: 'keyboard', quantity: 100, category: 'accessories' },
 ]);
 
 const stockAnalytics = [
-  { $group: { _id: '$category', totalItems: { $sum: '$quantity' }, products: { $sum: 1 } } },
-  { $sort: { totalItems: -1 } }
+  {
+    $group: {
+      _id: '$category',
+      totalItems: { $sum: '$quantity' },
+      products: { $sum: 1 },
+    },
+  },
+  { $sort: { totalItems: -1 } },
 ];
 
 inventory.stream(stockAnalytics);
@@ -308,7 +347,7 @@ const removed = inventory.removeFirst(2); // Remove oldest items
 ### Performance Benefits
 
 - **Incremental Processing**: Only recalculates what's necessary
-- **Caching Infrastructure**: Maintains intermediate results for efficiency  
+- **Caching Infrastructure**: Maintains intermediate results for efficiency
 - **No Regression**: Zero impact on existing non-streaming operations
 - **Future Optimizations**: Architecture ready for per-stage incremental updates
 

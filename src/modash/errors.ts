@@ -3,7 +3,7 @@
  */
 
 export class ModashError extends Error {
-  public readonly name: string = 'ModashError';
+  public override readonly name: string = 'ModashError';
 
   constructor(
     message: string,
@@ -14,7 +14,7 @@ export class ModashError extends Error {
 }
 
 export class AggregationError extends ModashError {
-  public readonly name: string = 'AggregationError';
+  public override readonly name: string = 'AggregationError';
 
   constructor(
     message: string,
@@ -26,7 +26,7 @@ export class AggregationError extends ModashError {
 }
 
 export class ExpressionError extends ModashError {
-  public readonly name: string = 'ExpressionError';
+  public override readonly name: string = 'ExpressionError';
 
   constructor(
     message: string,
@@ -38,7 +38,7 @@ export class ExpressionError extends ModashError {
 }
 
 export class OperatorError extends ModashError {
-  public readonly name: string = 'OperatorError';
+  public override readonly name: string = 'OperatorError';
 
   constructor(
     message: string,
@@ -50,7 +50,7 @@ export class OperatorError extends ModashError {
 }
 
 export class ValidationError extends ModashError {
-  public readonly name: string = 'ValidationError';
+  public override readonly name: string = 'ValidationError';
 
   constructor(
     message: string,
