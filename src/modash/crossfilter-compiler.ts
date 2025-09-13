@@ -163,7 +163,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             );
             predicates.push((doc: Document, _rowId: RowId) => {
               for (let i = 0; i < subPredicates.length; i++) {
-                if (!subPredicates[i](doc, rowId)) return false;
+                if (!subPredicates[i](doc, _rowId)) return false;
               }
               return true;
             });
@@ -176,7 +176,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             );
             predicates.push((doc: Document, _rowId: RowId) => {
               for (let i = 0; i < subPredicates.length; i++) {
-                if (subPredicates[i](doc, rowId)) return true;
+                if (subPredicates[i](doc, _rowId)) return true;
               }
               return false;
             });
@@ -185,7 +185,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           case '$not': {
             const subPredicate = this.buildMatchFunction(condition);
             predicates.push(
-              (doc: Document, _rowId: RowId) => !subPredicate(doc, rowId)
+              (doc: Document, _rowId: RowId) => !subPredicate(doc, _rowId)
             );
             break;
           }
@@ -196,7 +196,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             );
             predicates.push((doc: Document, _rowId: RowId) => {
               for (let i = 0; i < subPredicates.length; i++) {
-                if (subPredicates[i](doc, rowId)) return false;
+                if (subPredicates[i](doc, _rowId)) return false;
               }
               return true;
             });
@@ -224,7 +224,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     } else {
       return (doc: Document, _rowId: RowId) => {
         for (let i = 0; i < predicates.length; i++) {
-          if (!predicates[i](doc, rowId)) return false;
+          if (!predicates[i](doc, _rowId)) return false;
         }
         return true;
       };
@@ -240,17 +240,120 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
     // Handle different condition types
     if (typeof condition === 'object' && condition !== null) {
-      // Object-based conditions like {$gt: 5, $lt: 10}
-      return (doc: Document, _rowId: RowId) => {
-        const fieldValue = getFieldValue(doc);
-        return this.evaluateCondition(fieldValue, condition);
-      };
+      // Build compiled conditions for all operators
+      const compiledChecks: string[] = [];
+
+      for (const [op, value] of Object.entries(condition)) {
+        const fieldAccess = this.generateFieldAccess(field);
+
+        switch (op) {
+          case '$eq':
+            compiledChecks.push(`${fieldAccess} === ${JSON.stringify(value)}`);
+            break;
+          case '$ne':
+            compiledChecks.push(`${fieldAccess} !== ${JSON.stringify(value)}`);
+            break;
+          case '$gt':
+            compiledChecks.push(`${fieldAccess} > ${JSON.stringify(value)}`);
+            break;
+          case '$gte':
+            compiledChecks.push(`${fieldAccess} >= ${JSON.stringify(value)}`);
+            break;
+          case '$lt':
+            compiledChecks.push(`${fieldAccess} < ${JSON.stringify(value)}`);
+            break;
+          case '$lte':
+            compiledChecks.push(`${fieldAccess} <= ${JSON.stringify(value)}`);
+            break;
+          case '$in':
+            if (Array.isArray(value)) {
+              const values = JSON.stringify(value);
+              compiledChecks.push(`${values}.includes(${fieldAccess})`);
+            }
+            break;
+          case '$nin':
+            if (Array.isArray(value)) {
+              const values = JSON.stringify(value);
+              compiledChecks.push(`!${values}.includes(${fieldAccess})`);
+            }
+            break;
+          case '$exists':
+            if (value) {
+              compiledChecks.push(`${fieldAccess} !== undefined`);
+            } else {
+              compiledChecks.push(`${fieldAccess} === undefined`);
+            }
+            break;
+          case '$regex':
+            const pattern = value instanceof RegExp ? value.source : value;
+            const flags = value instanceof RegExp ? value.flags : '';
+            compiledChecks.push(
+              `new RegExp(${JSON.stringify(pattern)}, ${JSON.stringify(flags)}).test(String(${fieldAccess} || ''))`
+            );
+            break;
+          case '$all':
+            if (Array.isArray(value)) {
+              const values = JSON.stringify(value);
+              compiledChecks.push(
+                `Array.isArray(${fieldAccess}) && ${values}.every(v => ${fieldAccess}.includes(v))`
+              );
+            }
+            break;
+          case '$size':
+            compiledChecks.push(
+              `Array.isArray(${fieldAccess}) && ${fieldAccess}.length === ${JSON.stringify(value)}`
+            );
+            break;
+          default:
+            // For unsupported operators, fall back to runtime evaluation
+            return (doc: Document, _rowId: RowId) => {
+              const fieldValue = getFieldValue(doc);
+              return this.evaluateCondition(fieldValue, condition);
+            };
+        }
+      }
+
+      if (compiledChecks.length > 0) {
+        const checkCode = compiledChecks.join(' && ');
+        try {
+          // eslint-disable-next-line no-new-func
+          return new Function(
+            'doc',
+            'rowId',
+            `
+            ${this.generateFieldAccessors()}
+            return ${checkCode};
+          `
+          ) as (doc: Document, _rowId: RowId) => boolean;
+        } catch (_error) {
+          // Fallback for compilation errors
+          return (doc: Document, _rowId: RowId) => {
+            const fieldValue = getFieldValue(doc);
+            return this.evaluateCondition(fieldValue, condition);
+          };
+        }
+      }
+
+      return () => true;
     } else {
       // Simple equality condition
-      return (doc: Document, _rowId: RowId) => {
-        const fieldValue = getFieldValue(doc);
-        return fieldValue === condition;
-      };
+      const fieldAccess = this.generateFieldAccess(field);
+      try {
+        // eslint-disable-next-line no-new-func
+        return new Function(
+          'doc',
+          'rowId',
+          `
+          ${this.generateFieldAccessors()}
+          return ${fieldAccess} === ${JSON.stringify(condition)};
+        `
+        ) as (doc: Document, _rowId: RowId) => boolean;
+      } catch (_error) {
+        return (doc: Document, _rowId: RowId) => {
+          const fieldValue = getFieldValue(doc);
+          return fieldValue === condition;
+        };
+      }
     }
   }
 
@@ -685,12 +788,212 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           .join(', ');
         return `{${fields}}`;
       } else {
-        // Complex expression with operators - fall back to runtime evaluation
-        return `evalExpr(${JSON.stringify(expr)}, doc)`;
+        // MongoDB expression with operators - compile directly
+        return this.compileOperatorExpression(expr);
       }
     } else {
       return JSON.stringify(expr);
     }
+  }
+
+  private compileOperatorExpression(expr: any): string {
+    // Math operators
+    if (expr.$add && Array.isArray(expr.$add)) {
+      const values = expr.$add.map(
+        v => `(Number(${this.generateExpressionCode(v)}) || 0)`
+      );
+      return `(${values.join(' + ')})`;
+    }
+    if (
+      expr.$subtract &&
+      Array.isArray(expr.$subtract) &&
+      expr.$subtract.length === 2
+    ) {
+      const left = `(Number(${this.generateExpressionCode(expr.$subtract[0])}) || 0)`;
+      const right = `(Number(${this.generateExpressionCode(expr.$subtract[1])}) || 0)`;
+      return `(${left} - ${right})`;
+    }
+    if (
+      expr.$multiply &&
+      Array.isArray(expr.$multiply) &&
+      expr.$multiply.length === 2
+    ) {
+      const left = `(Number(${this.generateExpressionCode(expr.$multiply[0])}) || 0)`;
+      const right = `(Number(${this.generateExpressionCode(expr.$multiply[1])}) || 0)`;
+      return `(${left} * ${right})`;
+    }
+    if (
+      expr.$divide &&
+      Array.isArray(expr.$divide) &&
+      expr.$divide.length === 2
+    ) {
+      const left = `(Number(${this.generateExpressionCode(expr.$divide[0])}) || 0)`;
+      const right = `(Number(${this.generateExpressionCode(expr.$divide[1])}) || 1)`;
+      return `((${right}) !== 0 ? (${left}) / (${right}) : null)`;
+    }
+    if (expr.$abs) {
+      const val = `(Number(${this.generateExpressionCode(expr.$abs)}) || 0)`;
+      return `Math.abs(${val})`;
+    }
+    if (expr.$ceil) {
+      const val = `(Number(${this.generateExpressionCode(expr.$ceil)}) || 0)`;
+      return `Math.ceil(${val})`;
+    }
+    if (expr.$floor) {
+      const val = `(Number(${this.generateExpressionCode(expr.$floor)}) || 0)`;
+      return `Math.floor(${val})`;
+    }
+    if (expr.$sqrt) {
+      const val = `(Number(${this.generateExpressionCode(expr.$sqrt)}) || 0)`;
+      return `Math.sqrt(${val})`;
+    }
+    if (expr.$pow && Array.isArray(expr.$pow) && expr.$pow.length === 2) {
+      const base = `(Number(${this.generateExpressionCode(expr.$pow[0])}) || 0)`;
+      const exp = `(Number(${this.generateExpressionCode(expr.$pow[1])}) || 0)`;
+      return `Math.pow(${base}, ${exp})`;
+    }
+
+    // String operators
+    if (
+      expr.$substr &&
+      Array.isArray(expr.$substr) &&
+      expr.$substr.length === 3
+    ) {
+      const str = `String(${this.generateExpressionCode(expr.$substr[0])} || '')`;
+      const start = `(Number(${this.generateExpressionCode(expr.$substr[1])}) || 0)`;
+      const length = `(Number(${this.generateExpressionCode(expr.$substr[2])}) || 0)`;
+      return `(${str}).substring(${start}, ${start} + ${length})`;
+    }
+    if (expr.$concat && Array.isArray(expr.$concat)) {
+      const parts = expr.$concat.map(
+        part => `String(${this.generateExpressionCode(part)} || '')`
+      );
+      return `(${parts.join(' + ')})`;
+    }
+    if (expr.$toLower) {
+      const str = `String(${this.generateExpressionCode(expr.$toLower)} || '')`;
+      return `(${str}).toLowerCase()`;
+    }
+    if (expr.$toUpper) {
+      const str = `String(${this.generateExpressionCode(expr.$toUpper)} || '')`;
+      return `(${str}).toUpperCase()`;
+    }
+    if (expr.$split && Array.isArray(expr.$split) && expr.$split.length === 2) {
+      const str = `String(${this.generateExpressionCode(expr.$split[0])} || '')`;
+      const delimiter = `String(${this.generateExpressionCode(expr.$split[1])} || '')`;
+      return `(${str}).split(${delimiter})`;
+    }
+    if (expr.$strLen) {
+      const str = `String(${this.generateExpressionCode(expr.$strLen)} || '')`;
+      return `(${str}).length`;
+    }
+    if (expr.$trim) {
+      const str = `String(${this.generateExpressionCode(expr.$trim)} || '')`;
+      return `(${str}).trim()`;
+    }
+
+    // Array operators
+    if (
+      expr.$arrayElemAt &&
+      Array.isArray(expr.$arrayElemAt) &&
+      expr.$arrayElemAt.length === 2
+    ) {
+      const arr = this.generateExpressionCode(expr.$arrayElemAt[0]);
+      const index = `(Number(${this.generateExpressionCode(expr.$arrayElemAt[1])}) || 0)`;
+      return `((arr => {
+        if (Array.isArray(arr)) {
+          const idx = ${index};
+          return idx >= 0 ? arr[idx] : arr[arr.length + idx];
+        }
+        return null;
+      })(${arr}))`;
+    }
+    if (expr.$slice && Array.isArray(expr.$slice)) {
+      const arr = this.generateExpressionCode(expr.$slice[0]);
+      if (expr.$slice.length === 2) {
+        const count = `(Number(${this.generateExpressionCode(expr.$slice[1])}) || 0)`;
+        return `((arr => {
+          if (Array.isArray(arr)) {
+            const cnt = ${count};
+            return cnt >= 0 ? arr.slice(0, cnt) : arr.slice(cnt);
+          }
+          return [];
+        })(${arr}))`;
+      } else if (expr.$slice.length === 3) {
+        const start = `(Number(${this.generateExpressionCode(expr.$slice[1])}) || 0)`;
+        const count = `(Number(${this.generateExpressionCode(expr.$slice[2])}) || 0)`;
+        return `((arr => {
+          if (Array.isArray(arr)) {
+            const st = ${start};
+            const cnt = ${count};
+            return arr.slice(st, st + cnt);
+          }
+          return [];
+        })(${arr}))`;
+      }
+    }
+    if (expr.$concatArrays && Array.isArray(expr.$concatArrays)) {
+      const arrays = expr.$concatArrays.map(arrExpr => {
+        const arr = this.generateExpressionCode(arrExpr);
+        return `(Array.isArray(${arr}) ? ${arr} : [])`;
+      });
+      return `[].concat(${arrays.join(', ')})`;
+    }
+    if (expr.$size) {
+      const arr = this.generateExpressionCode(expr.$size);
+      return `((arr => Array.isArray(arr) ? arr.length : null)(${arr}))`;
+    }
+
+    // Conditional operators
+    if (expr.$cond && Array.isArray(expr.$cond) && expr.$cond.length === 3) {
+      const condition = this.generateExpressionCode(expr.$cond[0]);
+      const trueValue = this.generateExpressionCode(expr.$cond[1]);
+      const falseValue = this.generateExpressionCode(expr.$cond[2]);
+      return `(${condition} ? ${trueValue} : ${falseValue})`;
+    }
+    if (
+      expr.$ifNull &&
+      Array.isArray(expr.$ifNull) &&
+      expr.$ifNull.length === 2
+    ) {
+      const value = this.generateExpressionCode(expr.$ifNull[0]);
+      const fallback = this.generateExpressionCode(expr.$ifNull[1]);
+      return `((val => val != null ? val : ${fallback})(${value}))`;
+    }
+
+    // Date operators
+    if (expr.$dayOfMonth) {
+      const date = this.generateExpressionCode(expr.$dayOfMonth);
+      return `((d => d instanceof Date ? d.getDate() : null)(${date}))`;
+    }
+    if (expr.$month) {
+      const date = this.generateExpressionCode(expr.$month);
+      return `((d => d instanceof Date ? d.getMonth() + 1 : null)(${date}))`;
+    }
+    if (expr.$year) {
+      const date = this.generateExpressionCode(expr.$year);
+      return `((d => d instanceof Date ? d.getFullYear() : null)(${date}))`;
+    }
+
+    // Comparison operators (for use in conditionals)
+    if (expr.$eq && Array.isArray(expr.$eq) && expr.$eq.length === 2) {
+      const left = this.generateExpressionCode(expr.$eq[0]);
+      const right = this.generateExpressionCode(expr.$eq[1]);
+      return `(${left} === ${right})`;
+    }
+    if (expr.$ne && Array.isArray(expr.$ne) && expr.$ne.length === 2) {
+      const left = this.generateExpressionCode(expr.$ne[0]);
+      const right = this.generateExpressionCode(expr.$ne[1]);
+      return `(${left} !== ${right})`;
+    }
+    if (expr.$gt && Array.isArray(expr.$gt) && expr.$gt.length === 2) {
+      const left = this.generateExpressionCode(expr.$gt[0]);
+      const right = this.generateExpressionCode(expr.$gt[1]);
+      return `(${left} > ${right})`;
+    }
+
+    // Fallback for truly complex expressions - but this should be rare now
+    return `evalExpr(${JSON.stringify(expr)}, doc)`;
   }
 
   private isPlainObject(obj: any): boolean {
@@ -898,6 +1201,19 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           case '$exists':
             if ((docValue !== undefined) !== value) return false;
             break;
+          case '$regex': {
+            const pattern = value instanceof RegExp ? value : new RegExp(value);
+            if (!pattern.test(String(docValue || ''))) return false;
+            break;
+          }
+          case '$all':
+            if (!Array.isArray(docValue) || !Array.isArray(value)) return false;
+            if (!value.every(v => docValue.includes(v))) return false;
+            break;
+          case '$size':
+            if (!Array.isArray(docValue) || docValue.length !== value)
+              return false;
+            break;
         }
       }
     } else {
@@ -978,9 +1294,30 @@ export class PerformanceEngineImpl implements PerformanceEngine {
   }
 
   optimizePipeline(pipeline: Pipeline): ExecutionPlan {
-    const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
-    const compiledStages: CompiledStage[] = [];
+    const stages = Array.isArray(pipeline) ? [...pipeline] : [pipeline];
 
+    // Apply optimization rules iteratively until no more changes
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      // Rule 1: Fuse $project + $match into one compiled function
+      changed = this.fuseProjectMatch(stages) || changed;
+
+      // Rule 2: Push down $match predicates before $sort/$group/$unwind/$lookup where safe
+      changed = this.pushdownMatch(stages) || changed;
+
+      // Rule 3: Top-k rewrite: $sort→$limit k → bounded heap
+      changed = this.optimizeTopK(stages) || changed;
+
+      // Rule 4: Constant folding: precompute literals at plan time
+      changed = this.foldConstants(stages) || changed;
+
+      // Rule 5: Projection pruning: drop unused columns early
+      changed = this.pruneProjection(stages) || changed;
+    }
+
+    const compiledStages: CompiledStage[] = [];
     let canFullyIncrement = true;
     let canFullyDecrement = true;
     let hasSort = false;
@@ -1019,33 +1356,205 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       compiledStages.push(compiledStage);
     }
 
-    // Determine optimal dimensions
-    const primaryDimensions = this.getOptimalDimensions(pipeline);
-
-    // Estimate complexity
-    let estimatedComplexity: 'O(1)' | 'O(log n)' | 'O(n)' | 'O(n log n)' =
-      'O(1)';
-
-    if (hasSort && !hasSortLimit) {
-      estimatedComplexity = 'O(n log n)';
-    } else if (hasSort || hasGroupBy) {
-      estimatedComplexity = 'O(log n)';
-    } else if (compiledStages.some(s => s.type === '$match')) {
-      estimatedComplexity = 'O(n)';
-    }
-
     this.optimizationStats.pipelinesOptimized++;
 
     return {
       stages: compiledStages,
-      canFullyIncrement,
-      canFullyDecrement,
-      hasSort,
-      hasSortLimit,
-      hasGroupBy,
-      primaryDimensions,
-      estimatedComplexity,
+      canIncrement: canFullyIncrement,
+      canDecrement: canFullyDecrement,
+      estimatedComplexity: this.estimatePipelineComplexity(compiledStages),
+      primaryDimensions: this.getOptimalDimensions(stages),
+      optimizations: {
+        hasSort,
+        hasSortLimit,
+        hasGroupBy,
+        canUseTopK: hasSortLimit,
+        canVectorize: this.canVectorizePipeline(compiledStages),
+      },
     };
+  }
+
+  // Rule 1: Fuse $project + $match into one compiled function
+  private fuseProjectMatch(stages: any[]): boolean {
+    let changed = false;
+
+    for (let i = 0; i < stages.length - 1; i++) {
+      const current = stages[i];
+      const next = stages[i + 1];
+
+      if ('$project' in current && '$match' in next) {
+        // Create fused stage that projects then filters in one pass
+        const fusedStage = {
+          $projectMatch: {
+            project: current.$project,
+            match: next.$match,
+          },
+        };
+
+        stages.splice(i, 2, fusedStage);
+        changed = true;
+        break;
+      }
+    }
+
+    return changed;
+  }
+
+  // Rule 2: Push down $match predicates before expensive operations
+  private pushdownMatch(stages: any[]): boolean {
+    let changed = false;
+
+    for (let i = 0; i < stages.length - 1; i++) {
+      const current = stages[i];
+      const next = stages[i + 1];
+
+      // Push $match before $sort, $group, $unwind, $lookup when safe
+      if (
+        '$match' in next &&
+        ('$sort' in current ||
+          '$group' in current ||
+          '$unwind' in current ||
+          '$lookup' in current)
+      ) {
+        // Check if match predicate doesn't depend on current stage's output
+        if (this.isMatchPredicateSafe(next.$match, current)) {
+          // Swap stages
+          stages[i] = next;
+          stages[i + 1] = current;
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    return changed;
+  }
+
+  // Rule 3: Top-k rewrite: $sort→$limit k → bounded heap
+  private optimizeTopK(stages: any[]): boolean {
+    let changed = false;
+
+    for (let i = 0; i < stages.length - 1; i++) {
+      const current = stages[i];
+      const next = stages[i + 1];
+
+      if ('$sort' in current && '$limit' in next) {
+        // Replace with bounded top-k operation
+        const topKStage = {
+          $topK: {
+            sort: current.$sort,
+            limit: next.$limit,
+          },
+        };
+
+        stages.splice(i, 2, topKStage);
+        changed = true;
+        break;
+      }
+    }
+
+    return changed;
+  }
+
+  // Rule 4: Constant folding: precompute literals at plan time
+  private foldConstants(stages: any[]): boolean {
+    let changed = false;
+
+    for (const stage of stages) {
+      if ('$project' in stage) {
+        for (const [field, expr] of Object.entries(stage.$project)) {
+          if (this.isConstantExpression(expr)) {
+            const evaluated = this.evaluateConstant(expr);
+            if (evaluated !== expr) {
+              stage.$project[field] = evaluated;
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+
+    return changed;
+  }
+
+  // Rule 5: Projection pruning: drop unused columns early
+  private pruneProjection(stages: any[]): boolean {
+    let changed = false;
+
+    // Analyze which fields are actually used in downstream stages
+    const usedFields = this.analyzeFieldUsage(stages);
+
+    for (const stage of stages) {
+      if ('$project' in stage) {
+        for (const field of Object.keys(stage.$project)) {
+          if (!usedFields.has(field) && field !== '_id') {
+            delete stage.$project[field];
+            changed = true;
+          }
+        }
+      }
+    }
+
+    return changed;
+  }
+
+  private isMatchPredicateSafe(matchExpr: any, previousStage: any): boolean {
+    // Simplified safety check - in real implementation would analyze field dependencies
+    const matchFields = this.extractMatchFields(matchExpr, new Set());
+    const stageOutputs = this.getStageOutputFields(previousStage);
+
+    // Safe if match doesn't depend on fields produced by previous stage
+    return !matchFields.some(field => stageOutputs.includes(field));
+  }
+
+  private isConstantExpression(expr: any): boolean {
+    if (typeof expr === 'string' && expr.startsWith('$')) return false;
+    if (typeof expr === 'object' && expr !== null) {
+      return Object.values(expr).every(v => this.isConstantExpression(v));
+    }
+    return true;
+  }
+
+  private evaluateConstant(expr: any): any {
+    // Simplified constant evaluation
+    if (typeof expr === 'object' && expr !== null && !Array.isArray(expr)) {
+      if (expr.$add && Array.isArray(expr.$add)) {
+        const values = expr.$add.map(v => this.evaluateConstant(v));
+        if (values.every(v => typeof v === 'number')) {
+          return values.reduce((sum, val) => sum + val, 0);
+        }
+      }
+    }
+    return expr;
+  }
+
+  private analyzeFieldUsage(stages: any[]): Set<string> {
+    const usedFields = new Set<string>();
+
+    for (const stage of stages) {
+      const inputs = this.getStageInputFields(stage);
+      inputs.forEach(field => usedFields.add(field));
+    }
+
+    return usedFields;
+  }
+
+  private estimatePipelineComplexity(stages: CompiledStage[]): string {
+    if (stages.some(s => s.type === '$sort' && !stages.some(s2 => s2.type === '$limit'))) {
+      return 'O(n log n)';
+    } else if (stages.some(s => s.type === '$sort' || s.type === '$group')) {
+      return 'O(log n)';
+    } else if (stages.some(s => s.type === '$match')) {
+      return 'O(n)';
+    }
+    return 'O(1)';
+  }
+
+  private canVectorizePipeline(stages: CompiledStage[]): boolean {
+    // Vectorization is possible if all stages are simple enough
+    return stages.every(
+      stage => stage.type === '$match' || stage.type === '$project'
+    );
   }
 
   reorderStagesForEfficiency(stages: CompiledStage[]): CompiledStage[] {

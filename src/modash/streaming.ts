@@ -385,8 +385,8 @@ export class StreamingCollection<
 
       // Check if pipeline can be handled incrementally
       if (
-        !executionPlan.canFullyIncrement ||
-        !executionPlan.canFullyDecrement
+        !executionPlan.canIncrement ||
+        !executionPlan.canDecrement
       ) {
         console.warn(
           'Pipeline contains unsupported operations for IVM, falling back to standard aggregation'
@@ -398,8 +398,8 @@ export class StreamingCollection<
       const state: AggregationState = {
         lastResult: [],
         pipelineHash: pipelineKey,
-        canIncrement: executionPlan.canFullyIncrement,
-        canDecrement: executionPlan.canFullyDecrement,
+        canIncrement: executionPlan.canIncrement,
+        canDecrement: executionPlan.canDecrement,
         _ivmEngine: this.ivmEngine,
         _executionPlan: executionPlan,
         _documentRowIds: new Map(this.docIndexToRowId),

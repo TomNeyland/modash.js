@@ -46,6 +46,10 @@ export interface LiveSet {
   bitset: Uint32Array; // Compact bitset for membership
   count: number; // Number of live documents
   maxRowId: RowId; // Highest assigned row ID
+
+  set(rowId: RowId): void;
+  unset(rowId: RowId): boolean;
+  isSet(rowId: RowId): boolean;
 }
 
 /**
@@ -161,17 +165,19 @@ export interface CompiledStage {
  */
 export interface ExecutionPlan {
   readonly stages: CompiledStage[];
-  canFullyIncrement: boolean;
-  canFullyDecrement: boolean;
+  canIncrement: boolean;
+  canDecrement: boolean;
+  estimatedComplexity: string;
+  primaryDimensions: string[];
 
   // Optimization hints
-  hasSort: boolean;
-  hasSortLimit: boolean; // Sort followed by limit (top-k optimization)
-  hasGroupBy: boolean;
-  primaryDimensions: string[]; // Most selective dimensions to create
-
-  // Performance characteristics
-  estimatedComplexity: 'O(1)' | 'O(log n)' | 'O(n)' | 'O(n log n)';
+  optimizations: {
+    hasSort: boolean;
+    hasSortLimit: boolean; // Sort followed by limit (top-k optimization)  
+    hasGroupBy: boolean;
+    canUseTopK: boolean;
+    canVectorize: boolean;
+  };
 }
 
 /**

@@ -34,10 +34,14 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   private compiledOperators = new Map<string, IVMOperator[]>();
 
   constructor() {
-    this.store = this.createStore();
+    this._store = this.createStore();
     this.compiler = new ExpressionCompilerImpl();
     this.performance = new PerformanceEngineImpl();
     this.operatorFactory = new IVMOperatorFactoryImpl(this.compiler);
+  }
+
+  get store(): CrossfilterStore {
+    return this._store;
   }
 
   compilePipeline(pipeline: Pipeline): ExecutionPlan {
@@ -61,8 +65,8 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
     // If unsupported operations exist, mark plan as non-incremental
     if (hasUnsupportedOperations) {
-      plan.canFullyIncrement = false;
-      plan.canFullyDecrement = false;
+      plan.canIncrement = false;
+      plan.canDecrement = false;
     }
 
     // Compile operators
@@ -221,7 +225,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     }
 
     // If we can't do full incremental processing, fall back to full execution
-    if (!executionPlan.canFullyIncrement && !executionPlan.canFullyDecrement) {
+    if (!executionPlan.canIncrement && !executionPlan.canDecrement) {
       return this.execute(
         executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline
       );
