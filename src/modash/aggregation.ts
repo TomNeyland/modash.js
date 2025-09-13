@@ -434,11 +434,16 @@ function aggregate<T extends Document = Document>(
   }
 
   // Use enhanced engine for advanced optimizations on very large datasets
-  if (collection.length > 50000) {
+  // Note: Enhanced engine is experimental and falls back to standard execution
+  if (collection.length > 100000) {
+    // Raise threshold since enhanced engine is experimental
     try {
       return enhancedEngine.aggregateSync(collection, stages);
     } catch (error) {
-      console.warn('Enhanced execution failed, falling back to optimized:', error);
+      console.warn(
+        'Enhanced execution failed, falling back to optimized:',
+        error
+      );
       // Fall through to optimized engine
     }
   }

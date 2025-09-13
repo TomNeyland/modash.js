@@ -14,7 +14,8 @@ interface CompiledPath {
 }
 
 const PATH_CACHE_SIZE = 1000;
-const SIMPLE_PATH_REGEX = /^[a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
+const SIMPLE_PATH_REGEX =
+  /^[a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
 
 /**
  * High-performance path caching system
@@ -90,12 +91,12 @@ export class PathCache {
 
     if (!compiled) {
       compiled = this.compilePath(path);
-      
+
       // Manage cache size
       if (this.cache.size >= PATH_CACHE_SIZE) {
         this.evictLeastUsed();
       }
-      
+
       this.cache.set(path, compiled);
     }
 
@@ -124,7 +125,7 @@ export class PathCache {
       isSimple,
       accessor,
       lastUsed: Date.now(),
-      hitCount: 0
+      hitCount: 0,
     };
   }
 
@@ -135,16 +136,17 @@ export class PathCache {
     switch (segments.length) {
       case 1:
         return (obj: any) => obj?.[segments[0]];
-      
+
       case 2:
         return (obj: any) => obj?.[segments[0]]?.[segments[1]];
-      
+
       case 3:
         return (obj: any) => obj?.[segments[0]]?.[segments[1]]?.[segments[2]];
-      
+
       case 4:
-        return (obj: any) => obj?.[segments[0]]?.[segments[1]]?.[segments[2]]?.[segments[3]];
-      
+        return (obj: any) =>
+          obj?.[segments[0]]?.[segments[1]]?.[segments[2]]?.[segments[3]];
+
       default:
         return this.createGeneralAccessor(segments);
     }
@@ -156,14 +158,14 @@ export class PathCache {
   private createGeneralAccessor(segments: string[]): (obj: any) => any {
     return (obj: any) => {
       let current = obj;
-      
+
       for (let i = 0; i < segments.length; i++) {
-        if (current == null) {
+        if (current === null || current === undefined) {
           return undefined;
         }
         current = current[segments[i]];
       }
-      
+
       return current;
     };
   }
@@ -171,18 +173,22 @@ export class PathCache {
   /**
    * Set value using compiled path
    */
-  private setValueWithCompiledPath(obj: any, compiled: CompiledPath, value: any): void {
+  private setValueWithCompiledPath(
+    obj: any,
+    compiled: CompiledPath,
+    value: any
+  ): void {
     const segments = compiled.segments;
     let current = obj;
 
     // Navigate to parent object
     for (let i = 0; i < segments.length - 1; i++) {
       const segment = segments[i];
-      
-      if (current[segment] == null) {
+
+      if (current[segment] === null || current[segment] === undefined) {
         current[segment] = {};
       }
-      
+
       current = current[segment];
     }
 
@@ -195,13 +201,13 @@ export class PathCache {
    */
   private evictLeastUsed(): void {
     const entries = Array.from(this.cache.entries());
-    
+
     // Sort by last used time (ascending)
     entries.sort(([, a], [, b]) => a.lastUsed - b.lastUsed);
-    
+
     // Remove oldest 20% of entries
     const toRemove = Math.floor(entries.length * 0.2);
-    
+
     for (let i = 0; i < toRemove; i++) {
       this.cache.delete(entries[i][0]);
     }
@@ -211,8 +217,10 @@ export class PathCache {
    * Get cache statistics
    */
   getStats() {
-    const totalHits = Array.from(this.cache.values())
-      .reduce((sum, compiled) => sum + compiled.hitCount, 0);
+    const totalHits = Array.from(this.cache.values()).reduce(
+      (sum, compiled) => sum + compiled.hitCount,
+      0
+    );
 
     const paths = Array.from(this.cache.values());
     const avgHits = paths.length > 0 ? totalHits / paths.length : 0;
@@ -222,7 +230,7 @@ export class PathCache {
       totalHits,
       avgHitsPerPath: Math.round(avgHits * 100) / 100,
       totalAccesses: this.accessCount,
-      hitRate: this.accessCount > 0 ? (totalHits / this.accessCount) * 100 : 0
+      hitRate: this.accessCount > 0 ? (totalHits / this.accessCount) * 100 : 0,
     };
   }
 
@@ -272,22 +280,22 @@ export class FastPropertyAccess {
    */
   static batchGet(objects: any[], paths: string[]): DocumentValue[][] {
     const results: DocumentValue[][] = [];
-    
+
     // Pre-compile all paths
     const compiledPaths = paths.map(path => ({
       path,
-      compiled: this.pathCache.getOrCompilePath(path)
+      compiled: this.pathCache.getOrCompilePath(path),
     }));
 
     // Process all objects with compiled paths
     for (const obj of objects) {
       const row: DocumentValue[] = [];
-      
+
       for (const { compiled } of compiledPaths) {
         row.push(compiled.accessor(obj));
         compiled.hitCount++;
       }
-      
+
       results.push(row);
     }
 
@@ -333,7 +341,7 @@ export function withPathCaching<T extends any[], R>(
   fn: (...args: T) => R,
   pathExtractor?: (args: T) => string[]
 ) {
-  return function(...args: T): R {
+  return function (...args: T): R {
     // Pre-warm cache with extracted paths if provided
     if (pathExtractor) {
       const paths = pathExtractor(args);

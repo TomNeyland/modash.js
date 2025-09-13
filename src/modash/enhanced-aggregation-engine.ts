@@ -7,7 +7,7 @@ import type { Collection, Document } from './expressions.js';
 import type { Pipeline } from '../index.js';
 import { ColumnarStorage } from './columnar-storage.js';
 import { globalDocumentPool, PooledOperation } from './object-pool.js';
-import { QueryOptimizer, type ExecutionPlan } from './query-optimizer.js';
+import { QueryOptimizer } from './query-optimizer.js';
 
 interface PerformanceMetrics {
   executionTime: number;
@@ -27,12 +27,12 @@ export class EnhancedAggregationEngine {
   private queryOptimizer: QueryOptimizer;
   private performanceHistory: Map<string, PerformanceMetrics[]> = new Map();
   private columnarCache: Map<string, any> = new Map();
-  
+
   private thresholds: AdaptiveThresholds = {
     smallDataset: 1000,
     mediumDataset: 10000,
     largeDataset: 100000,
-    columnarThreshold: 50000  // Much higher threshold for columnar optimization
+    columnarThreshold: 50000, // Much higher threshold for columnar optimization
   };
 
   constructor() {
@@ -52,7 +52,7 @@ export class EnhancedAggregationEngine {
     // Select optimal strategy based on dataset characteristics
     const strategy = this.selectOptimalStrategy(collection, pipeline);
     let result: Collection<T>;
-    let optimizations: string[] = [];
+    const optimizations: string[] = [];
 
     try {
       switch (strategy) {
@@ -85,21 +85,23 @@ export class EnhancedAggregationEngine {
       // Record performance metrics
       const endTime = performance.now();
       const endMemory = this.getCurrentMemoryUsage();
-      
+
       const metrics: PerformanceMetrics = {
         executionTime: endTime - startTime,
         memoryUsage: endMemory - startMemory,
         strategy,
-        optimizations
+        optimizations,
       };
 
       this.recordPerformanceMetrics(collection, pipeline, metrics);
 
       return result;
-
     } catch (error) {
       // Fallback to standard execution on error
-      console.warn('Enhanced execution failed, falling back to standard:', error);
+      console.warn(
+        'Enhanced execution failed, falling back to standard:',
+        error
+      );
       return this.executeFallbackSync(collection, pipeline);
     }
   }
@@ -117,7 +119,7 @@ export class EnhancedAggregationEngine {
     // Select optimal strategy based on dataset characteristics
     const strategy = this.selectOptimalStrategy(collection, pipeline);
     let result: Collection<T>;
-    let optimizations: string[] = [];
+    const optimizations: string[] = [];
 
     try {
       switch (strategy) {
@@ -150,21 +152,23 @@ export class EnhancedAggregationEngine {
       // Record performance metrics
       const endTime = performance.now();
       const endMemory = this.getCurrentMemoryUsage();
-      
+
       const metrics: PerformanceMetrics = {
         executionTime: endTime - startTime,
         memoryUsage: endMemory - startMemory,
         strategy,
-        optimizations
+        optimizations,
       };
 
       this.recordPerformanceMetrics(collection, pipeline, metrics);
 
       return result;
-
     } catch (error) {
       // Fallback to standard execution on error
-      console.warn('Enhanced execution failed, falling back to standard:', error);
+      console.warn(
+        'Enhanced execution failed, falling back to standard:',
+        error
+      );
       return await this.executeFallback(collection, pipeline);
     }
   }
@@ -178,13 +182,13 @@ export class EnhancedAggregationEngine {
   ): Collection<T> {
     // Create columnar representation
     const columnStore = ColumnarStorage.createColumnStore(collection);
-    
+
     // Process pipeline stages using columnar operations where possible
     let currentData: Collection<T> = collection;
-    
+
     for (const stage of pipeline) {
       const stageType = Object.keys(stage)[0];
-      
+
       if (stageType === '$group' && this.canUseColumnarGrouping(stage.$group)) {
         // Use optimized columnar grouping
         const groupResult = ColumnarStorage.fastGroupBy(
@@ -210,23 +214,23 @@ export class EnhancedAggregationEngine {
     pipeline: Pipeline
   ): Collection<T> {
     const pooled = new PooledOperation(globalDocumentPool);
-    
+
     try {
       let currentData: Collection<T> = collection;
 
       for (const stage of pipeline) {
-        currentData = pooled.withArray<T, Collection<T>>((resultArray) => {
+        currentData = pooled.withArray<T, Collection<T>>(resultArray => {
           // Process stage with pooled objects
           for (const doc of currentData) {
-            const processedDoc = pooled.withDocument((tempDoc) => {
+            const processedDoc = pooled.withDocument(tempDoc => {
               return this.processDocumentWithStage(doc, stage, tempDoc);
             });
-            
+
             if (processedDoc) {
               resultArray.push(processedDoc);
             }
           }
-          
+
           return [...resultArray]; // Return copy since resultArray will be pooled
         });
       }
@@ -265,12 +269,18 @@ export class EnhancedAggregationEngine {
     pipeline: Pipeline
   ): Collection<T> {
     // Use columnar for numeric-heavy operations
-    if (this.hasNumericAggregations(pipeline) && collection.length > this.thresholds.columnarThreshold) {
+    if (
+      this.hasNumericAggregations(pipeline) &&
+      collection.length > this.thresholds.columnarThreshold
+    ) {
       return this.executeColumnarOptimizedSync(collection, pipeline);
     }
 
     // Use object pooling for medium datasets with complex operations
-    if (collection.length > this.thresholds.smallDataset && collection.length < this.thresholds.largeDataset) {
+    if (
+      collection.length > this.thresholds.smallDataset &&
+      collection.length < this.thresholds.largeDataset
+    ) {
       return this.executePooledOperationSync(collection, pipeline);
     }
 
@@ -292,13 +302,13 @@ export class EnhancedAggregationEngine {
   ): Promise<Collection<T>> {
     // Create columnar representation
     const columnStore = ColumnarStorage.createColumnStore(collection);
-    
+
     // Process pipeline stages using columnar operations where possible
     let currentData: Collection<T> = collection;
-    
+
     for (const stage of pipeline) {
       const stageType = Object.keys(stage)[0];
-      
+
       if (stageType === '$group' && this.canUseColumnarGrouping(stage.$group)) {
         // Use optimized columnar grouping
         const groupResult = ColumnarStorage.fastGroupBy(
@@ -324,25 +334,27 @@ export class EnhancedAggregationEngine {
     pipeline: Pipeline
   ): Promise<Collection<T>> {
     const pooled = new PooledOperation(globalDocumentPool);
-    
+
     try {
       let currentData: Collection<T> = collection;
 
       for (const stage of pipeline) {
-        currentData = await pooled.withArray<T, Collection<T>>(async (resultArray) => {
-          // Process stage with pooled objects
-          for (const doc of currentData) {
-            const processedDoc = await pooled.withDocument((tempDoc) => {
-              return this.processDocumentWithStage(doc, stage, tempDoc);
-            });
-            
-            if (processedDoc) {
-              resultArray.push(processedDoc);
+        currentData = await pooled.withArray<T, Collection<T>>(
+          async resultArray => {
+            // Process stage with pooled objects
+            for (const doc of currentData) {
+              const processedDoc = await pooled.withDocument(tempDoc => {
+                return this.processDocumentWithStage(doc, stage, tempDoc);
+              });
+
+              if (processedDoc) {
+                resultArray.push(processedDoc);
+              }
             }
+
+            return [...resultArray]; // Return copy since resultArray will be pooled
           }
-          
-          return [...resultArray]; // Return copy since resultArray will be pooled
-        });
+        );
       }
 
       return currentData;
@@ -384,12 +396,18 @@ export class EnhancedAggregationEngine {
     pipeline: Pipeline
   ): Promise<Collection<T>> {
     // Use columnar for numeric-heavy operations
-    if (this.hasNumericAggregations(pipeline) && collection.length > this.thresholds.columnarThreshold) {
+    if (
+      this.hasNumericAggregations(pipeline) &&
+      collection.length > this.thresholds.columnarThreshold
+    ) {
       return await this.executeColumnarOptimized(collection, pipeline);
     }
 
     // Use object pooling for medium datasets with complex operations
-    if (collection.length > this.thresholds.smallDataset && collection.length < this.thresholds.largeDataset) {
+    if (
+      collection.length > this.thresholds.smallDataset &&
+      collection.length < this.thresholds.largeDataset
+    ) {
       return await this.executePooledOperation(collection, pipeline);
     }
 
@@ -447,10 +465,10 @@ export class EnhancedAggregationEngine {
    */
   private calculatePipelineComplexity(pipeline: Pipeline): number {
     let complexity = 0;
-    
+
     for (const stage of pipeline) {
       const stageType = Object.keys(stage)[0];
-      
+
       switch (stageType) {
         case '$match':
           complexity += 1;
@@ -474,7 +492,7 @@ export class EnhancedAggregationEngine {
           complexity += 1;
       }
     }
-    
+
     return complexity;
   }
 
@@ -501,11 +519,11 @@ export class EnhancedAggregationEngine {
   /**
    * Check if columnar grouping can be used
    */
-  private canUseColumnarGrouping(groupSpec: any): boolean {
+  private canUseColumnarGrouping(_groupSpec: any): boolean {
     // For now, disable columnar grouping to avoid compatibility issues
     // This would need more sophisticated parsing of group specifications
     return false;
-    
+
     // Original logic (commented out):
     // // Simple check - if _id is a string field and we have supported aggregations
     // if (typeof groupSpec._id !== 'string') {
@@ -529,15 +547,20 @@ export class EnhancedAggregationEngine {
    */
   private calculateOptimalBatchSize(collectionSize: number): number {
     const availableMemory = this.getAvailableMemory();
-    const baseSize = Math.min(10000, Math.max(1000, Math.floor(collectionSize / 100)));
-    
+    const baseSize = Math.min(
+      10000,
+      Math.max(1000, Math.floor(collectionSize / 100))
+    );
+
     // Adjust based on available memory
-    if (availableMemory < 100 * 1024 * 1024) { // Less than 100MB
+    if (availableMemory < 100 * 1024 * 1024) {
+      // Less than 100MB
       return Math.floor(baseSize / 2);
-    } else if (availableMemory > 500 * 1024 * 1024) { // More than 500MB
+    } else if (availableMemory > 500 * 1024 * 1024) {
+      // More than 500MB
       return baseSize * 2;
     }
-    
+
     return baseSize;
   }
 
@@ -575,14 +598,14 @@ export class EnhancedAggregationEngine {
   ) {
     const key = this.generateMetricsKey(pipeline, collection.length);
     const history = this.performanceHistory.get(key) || [];
-    
+
     history.push(metrics);
-    
+
     // Keep only recent metrics (last 10 executions)
     if (history.length > 10) {
       history.shift();
     }
-    
+
     this.performanceHistory.set(key, history);
   }
 
@@ -592,20 +615,21 @@ export class EnhancedAggregationEngine {
   private getHistoricalPerformance(pipeline: Pipeline) {
     const key = this.generateMetricsKey(pipeline, 0);
     const history = this.performanceHistory.get(key);
-    
+
     if (!history || history.length === 0) {
       return null;
     }
 
     // Return the best performing strategy
-    const bestMetrics = history.reduce((best, current) => 
+    const bestMetrics = history.reduce((best, current) =>
       current.executionTime < best.executionTime ? current : best
     );
 
     return {
       strategy: bestMetrics.strategy,
-      avgTime: history.reduce((sum, m) => sum + m.executionTime, 0) / history.length,
-      bestTime: bestMetrics.executionTime
+      avgTime:
+        history.reduce((sum, m) => sum + m.executionTime, 0) / history.length,
+      bestTime: bestMetrics.executionTime,
     };
   }
 
@@ -614,7 +638,8 @@ export class EnhancedAggregationEngine {
    */
   private generateMetricsKey(pipeline: Pipeline, size: number): string {
     const pipelineHash = JSON.stringify(pipeline);
-    const sizeCategory = size < 1000 ? 'small' : size < 10000 ? 'medium' : 'large';
+    const sizeCategory =
+      size < 1000 ? 'small' : size < 10000 ? 'medium' : 'large';
     return `${pipelineHash}:${sizeCategory}`;
   }
 
@@ -631,7 +656,7 @@ export class EnhancedAggregationEngine {
 
   private executeFallbackSync<T extends Document>(
     collection: Collection<T>,
-    pipeline: Pipeline
+    _pipeline: Pipeline
   ): Collection<T> {
     // Fallback to traditional execution - just return collection for now
     // This would be replaced with actual traditional execution
@@ -656,8 +681,8 @@ export class EnhancedAggregationEngine {
 
   private processDocumentWithStage<T extends Document>(
     doc: T,
-    stage: any,
-    tempDoc: Document
+    _stage: any,
+    _tempDoc: Document
   ): T | null {
     // Process a single document through a stage using temporary pooled objects
     // This is a simplified version - would need full stage processing logic
@@ -672,7 +697,7 @@ export class EnhancedAggregationEngine {
       totalQueries: 0,
       strategyCounts: {} as Record<string, number>,
       avgExecutionTime: 0,
-      memoryEfficiency: 0
+      memoryEfficiency: 0,
     };
 
     let totalTime = 0;
@@ -683,8 +708,8 @@ export class EnhancedAggregationEngine {
         stats.totalQueries++;
         totalTime += metrics.executionTime;
         totalMemory += Math.abs(metrics.memoryUsage);
-        
-        stats.strategyCounts[metrics.strategy] = 
+
+        stats.strategyCounts[metrics.strategy] =
           (stats.strategyCounts[metrics.strategy] || 0) + 1;
       }
     }

@@ -32,7 +32,7 @@ class GenericObjectPool<T> implements ObjectPool<T> {
     created: 0,
     reused: 0,
     active: 0,
-    peak: 0
+    peak: 0,
   };
 
   constructor(
@@ -54,7 +54,7 @@ class GenericObjectPool<T> implements ObjectPool<T> {
 
   acquire(): T {
     let obj = this.pool.pop();
-    
+
     if (!obj) {
       obj = this.factory();
       this.stats.created++;
@@ -89,7 +89,7 @@ class GenericObjectPool<T> implements ObjectPool<T> {
       created: 0,
       reused: 0,
       active: 0,
-      peak: 0
+      peak: 0,
     };
   }
 
@@ -121,7 +121,7 @@ export class DocumentPool {
       500
     );
 
-    // Array pool  
+    // Array pool
     this.arrayPool = new GenericObjectPool(
       () => [],
       (arr: any[]) => {
@@ -230,9 +230,15 @@ export class DocumentPool {
       arrays: arrayStats,
       maps: mapStats,
       sets: setStats,
-      totalCreated: docStats.created + arrayStats.created + mapStats.created + setStats.created,
-      totalReused: docStats.reused + arrayStats.reused + mapStats.reused + setStats.reused,
-      totalActive: docStats.active + arrayStats.active + mapStats.active + setStats.active
+      totalCreated:
+        docStats.created +
+        arrayStats.created +
+        mapStats.created +
+        setStats.created,
+      totalReused:
+        docStats.reused + arrayStats.reused + mapStats.reused + setStats.reused,
+      totalActive:
+        docStats.active + arrayStats.active + mapStats.active + setStats.active,
     };
   }
 
@@ -255,7 +261,7 @@ export const globalDocumentPool = new DocumentPool();
 /**
  * Auto-management utilities for pools
  */
-export class PooledOperation<T> {
+export class PooledOperation<_T> {
   private pool: DocumentPool;
   private acquiredObjects: Array<{
     type: 'document' | 'array' | 'map' | 'set';
@@ -272,7 +278,7 @@ export class PooledOperation<T> {
   withDocument<R>(fn: (doc: Document) => R): R {
     const doc = this.pool.acquireDocument();
     this.acquiredObjects.push({ type: 'document', object: doc });
-    
+
     try {
       return fn(doc);
     } finally {
@@ -283,7 +289,7 @@ export class PooledOperation<T> {
   withArray<T, R>(fn: (arr: T[]) => R): R {
     const arr = this.pool.acquireArray<T>();
     this.acquiredObjects.push({ type: 'array', object: arr });
-    
+
     try {
       return fn(arr);
     } finally {
@@ -294,7 +300,7 @@ export class PooledOperation<T> {
   withMap<K, V, R>(fn: (map: Map<K, V>) => R): R {
     const map = this.pool.acquireMap<K, V>();
     this.acquiredObjects.push({ type: 'map', object: map });
-    
+
     try {
       return fn(map);
     } finally {
@@ -305,7 +311,7 @@ export class PooledOperation<T> {
   withSet<T, R>(fn: (set: Set<T>) => R): R {
     const set = this.pool.acquireSet<T>();
     this.acquiredObjects.push({ type: 'set', object: set });
-    
+
     try {
       return fn(set);
     } finally {

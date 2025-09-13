@@ -3,7 +3,7 @@
  * Provides column-oriented data structures for efficient numeric operations
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
+import type { Collection, Document } from './expressions.js';
 
 interface ColumnSchema {
   [field: string]: 'number' | 'integer' | 'boolean' | 'date' | 'string';
@@ -13,7 +13,7 @@ interface ColumnStore {
   columns: Map<string, TypedArray | any[]>;
   rowCount: number;
   schema: ColumnSchema;
-  
+
   // Efficient column-based operations
   filter(predicate: (row: Document, index: number) => boolean): number[];
   getRow(index: number): Document;
@@ -37,7 +37,7 @@ export class ColumnarStorage {
         schema: {},
         filter: () => [],
         getRow: () => ({}),
-        slice: () => ColumnarStorage.createColumnStore([])
+        slice: () => ColumnarStorage.createColumnStore([]),
       };
     }
 
@@ -70,7 +70,7 @@ export class ColumnarStorage {
       // Populate column data
       for (let i = 0; i < rowCount; i++) {
         const value = this.getNestedValue(collection[i], field);
-        
+
         switch (type) {
           case 'number':
           case 'integer':
@@ -80,7 +80,8 @@ export class ColumnarStorage {
             (columnData as Uint8Array)[i] = value ? 1 : 0;
             break;
           case 'date':
-            (columnData as Float64Array)[i] = value instanceof Date ? value.getTime() : 0;
+            (columnData as Float64Array)[i] =
+              value instanceof Date ? value.getTime() : 0;
             break;
           default:
             (columnData as any[])[i] = value;
@@ -110,7 +111,7 @@ export class ColumnarStorage {
         const row: Document = {};
         for (const [field, type] of Object.entries(detectedSchema)) {
           const columnData = columns.get(field)!;
-          
+
           switch (type) {
             case 'boolean':
               row[field] = (columnData as Uint8Array)[index] === 1;
@@ -131,9 +132,11 @@ export class ColumnarStorage {
         const slicedColumns = new Map<string, TypedArray | any[]>();
 
         for (const [field, columnData] of columns.entries()) {
-          if (columnData instanceof Float64Array || 
-              columnData instanceof Int32Array || 
-              columnData instanceof Uint8Array) {
+          if (
+            columnData instanceof Float64Array ||
+            columnData instanceof Int32Array ||
+            columnData instanceof Uint8Array
+          ) {
             slicedColumns.set(field, columnData.slice(start, end));
           } else {
             slicedColumns.set(field, columnData.slice(start, end));
@@ -146,9 +149,9 @@ export class ColumnarStorage {
           schema: detectedSchema,
           filter: this.filter,
           getRow: this.getRow,
-          slice: this.slice
+          slice: this.slice,
         };
-      }
+      },
     };
   }
 
@@ -158,7 +161,7 @@ export class ColumnarStorage {
   static vectorizedSum(columnData: Float64Array | Int32Array): number {
     let sum = 0;
     const length = columnData.length;
-    
+
     // Process in chunks for better cache performance
     const chunkSize = 1024;
     for (let i = 0; i < length; i += chunkSize) {
@@ -167,7 +170,7 @@ export class ColumnarStorage {
         sum += columnData[j];
       }
     }
-    
+
     return sum;
   }
 
@@ -178,7 +181,7 @@ export class ColumnarStorage {
 
   static vectorizedMin(columnData: Float64Array | Int32Array): number {
     if (columnData.length === 0) return Infinity;
-    
+
     let min = columnData[0];
     for (let i = 1; i < columnData.length; i++) {
       if (columnData[i] < min) {
@@ -190,7 +193,7 @@ export class ColumnarStorage {
 
   static vectorizedMax(columnData: Float64Array | Int32Array): number {
     if (columnData.length === 0) return -Infinity;
-    
+
     let max = columnData[0];
     for (let i = 1; i < columnData.length; i++) {
       if (columnData[i] > max) {
@@ -206,11 +209,14 @@ export class ColumnarStorage {
   static fastGroupBy<T extends Document>(
     columnStore: ColumnStore,
     keyField: string,
-    aggregations: Record<string, { $sum?: string; $avg?: string; $min?: string; $max?: string; $count?: 1 }>
+    aggregations: Record<
+      string,
+      { $sum?: string; $avg?: string; $min?: string; $max?: string; $count?: 1 }
+    >
   ): Collection<T> {
     const groups = new Map<any, any>();
     const keyColumn = columnStore.columns.get(keyField);
-    
+
     if (!keyColumn) {
       throw new Error(`Field ${keyField} not found in column store`);
     }
@@ -218,10 +224,10 @@ export class ColumnarStorage {
     // Initialize groups
     for (let i = 0; i < columnStore.rowCount; i++) {
       const key = keyColumn[i];
-      
+
       if (!groups.has(key)) {
         const group: any = { _id: key };
-        
+
         // Initialize aggregation fields
         for (const [field, operations] of Object.entries(aggregations)) {
           if (operations.$sum !== undefined) {
@@ -236,7 +242,7 @@ export class ColumnarStorage {
             group[field] = 0;
           }
         }
-        
+
         groups.set(key, group);
       }
     }
@@ -246,13 +252,29 @@ export class ColumnarStorage {
       if (operations.$sum || operations.$avg) {
         const sourceField = operations.$sum || operations.$avg;
         const sourceColumn = columnStore.columns.get(sourceField!);
-        
-        if (sourceColumn && (sourceColumn instanceof Float64Array || sourceColumn instanceof Int32Array)) {
+
+        if (
+          sourceColumn &&
+          (sourceColumn instanceof Float64Array ||
+            sourceColumn instanceof Int32Array)
+        ) {
           // Use vectorized operations for numeric columns
-          this.processNumericAggregation(groups, keyColumn, sourceColumn, field, operations);
+          this.processNumericAggregation(
+            groups,
+            keyColumn,
+            sourceColumn,
+            field,
+            operations
+          );
         } else {
           // Fallback to row-by-row processing
-          this.processRowByRowAggregation(columnStore, keyField, field, operations, groups);
+          this.processRowByRowAggregation(
+            columnStore,
+            keyField,
+            field,
+            operations,
+            groups
+          );
         }
       } else if (operations.$count) {
         // Count aggregation
@@ -268,7 +290,8 @@ export class ColumnarStorage {
     for (const group of groups.values()) {
       for (const [field, operations] of Object.entries(aggregations)) {
         if (operations.$avg && typeof group[field] === 'object') {
-          group[field] = group[field].count > 0 ? group[field].sum / group[field].count : 0;
+          group[field] =
+            group[field].count > 0 ? group[field].sum / group[field].count : 0;
         }
       }
     }
@@ -287,7 +310,7 @@ export class ColumnarStorage {
       const key = keyColumn[i];
       const value = sourceColumn[i];
       const group = groups.get(key);
-      
+
       if (operations.$sum) {
         group[field] += value;
       } else if (operations.$avg) {
@@ -312,10 +335,14 @@ export class ColumnarStorage {
       const row = columnStore.getRow(i);
       const key = row[keyField];
       const group = groups.get(key);
-      
-      const sourceField = operations.$sum || operations.$avg || operations.$min || operations.$max;
+
+      const sourceField =
+        operations.$sum ||
+        operations.$avg ||
+        operations.$min ||
+        operations.$max;
       const value = this.getNestedValue(row, sourceField);
-      
+
       if (operations.$sum) {
         group[field] += Number(value) || 0;
       } else if (operations.$avg) {
@@ -332,27 +359,33 @@ export class ColumnarStorage {
   /**
    * Auto-detect schema from sample data
    */
-  private static detectSchema<T extends Document>(collection: Collection<T>): ColumnSchema {
+  private static detectSchema<T extends Document>(
+    collection: Collection<T>
+  ): ColumnSchema {
     const schema: ColumnSchema = {};
     const sampleSize = Math.min(100, collection.length);
-    
+
     // Sample first few documents to detect types
     for (let i = 0; i < sampleSize; i++) {
       const doc = collection[i];
       this.extractFieldTypes(doc, schema, '');
     }
-    
+
     return schema;
   }
 
-  private static extractFieldTypes(obj: any, schema: ColumnSchema, prefix: string) {
+  private static extractFieldTypes(
+    obj: any,
+    schema: ColumnSchema,
+    prefix: string
+  ) {
     for (const [key, value] of Object.entries(obj)) {
       const fieldPath = prefix ? `${prefix}.${key}` : key;
-      
+
       if (value === null || value === undefined) {
         continue;
       }
-      
+
       if (typeof value === 'number') {
         schema[fieldPath] = Number.isInteger(value) ? 'integer' : 'number';
       } else if (typeof value === 'boolean') {
