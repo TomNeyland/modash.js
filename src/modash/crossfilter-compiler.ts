@@ -19,7 +19,7 @@ import type { Pipeline } from '../index.js';
 export class ExpressionCompilerImpl implements ExpressionCompiler {
   private compiledCache = new Map<string, Function>();
 
-  compileMatchExpr(expr: any): (doc: Document, rowId: RowId) => boolean {
+  compileMatchExpr(expr: any): (doc: Document, _rowId: RowId) => boolean {
     const key = `match:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -35,7 +35,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return compiled;
   }
 
-  compileProjectExpr(expr: any): (doc: Document, rowId: RowId) => Document {
+  compileProjectExpr(expr: any): (doc: Document, _rowId: RowId) => Document {
     const key = `project:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -52,14 +52,14 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   }
 
   compileGroupExpr(expr: any): {
-    getGroupKey: (doc: Document, rowId: RowId) => DocumentValue;
+    getGroupKey: (doc: Document, _rowId: RowId) => DocumentValue;
     accumulators: Array<{
       field: string;
       type: string;
-      getValue: (doc: Document, rowId: RowId) => DocumentValue;
+      getValue: (doc: Document, _rowId: RowId) => DocumentValue;
     }>;
   } {
-    const key = `group:${JSON.stringify(expr)}`;
+    const _key = `group:${JSON.stringify(expr)}`;
 
     // Build group key function
     const getGroupKey = this.buildGroupKeyFunction(expr._id);
@@ -68,7 +68,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     const accumulators: Array<{
       field: string;
       type: string;
-      getValue: (doc: Document, rowId: RowId) => DocumentValue;
+      getValue: (doc: Document, _rowId: RowId) => DocumentValue;
     }> = [];
 
     for (const [field, accumExpr] of Object.entries(expr)) {
@@ -144,72 +144,119 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   private buildMatchFunction(
     expr: any
-  ): (doc: Document, rowId: RowId) => boolean {
+  ): (doc: Document, _rowId: RowId) => boolean {
     if (typeof expr !== 'object' || expr === null) {
       return () => false;
     }
 
-    // For complex logical expressions, use fallback evaluation
-    const hasLogicalOps = Object.keys(expr).some(key => 
-      key === '$and' || key === '$or' || key === '$not'
-    );
-    
-    if (hasLogicalOps) {
-      return (doc: Document, rowId: RowId) => {
-        return this.evaluateMatchExpression(expr, doc);
-      };
-    }
-
-    // Generate optimized function code for simple expressions
-    const conditions: string[] = [];
+    // Build compiled predicates recursively
+    const predicates: ((doc: Document, _rowId: RowId) => boolean)[] = [];
 
     for (const [field, condition] of Object.entries(expr)) {
-      if (!field.startsWith('$')) {
-        // Field conditions
-        const fieldAccess = this.generateFieldAccess(field);
-
-        if (typeof condition === 'object' && condition !== null) {
-          for (const [op, value] of Object.entries(condition)) {
-            const conditionCode = this.generateConditionCode(
-              fieldAccess,
-              op,
-              value
+      if (field.startsWith('$')) {
+        // Handle logical operators with recursive compilation
+        switch (field) {
+          case '$and': {
+            const subConditions = condition as any[];
+            const subPredicates = subConditions.map(cond =>
+              this.buildMatchFunction(cond)
             );
-            conditions.push(conditionCode);
+            predicates.push((doc: Document, _rowId: RowId) => {
+              for (let i = 0; i < subPredicates.length; i++) {
+                if (!subPredicates[i](doc, rowId)) return false;
+              }
+              return true;
+            });
+            break;
           }
-        } else {
-          // Simple equality
-          conditions.push(`${fieldAccess} === ${JSON.stringify(condition)}`);
+          case '$or': {
+            const subConditions = condition as any[];
+            const subPredicates = subConditions.map(cond =>
+              this.buildMatchFunction(cond)
+            );
+            predicates.push((doc: Document, _rowId: RowId) => {
+              for (let i = 0; i < subPredicates.length; i++) {
+                if (subPredicates[i](doc, rowId)) return true;
+              }
+              return false;
+            });
+            break;
+          }
+          case '$not': {
+            const subPredicate = this.buildMatchFunction(condition);
+            predicates.push(
+              (doc: Document, _rowId: RowId) => !subPredicate(doc, rowId)
+            );
+            break;
+          }
+          case '$nor': {
+            const subConditions = condition as any[];
+            const subPredicates = subConditions.map(cond =>
+              this.buildMatchFunction(cond)
+            );
+            predicates.push((doc: Document, _rowId: RowId) => {
+              for (let i = 0; i < subPredicates.length; i++) {
+                if (subPredicates[i](doc, rowId)) return false;
+              }
+              return true;
+            });
+            break;
+          }
+          default:
+            // For unsupported operators, fall back
+            predicates.push((doc: Document, _rowId: RowId) => {
+              return this.evaluateMatchExpression({ [field]: condition }, doc);
+            });
+            break;
         }
+      } else {
+        // Regular field conditions - compile directly
+        const fieldPredicate = this.buildFieldCondition(field, condition);
+        predicates.push(fieldPredicate);
       }
     }
 
-    const functionBody =
-      conditions.length > 0
-        ? `return ${conditions.join(' && ')};`
-        : 'return true;';
+    // Combine all predicates with AND logic
+    if (predicates.length === 0) {
+      return () => true;
+    } else if (predicates.length === 1) {
+      return predicates[0];
+    } else {
+      return (doc: Document, _rowId: RowId) => {
+        for (let i = 0; i < predicates.length; i++) {
+          if (!predicates[i](doc, rowId)) return false;
+        }
+        return true;
+      };
+    }
+  }
 
-    // Create optimized function
-    try {
-      return new Function(
-        'doc',
-        'rowId',
-        `
-        ${this.generateFieldAccessors()}
-        ${functionBody}
-      `
-      ) as (doc: Document, rowId: RowId) => boolean;
-    } catch (error) {
-      // Fallback to safer evaluation
-      return (doc: Document, rowId: RowId) => {
-        return this.evaluateMatchExpression(expr, doc);
+  private buildFieldCondition(
+    field: string,
+    condition: any
+  ): (doc: Document, _rowId: RowId) => boolean {
+    // Get field access function for efficient lookup
+    const getFieldValue = (doc: Document) => this.getFieldValue(doc, field);
+
+    // Handle different condition types
+    if (typeof condition === 'object' && condition !== null) {
+      // Object-based conditions like {$gt: 5, $lt: 10}
+      return (doc: Document, _rowId: RowId) => {
+        const fieldValue = getFieldValue(doc);
+        return this.evaluateCondition(fieldValue, condition);
+      };
+    } else {
+      // Simple equality condition
+      return (doc: Document, _rowId: RowId) => {
+        const fieldValue = getFieldValue(doc);
+        return fieldValue === condition;
       };
     }
   }
 
   private buildProjectFunction(
     expr: any
-  ): (doc: Document, rowId: RowId) => Document {
+  ): (doc: Document, _rowId: RowId) => Document {
     // Build projection function
     const projections: string[] = [];
 
@@ -234,7 +281,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       } else if (typeof projection === 'object' && projection !== null) {
         // Handle nested object projection like {title: 1, author: 1}
         if (this.isNestedProjection(projection)) {
-          const nestedCode = this.generateNestedProjectionCode(field, projection);
+          const nestedCode = this.generateNestedProjectionCode(
+            field,
+            projection
+          );
           projections.push(nestedCode);
         } else {
           // Computed field with expression
@@ -258,6 +308,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     `;
 
     try {
+      // eslint-disable-next-line no-new-func
       return new Function(
         'doc',
         'rowId',
@@ -265,10 +316,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         ${this.generateFieldAccessors()}
         ${functionBody}
       `
-      ) as (doc: Document, rowId: RowId) => Document;
-    } catch (error) {
+      ) as (doc: Document, _rowId: RowId) => Document;
+    } catch (_error) {
       // Fallback to safer evaluation
-      return (doc: Document, rowId: RowId) => {
+      return (doc: Document, _rowId: RowId) => {
         return this.evaluateProjectExpression(expr, doc);
       };
     }
@@ -276,12 +327,13 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   private buildGroupKeyFunction(
     keyExpr: any
-  ): (doc: Document, rowId: RowId) => DocumentValue {
+  ): (doc: Document, _rowId: RowId) => DocumentValue {
     if (typeof keyExpr === 'string' && keyExpr.startsWith('$')) {
       const field = keyExpr.substring(1);
       const fieldAccess = this.generateFieldAccess(field);
 
       try {
+        // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
           'rowId',
@@ -289,8 +341,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
         `
-        ) as (doc: Document, rowId: RowId) => DocumentValue;
-      } catch (error) {
+        ) as (doc: Document, _rowId: RowId) => DocumentValue;
+      } catch (_error) {
         return (doc: Document) => this.getFieldValue(doc, field);
       }
     } else if (typeof keyExpr === 'object' && keyExpr !== null) {
@@ -298,6 +350,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       const exprCode = this.generateExpressionCode(keyExpr);
 
       try {
+        // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
           'rowId',
@@ -305,8 +358,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           ${this.generateFieldAccessors()}
           return ${exprCode};
         `
-        ) as (doc: Document, rowId: RowId) => DocumentValue;
-      } catch (error) {
+        ) as (doc: Document, _rowId: RowId) => DocumentValue;
+      } catch (_error) {
         return (doc: Document) => this.evaluateExpression(keyExpr, doc);
       }
     } else {
@@ -317,7 +370,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   private buildAccumulatorValueFunction(
     accField: any
-  ): (doc: Document, rowId: RowId) => DocumentValue {
+  ): (doc: Document, _rowId: RowId) => DocumentValue {
     if (accField === 1) {
       return () => 1; // Count
     } else if (typeof accField === 'string' && accField.startsWith('$')) {
@@ -325,6 +378,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       const fieldAccess = this.generateFieldAccess(field);
 
       try {
+        // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
           'rowId',
@@ -332,8 +386,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
         `
-        ) as (doc: Document, rowId: RowId) => DocumentValue;
-      } catch (error) {
+        ) as (doc: Document, _rowId: RowId) => DocumentValue;
+      } catch (_error) {
         return (doc: Document) => this.getFieldValue(doc, field);
       }
     } else {
@@ -654,7 +708,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private isNestedProjection(obj: any): boolean {
     // Check if this is a nested projection like {title: 1, author: 1}
     if (typeof obj !== 'object' || obj === null) return false;
-    
+
     for (const value of Object.values(obj)) {
       if (value === 1 || value === true || value === 0 || value === false) {
         return true; // Has projection flags, this is nested projection
@@ -663,18 +717,25 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return false;
   }
 
-  private generateNestedProjectionCode(parentField: string, projection: any): string {
+  private generateNestedProjectionCode(
+    parentField: string,
+    projection: any
+  ): string {
     const nestedFields: string[] = [];
-    const projectionEntries = Object.entries(projection).filter(([_, include]) => include === 1 || include === true);
-    
+    const projectionEntries = Object.entries(projection).filter(
+      ([_, include]) => include === 1 || include === true
+    );
+
     if (projectionEntries.length === 0) return '';
-    
+
     // Generate code that handles both object and array cases
     const fieldAccess = this.generateFieldAccess(parentField);
-    const projectionLogic = projectionEntries.map(([nestedField, _]) => {
-      return `"${nestedField}": item.${nestedField}`;
-    }).join(', ');
-    
+    const projectionLogic = projectionEntries
+      .map(([nestedField, _]) => {
+        return `"${nestedField}": item.${nestedField}`;
+      })
+      .join(', ');
+
     nestedFields.push(`
       if (${fieldAccess} !== undefined) {
         if (Array.isArray(${fieldAccess})) {
@@ -686,7 +747,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         }
       }
     `);
-    
+
     return nestedFields.join('\n      ');
   }
 
@@ -753,8 +814,13 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
               result[field] = sourceValue.map(item => {
                 if (item && typeof item === 'object') {
                   const projected: any = {};
-                  for (const [nestedField, include] of Object.entries(projection)) {
-                    if (include === 1 || include === true && item[nestedField] !== undefined) {
+                  for (const [nestedField, include] of Object.entries(
+                    projection
+                  )) {
+                    if (
+                      include === 1 ||
+                      (include === true && item[nestedField] !== undefined)
+                    ) {
                       projected[nestedField] = item[nestedField];
                     }
                   }
@@ -766,7 +832,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
               // Project object fields
               const projected: any = {};
               for (const [nestedField, include] of Object.entries(projection)) {
-                if (include === 1 || include === true && sourceValue[nestedField] !== undefined) {
+                if (
+                  include === 1 ||
+                  (include === true && sourceValue[nestedField] !== undefined)
+                ) {
                   projected[nestedField] = sourceValue[nestedField];
                 }
               }
@@ -870,7 +939,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     return false; // Simplified for now
   }
 
-  compactColumns(store: CrossfilterStore): void {
+  compactColumns(_store: CrossfilterStore): void {
     // Compact columnar storage to improve cache locality
     // Implementation would defragment arrays, remove gaps, etc.
     this.optimizationStats.compactionsRun++;
@@ -1023,7 +1092,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       if (field === '_id') continue;
 
       if (typeof expr === 'object' && expr !== null) {
-        for (const [accType, accField] of Object.entries(expr)) {
+        for (const [_accType, accField] of Object.entries(expr)) {
           if (typeof accField === 'string' && accField.startsWith('$')) {
             dimensions.add(accField.substring(1));
           }

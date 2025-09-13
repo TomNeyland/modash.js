@@ -4,16 +4,13 @@
 
 import type {
   RowId,
-  Delta,
   ColumnType,
-  ColumnStore,
   LiveSet,
   Dimension,
   RefCountedMultiSet,
   OrderStatNode,
   OrderStatTree,
   GroupState,
-  CrossfilterStore,
 } from './crossfilter-ivm.js';
 import type { Document, DocumentValue } from './expressions.js';
 

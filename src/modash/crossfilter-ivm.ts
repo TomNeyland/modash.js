@@ -208,11 +208,18 @@ export interface IVMOperator {
   readonly canDecrement: boolean;
 
   // Delta processing
-  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[];
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[];
+  onAdd(_delta: Delta, _store: CrossfilterStore, _context: IVMContext): Delta[];
+  onRemove(
+    _delta: Delta,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Delta[];
 
   // Result materialization
-  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document>;
+  snapshot(
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Collection<Document>;
 
   // Optimization
   estimateComplexity(): string;
@@ -260,7 +267,7 @@ export interface ExpressionCompiler {
 export interface PerformanceEngine {
   // Memory management
   shouldCompactColumns(): boolean;
-  compactColumns(store: CrossfilterStore): void;
+  compactColumns(_store: CrossfilterStore): void;
 
   // Index optimization
   shouldCreateDimension(fieldPath: string, selectivity: number): boolean;
@@ -289,7 +296,7 @@ export interface IVMOperatorFactory {
  * Main crossfilter-inspired IVM engine
  */
 export interface CrossfilterIVMEngine {
-  readonly store: CrossfilterStore;
+  readonly _store: CrossfilterStore;
   readonly compiler: ExpressionCompiler;
   readonly performance: PerformanceEngine;
   readonly operatorFactory: IVMOperatorFactory;
@@ -304,7 +311,7 @@ export interface CrossfilterIVMEngine {
   removeDocuments(rowIds: RowId[]): number;
 
   // Incremental processing
-  applyDelta(delta: Delta, executionPlan: ExecutionPlan): Collection<Document>;
+  applyDelta(_delta: Delta, executionPlan: ExecutionPlan): Collection<Document>;
   applyDeltas(
     deltas: Delta[],
     executionPlan: ExecutionPlan

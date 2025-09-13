@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
-import type { Collection, Document, DocumentValue } from './expressions.js';
+import type { Collection, Document } from './expressions.js';
 import type { Pipeline } from '../index.js';
 import { aggregate } from './aggregation.js';
 import { createCrossfilterEngine } from './crossfilter-engine.js';
@@ -455,12 +455,15 @@ export class StreamingCollection<
   /**
    * Update all active aggregations using crossfilter IVM engine for true incremental processing
    */
-  private updateAggregationsWithIVM(rowIds: RowId[], operation: 'add' | 'remove'): void {
+  private updateAggregationsWithIVM(
+    rowIds: RowId[],
+    _operation: 'add' | 'remove'
+  ): void {
     for (const [pipelineKey, pipeline] of this.activePipelines.entries()) {
       const state = this.aggregationStates.get(pipelineKey);
       if (!state || !state._ivmEngine || !state._executionPlan) {
         // Fallback to old method if IVM not available
-        this.fallbackToLegacyUpdate(pipelineKey, pipeline, operation);
+        this.fallbackToLegacyUpdate(pipelineKey, pipeline, _operation);
         continue;
       }
 
@@ -519,7 +522,7 @@ export class StreamingCollection<
   private fallbackToLegacyUpdate(
     pipelineKey: string,
     pipeline: Pipeline,
-    operation: 'add' | 'remove'
+    _operation: 'add' | 'remove'
   ): void {
     const state = this.aggregationStates.get(pipelineKey);
     if (!state) return;

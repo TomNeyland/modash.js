@@ -25,7 +25,7 @@ import { IVMOperatorFactoryImpl } from './crossfilter-operators.js';
  * Main crossfilter-inspired IVM engine
  */
 export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
-  readonly store: CrossfilterStore;
+  readonly _store: CrossfilterStore;
   readonly compiler: ExpressionCompilerImpl;
   readonly performance: PerformanceEngineImpl;
   readonly operatorFactory: IVMOperatorFactoryImpl;
@@ -203,8 +203,11 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     return removedCount;
   }
 
-  applyDelta(delta: Delta, executionPlan: ExecutionPlan): Collection<Document> {
-    return this.applyDeltas([delta], executionPlan);
+  applyDelta(
+    _delta: Delta,
+    executionPlan: ExecutionPlan
+  ): Collection<Document> {
+    return this.applyDeltas([_delta], executionPlan);
   }
 
   applyDeltas(
@@ -349,18 +352,18 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   }
 
   private processDeltaThroughPipeline(
-    delta: Delta,
+    _delta: Delta,
     operators: IVMOperator[],
     plan: ExecutionPlan
   ): void {
-    let currentDeltas = [delta];
+    let currentDeltas = [_delta];
 
     // Apply delta through each stage
     for (let i = 0; i < operators.length; i++) {
       const operator = operators[i];
       const stage = plan.stages[i];
 
-      const context: IVMContext = {
+      const _context: IVMContext = {
         pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
         stageIndex: i,
         compiledStage: stage,
@@ -374,9 +377,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         let stageDeltas: Delta[];
 
         if (currentDelta.sign === 1) {
-          stageDeltas = operator.onAdd(currentDelta, this.store, context);
+          stageDeltas = operator.onAdd(currentDelta, this.store, _context);
         } else {
-          stageDeltas = operator.onRemove(currentDelta, this.store, context);
+          stageDeltas = operator.onRemove(currentDelta, this.store, _context);
         }
 
         nextDeltas.push(...stageDeltas);
@@ -402,8 +405,8 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   ): void {
     // Process all existing documents through the new operators
     for (const rowId of this.store.liveSet) {
-      const delta: Delta = { rowId, sign: 1 };
-      this.processDeltaThroughPipeline(delta, operators, plan);
+      const _delta: Delta = { rowId, sign: 1 };
+      this.processDeltaThroughPipeline(_delta, operators, plan);
     }
   }
 
@@ -426,7 +429,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       const operator = operators[i];
       const stage = plan.stages[i];
 
-      const context: IVMContext = {
+      const _context: IVMContext = {
         pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
         stageIndex: i,
         compiledStage: stage,
@@ -437,14 +440,14 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       // For most operators, we use their snapshot method
       // For some operators like $group, the snapshot comes from the store state
       if (operator.type === '$group') {
-        currentResult = operator.snapshot(this.store, context);
+        currentResult = operator.snapshot(this.store, _context);
       } else if (operator.type === '$match') {
-        currentResult = operator.snapshot(this.store, context);
+        currentResult = operator.snapshot(this.store, _context);
       } else if (operator.type === '$project') {
         // Apply projection to current result
         currentResult = this.applyProjection(currentResult, stage.stageData);
       } else if (operator.type === '$sort') {
-        currentResult = operator.snapshot(this.store, context);
+        currentResult = operator.snapshot(this.store, _context);
       } else if (operator.type === '$limit') {
         currentResult = currentResult.slice(0, stage.stageData);
       } else if (operator.type === '$skip') {
