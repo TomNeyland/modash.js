@@ -431,13 +431,16 @@ function aggregate<T extends Document = Document>(
 
   // Try optimized execution for larger collections with compatible stages
   const shouldOptimize = collection.length > 100 && isOptimizable(stages);
-  
+
   if (shouldOptimize) {
     try {
       return optimizedEngine.aggregate(collection, stages);
     } catch (error) {
       // Fallback to traditional execution if optimization fails
-      console.warn('Optimized execution failed, falling back to traditional:', error);
+      console.warn(
+        'Optimized execution failed, falling back to traditional:',
+        error
+      );
     }
   }
 
