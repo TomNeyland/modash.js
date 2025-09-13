@@ -1014,11 +1014,13 @@ The test suite includes automatic performance measurement and tracking:
 - **CI-Safe**: In CI environments, performance is measured but not persisted to files
 
 Performance results are saved in `performance-results/` as timestamped JSON files:
+
 - `performance-{timestamp}.json` - Contains detailed benchmark data
 - Includes comparisons showing percentage changes vs baseline and previous runs
 - Memory usage tracking and scaling efficiency analysis
 
 Example performance output:
+
 ```bash
 📊 Measuring dataset size: 1,000 documents
   simpleFilter         :    120μs     ±0.2ms | 8,333,333 docs/sec

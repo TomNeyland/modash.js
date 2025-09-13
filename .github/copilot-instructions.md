@@ -66,9 +66,11 @@ import Modash from 'modash';
 
 ### Testing
 ```bash
-npm test                    # Run all tests
+npm test                    # Run all tests (includes performance benchmarks)
 npm run test:watch         # Watch mode
 npm run test:coverage      # With coverage
+npm run test:units         # Unit tests only
+npm run test:performance   # Performance benchmarks only
 ```
 
 ### Code Quality
@@ -79,6 +81,62 @@ npm run format            # Prettier formatting
 npm run format:check      # Check formatting
 npm run quality           # Run all checks
 ```
+
+## Performance Tracking System
+
+**CRITICAL**: modash.js includes a comprehensive performance tracking system that MUST be utilized for all changes.
+
+### Performance Benchmarks
+- Automatically run as part of `npm test`
+- Measure execution time, throughput, and memory usage
+- Test across multiple dataset sizes (100, 500, 1K, 2.5K, 5K, 10K documents)
+- Statistical analysis with multiple iterations (mean, median, standard deviation)
+
+### Historical Comparison
+- Performance results are saved in `performance-results/` directory
+- Automatic comparison against baseline and previous runs
+- Trend indicators (📈/📉) show performance improvements/regressions
+- Percentage changes calculated for all metrics
+
+### CI Integration
+- Runs in all CI environments (GitHub Actions, Travis, CircleCI, etc.)
+- Results are measured but not persisted in CI to prevent repository bloat
+- Performance test failures will cause CI builds to fail
+
+### Usage Requirements
+```bash
+npm run test:performance   # Run performance tests only
+npm test                   # Includes performance tests automatically
+```
+
+**🔥 MANDATORY**: Performance tests MUST pass before any PR can be merged. The system will detect and flag performance regressions, which must be investigated and resolved.
+
+## 🚨 CRITICAL REQUIREMENTS FOR ALL CHANGES
+
+**MANDATORY VALIDATION STEPS** - All changes MUST pass these checks before work is considered complete:
+
+1. **Performance Testing is CRITICAL**: The performance tracking system (`npm run test:performance`) MUST be run after ANY code changes
+   - Performance tests validate that changes don't introduce performance regressions
+   - Historical performance data is automatically tracked and compared
+   - Any performance degradation must be investigated and resolved
+   - The GitHub Actions workflows will REJECT PRs if performance tests fail
+
+2. **Quality Gates MUST Pass**: 
+   ```bash
+   npm run lint        # MUST pass - no linting errors allowed
+   npm test           # MUST pass - all tests including performance
+   npm run format:check # MUST pass - code must be properly formatted
+   ```
+
+3. **Pre-Submission Checklist**:
+   - [ ] All existing tests pass (`npm test`)
+   - [ ] No linting errors (`npm run lint`)
+   - [ ] Code is properly formatted (`npm run format:check`)
+   - [ ] Performance benchmarks complete successfully
+   - [ ] No performance regressions detected
+   - [ ] New functionality is properly tested
+
+**⚠️ WARNING**: GitHub Actions workflows will automatically reject PRs that fail any of these quality gates. Always run the complete validation suite before considering work finished.
 
 ### Key Files to Understand
 
