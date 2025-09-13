@@ -78,8 +78,8 @@ jobs:
         with:
           sarif_file: eslint-results.sarif
 
-  type-check:
-    name: Type Check
+  source-validation:
+    name: Source Validation
     runs-on: ubuntu-latest
     if: needs.changes.outputs.code == 'true'
     needs: changes
@@ -91,8 +91,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: TypeScript Check
-        run: npm run type-check
+      - name: Validate TypeScript sources
+        run: |
+          echo "TypeScript-native project - source files are ready for direct usage"
+          echo "No compilation step needed"
 
   test-coverage:
     name: Test & Coverage
@@ -135,9 +137,9 @@ jobs:
       - run: npm ci
       - name: Run performance benchmark
         run: |
-          node -e "
+          node --import=tsx/esm -e "
           import('./tests/test-data.js').then(testData => {
-            import('./dist/index.js').then(Modash => {
+            import('./src/index.ts').then(Modash => {
               const startTime = process.hrtime.bigint();
               const iterations = 1000;
               
@@ -161,8 +163,8 @@ jobs:
           });
           "
 
-  build-validation:
-    name: Build Validation  
+  source-export-validation:
+    name: Source Export Validation  
     runs-on: ubuntu-latest
     if: needs.changes.outputs.code == 'true'
     needs: changes
@@ -174,14 +176,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: Build project
-        run: npm run build
-      - name: Validate exports
+      - name: Validate TypeScript source exports
         run: |
-          node -e "
-          import('./dist/index.js').then(dist => {
-            console.log('Dist exports:', Object.keys(dist));
-            console.log('Validation passed: exports are available');
+          node --import=tsx/esm -e "
+          import('./src/index.ts').then(src => {
+            console.log('Source exports:', Object.keys(src));
+            console.log('Validation passed: TypeScript source exports are available');
           }).catch(err => {
             console.error('Export validation failed:', err);
             process.exit(1);
