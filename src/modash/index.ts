@@ -10,18 +10,17 @@ import {
   $lookup,
   $addFields,
   $set,
+  type QueryExpression,
 } from './aggregation.js';
 import { count } from './count.js';
-import { $expression } from './expressions.js';
+import { $expression, type Collection, type Document } from './expressions.js';
 
+// Import complex types from main index that need to stay centralized
 import type {
   ModashStatic,
-  Collection,
-  Document,
   Pipeline,
   Expression,
   DocumentValue,
-  QueryExpression,
   GroupStage,
   ProjectStage,
   SortStage,
@@ -69,14 +68,14 @@ export {
   $set,
 };
 
-// Re-export types for convenience
+// Re-export basic types from local modules
+export type { Collection, Document, QueryExpression };
+
+// Re-export complex types from main index for convenience
 export type {
-  Collection,
-  Document,
   Pipeline,
   Expression,
   DocumentValue,
-  QueryExpression,
   GroupStage,
   ProjectStage,
   SortStage,

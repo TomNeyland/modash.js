@@ -3,54 +3,21 @@
  * Modern MongoDB-inspired aggregation library for TypeScript
  */
 
-// Basic value types that can appear in documents
-export type PrimitiveValue = string | number | boolean | Date | null;
-export type DocumentValue =
-  | PrimitiveValue
-  | Document
-  | PrimitiveValue[]
-  | Document[];
+// Re-export basic types from implementation modules where they are defined
+export type {
+  PrimitiveValue,
+  DocumentValue,
+  Document,
+  Collection,
+  FieldPath,
+  SystemVariable,
+} from './modash/expressions.js';
 
-// MongoDB document type
-export interface Document {
-  [key: string]: DocumentValue;
-}
-
-// Collection type
-export type Collection<T = Document> = T[];
-
-// Expression types
-export type FieldPath = `$${string}`;
-export type SystemVariable = `$$${string}`;
-
-// Comparison operators for $match
-export interface ComparisonOperators<T = DocumentValue> {
-  $eq?: T;
-  $ne?: T;
-  $gt?: T;
-  $gte?: T;
-  $lt?: T;
-  $lte?: T;
-  $in?: T[];
-  $nin?: T[];
-}
-
-// Query operators for $match
-export interface QueryOperators {
-  $and?: QueryExpression[];
-  $or?: QueryExpression[];
-  $nor?: QueryExpression[];
-  $regex?: string;
-  $options?: string;
-  $exists?: boolean;
-  $all?: DocumentValue[];
-  $elemMatch?: QueryExpression;
-  $size?: number;
-}
-
-export type QueryExpression = {
-  [K in string]?: DocumentValue | (ComparisonOperators & QueryOperators);
-};
+export type {
+  ComparisonOperators,
+  QueryOperators,
+  QueryExpression,
+} from './modash/aggregation.js';
 
 // Expression type - used in $project, $addFields, etc.
 export type Expression =

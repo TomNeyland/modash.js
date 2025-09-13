@@ -10,13 +10,29 @@ import {
 } from 'lodash-es';
 
 import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
-import type {
-  Document,
-  Expression,
-  DocumentValue,
-  FieldPath,
-  SystemVariable,
-} from '../index.js';
+
+// Basic value types that can appear in documents
+export type PrimitiveValue = string | number | boolean | Date | null;
+export type DocumentValue =
+  | PrimitiveValue
+  | Document
+  | PrimitiveValue[]
+  | Document[];
+
+// MongoDB document type
+export interface Document {
+  [key: string]: DocumentValue;
+}
+
+// Collection type
+export type Collection<T = Document> = T[];
+
+// Expression types
+export type FieldPath = `$${string}`;
+export type SystemVariable = `$$${string}`;
+
+// Import only the complex expression types from main index for now
+import type { Expression } from '../index.js';
 
 // Local type definitions for expression evaluation
 type ExpressionOperatorObject = Record<string, Expression | Expression[]>;

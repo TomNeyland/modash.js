@@ -1,11 +1,12 @@
 import { size, keys, map, first, last, uniq } from 'lodash-es';
-import { $expression } from './expressions.js';
-import type {
-  Collection,
-  Expression,
-  DocumentValue,
-  AccumulatorExpression,
-} from '../index.js';
+import {
+  $expression,
+  type Collection,
+  type DocumentValue,
+} from './expressions.js';
+
+// Import complex types from main index for now
+import type { Expression, AccumulatorExpression } from '../index.js';
 
 // Local type definitions for accumulator functions
 type AccumulatorFunction = (

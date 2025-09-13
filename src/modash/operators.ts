@@ -16,7 +16,11 @@ import {
   isFunction,
 } from 'lodash-es';
 
-import type { Document, DocumentValue, Expression } from '../index.js';
+// Import basic types from expressions module
+import type { Document, DocumentValue } from './expressions.js';
+
+// Import complex types from main index for now
+import type { Expression } from '../index.js';
 
 /**
  * Modern MongoDB Expression Operators for TypeScript
