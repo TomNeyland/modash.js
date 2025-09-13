@@ -15,7 +15,10 @@ import type { Document, Collection } from './expressions.js';
 import type { Pipeline } from '../index.js';
 
 import { LiveSetImpl, DimensionImpl } from './crossfilter-impl.js';
-import { ExpressionCompilerImpl, PerformanceEngineImpl } from './crossfilter-compiler.js';
+import {
+  ExpressionCompilerImpl,
+  PerformanceEngineImpl,
+} from './crossfilter-compiler.js';
 import { IVMOperatorFactoryImpl } from './crossfilter-operators.js';
 
 /**
@@ -39,14 +42,14 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
   compilePipeline(pipeline: Pipeline): ExecutionPlan {
     const pipelineKey = JSON.stringify(pipeline);
-    
+
     if (this.executionPlans.has(pipelineKey)) {
       return this.executionPlans.get(pipelineKey)!;
     }
 
     // Create execution plan
     const plan = this.performance.optimizePipeline(pipeline);
-    
+
     // Check if pipeline contains unsupported operations
     let hasUnsupportedOperations = false;
     for (const stage of plan.stages) {
@@ -55,61 +58,65 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         break;
       }
     }
-    
+
     // If unsupported operations exist, mark plan as non-incremental
     if (hasUnsupportedOperations) {
       plan.canFullyIncrement = false;
       plan.canFullyDecrement = false;
     }
-    
+
     // Compile operators
     const operators: IVMOperator[] = [];
-    
+
     for (const stage of plan.stages) {
       let operator: IVMOperator;
-      
+
       switch (stage.type) {
         case '$match':
           operator = this.operatorFactory.createMatchOperator(stage.stageData);
           break;
-        
+
         case '$group':
           operator = this.operatorFactory.createGroupOperator(stage.stageData);
           break;
-        
+
         case '$sort':
           operator = this.operatorFactory.createSortOperator(stage.stageData);
           break;
-        
+
         case '$project':
-          operator = this.operatorFactory.createProjectOperator(stage.stageData);
+          operator = this.operatorFactory.createProjectOperator(
+            stage.stageData
+          );
           break;
-        
+
         case '$limit':
           operator = this.operatorFactory.createLimitOperator(stage.stageData);
           break;
-        
+
         case '$skip':
           operator = this.operatorFactory.createSkipOperator(stage.stageData);
           break;
-        
+
         case '$addFields':
         case '$set':
-          operator = this.operatorFactory.createProjectOperator(stage.stageData);
+          operator = this.operatorFactory.createProjectOperator(
+            stage.stageData
+          );
           break;
-        
+
         case '$lookup':
           operator = this.operatorFactory.createLookupOperator(stage.stageData);
           break;
-        
+
         case '$unwind':
           operator = this.operatorFactory.createUnwindOperator(stage.stageData);
           break;
-        
+
         default:
           throw new Error(`Unsupported stage type: ${stage.type}`);
       }
-      
+
       operators.push(operator);
     }
 
@@ -130,32 +137,32 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
   addDocument(doc: Document): RowId {
     const rowId = this.store.rowIdCounter.current++;
-    
+
     // Store document
     this.store.documents[rowId] = doc;
-    
+
     // Mark as live
     this.store.liveSet.set(rowId);
-    
+
     // Update statistics
     this.store.stats.totalDocs++;
     this.store.stats.liveDocs++;
-    
+
     // Update dimensions
     for (const dimension of this.store.dimensions.values()) {
       dimension.addDocument(doc, rowId);
     }
-    
+
     return rowId;
   }
 
   addDocuments(docs: Document[]): RowId[] {
     const rowIds: RowId[] = [];
-    
+
     for (const doc of docs) {
       rowIds.push(this.addDocument(doc));
     }
-    
+
     return rowIds;
   }
 
@@ -163,33 +170,33 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     if (!this.store.liveSet.isSet(rowId)) {
       return false; // Document not live
     }
-    
+
     // Mark as not live
     this.store.liveSet.unset(rowId);
-    
+
     // Update statistics
     this.store.stats.liveDocs--;
-    
+
     // Update dimensions
     for (const dimension of this.store.dimensions.values()) {
       dimension.removeDocument(rowId);
     }
-    
+
     // Note: We keep the document in storage for potential rollback
     // In a full implementation, we might have a garbage collection mechanism
-    
+
     return true;
   }
 
   removeDocuments(rowIds: RowId[]): number {
     let removedCount = 0;
-    
+
     for (const rowId of rowIds) {
       if (this.removeDocument(rowId)) {
         removedCount++;
       }
     }
-    
+
     return removedCount;
   }
 
@@ -197,21 +204,30 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     return this.applyDeltas([delta], executionPlan);
   }
 
-  applyDeltas(deltas: Delta[], executionPlan: ExecutionPlan): Collection<Document> {
+  applyDeltas(
+    deltas: Delta[],
+    executionPlan: ExecutionPlan
+  ): Collection<Document> {
     if (deltas.length === 0) {
-      return this.execute(executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline);
+      return this.execute(
+        executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline
+      );
     }
 
     // If we can't do full incremental processing, fall back to full execution
     if (!executionPlan.canFullyIncrement && !executionPlan.canFullyDecrement) {
-      return this.execute(executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline);
+      return this.execute(
+        executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline
+      );
     }
 
     // Find operators for this execution plan
-    const pipeline = executionPlan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline;
+    const pipeline = executionPlan.stages.map(s => ({
+      [s.type]: s.stageData,
+    })) as Pipeline;
     const pipelineKey = JSON.stringify(pipeline);
     const operators = this.compiledOperators.get(pipelineKey);
-    
+
     if (!operators) {
       throw new Error(`Pipeline operators not found for: ${pipelineKey}`);
     }
@@ -227,11 +243,11 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
   execute(pipeline: Pipeline): Collection<Document> {
     const plan = this.compilePipeline(pipeline);
-    
+
     // For full execution, take snapshot of final pipeline state
     const pipelineKey = JSON.stringify(pipeline); // Use original pipeline for key
     const operators = this.compiledOperators.get(pipelineKey);
-    
+
     if (!operators) {
       // If pipeline isn't found, try compiling again
       this.compilePipeline(pipeline);
@@ -250,7 +266,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     if (this.performance.shouldCompactColumns()) {
       this.performance.compactColumns(this.store);
     }
-    
+
     // Other optimization tasks could go here
     // - Dimension pruning for unused fields
     // - Group state cleanup for empty groups
@@ -281,14 +297,14 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     this.store.liveSet.clear();
     this.store.dimensions.clear();
     this.store.groups.clear();
-    
+
     // Reset counters
     this.store.rowIdCounter.current = 0;
     this.store.stats.totalDocs = 0;
     this.store.stats.liveDocs = 0;
     this.store.stats.dimensionsCreated = 0;
     this.store.stats.groupsActive = 0;
-    
+
     // Clear compiled plans
     this.executionPlans.clear();
     this.compiledOperators.clear();
@@ -317,7 +333,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         const dimension = new DimensionImpl(key);
         this.store.dimensions.set(key, dimension);
         this.store.stats.dimensionsCreated++;
-        
+
         // Index existing documents in this dimension
         for (const rowId of this.store.liveSet) {
           const doc = this.store.documents[rowId];
@@ -335,12 +351,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     plan: ExecutionPlan
   ): void {
     let currentDeltas = [delta];
-    
+
     // Apply delta through each stage
     for (let i = 0; i < operators.length; i++) {
       const operator = operators[i];
       const stage = plan.stages[i];
-      
+
       const context: IVMContext = {
         pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
         stageIndex: i,
@@ -350,21 +366,21 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       };
 
       const nextDeltas: Delta[] = [];
-      
+
       for (const currentDelta of currentDeltas) {
         let stageDeltas: Delta[];
-        
+
         if (currentDelta.sign === 1) {
           stageDeltas = operator.onAdd(currentDelta, this.store, context);
         } else {
           stageDeltas = operator.onRemove(currentDelta, this.store, context);
         }
-        
+
         nextDeltas.push(...stageDeltas);
       }
-      
+
       currentDeltas = nextDeltas;
-      
+
       // If no deltas pass through this stage, stop processing
       if (currentDeltas.length === 0) {
         break;
@@ -393,7 +409,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     plan: ExecutionPlan
   ): Collection<Document> {
     let currentResult: Collection<Document> = [];
-    
+
     // Get live documents
     for (const rowId of this.store.liveSet) {
       const doc = this.store.documents[rowId];
@@ -401,12 +417,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         currentResult.push(doc);
       }
     }
-    
+
     // Apply each operator's snapshot
     for (let i = 0; i < operators.length; i++) {
       const operator = operators[i];
       const stage = plan.stages[i];
-      
+
       const context: IVMContext = {
         pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
         stageIndex: i,
@@ -414,7 +430,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         executionPlan: plan,
         tempState: new Map(),
       };
-      
+
       // For most operators, we use their snapshot method
       // For some operators like $group, the snapshot comes from the store state
       if (operator.type === '$group') {
@@ -432,13 +448,16 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         currentResult = currentResult.slice(stage.stageData);
       }
     }
-    
+
     return currentResult;
   }
 
-  private applyProjection(documents: Collection<Document>, projectExpr: any): Collection<Document> {
+  private applyProjection(
+    documents: Collection<Document>,
+    projectExpr: any
+  ): Collection<Document> {
     const projectedFn = this.compiler.compileProjectExpr(projectExpr);
-    
+
     return documents.map((doc, index) => projectedFn(doc, index));
   }
 
@@ -449,23 +468,23 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
   private estimateDimensionsSize(): number {
     let size = 0;
-    
+
     for (const dimension of this.store.dimensions.values()) {
       // Estimate dimension size: valueIndex + sortedValues + rowToValue
       size += dimension.cardinality * 50; // Rough estimate
       size += dimension.rowToValue.size * 20;
     }
-    
+
     return size;
   }
 
   private estimateGroupsSize(): number {
     let size = 0;
-    
+
     for (const groupsMap of this.store.groups.values()) {
       size += groupsMap.size * 200; // Rough estimate per group state
     }
-    
+
     return size;
   }
 }

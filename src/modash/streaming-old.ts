@@ -3,8 +3,8 @@
  *
  * Provides live views of aggregation results that update dynamically
  * as new data is added through .add() or .addBulk() operations.
- * 
- * Now powered by crossfilter-inspired IVM (Incremental View Maintenance) 
+ *
+ * Now powered by crossfilter-inspired IVM (Incremental View Maintenance)
  * for true incremental processing with sophisticated multi-dimensional indexing.
  */
 
@@ -61,14 +61,12 @@ export interface AggregationState {
   pipelineHash: string;
   canIncrement: boolean;
   canDecrement: boolean;
-  
+
   // Internal engine reference
   _ivmEngine?: CrossfilterIVMEngine;
   _executionPlan?: any;
   _documentRowIds?: Map<number, RowId>; // doc index -> rowId mapping
 }
-
-
 
 /**
  * StreamingCollection provides incremental update capabilities
@@ -82,10 +80,10 @@ export class StreamingCollection<
   private activePipelines = new Map<string, Pipeline>();
   private eventConsumers = new Map<string, EventConsumerConfig<T>>();
   private eventListeners = new Map<string, (data: any) => void>();
-  
+
   // Core crossfilter IVM engine
   private ivmEngine = createCrossfilterEngine();
-  
+
   // Mapping from document array index to IVM rowId
   private docIndexToRowId = new Map<number, RowId>();
   private rowIdToDocIndex = new Map<RowId, number>();
@@ -97,7 +95,7 @@ export class StreamingCollection<
       this.documents = [];
     } else {
       this.documents = [...initialData];
-      
+
       // Add initial documents to IVM engine
       for (let i = 0; i < this.documents.length; i++) {
         const rowId = this.ivmEngine.addDocument(this.documents[i]);
@@ -156,7 +154,7 @@ export class StreamingCollection<
       if (predicate(doc, index)) {
         removedDocuments.push(doc);
         indicesToRemove.push(index);
-        
+
         const rowId = this.docIndexToRowId.get(index);
         if (rowId !== undefined) {
           rowIdsToRemove.push(rowId);
@@ -444,7 +442,10 @@ export class StreamingCollection<
   /**
    * Update all active aggregations using crossfilter IVM engine for true incremental processing
    */
-  private updateAggregationsWithIVM(rowIds: RowId[], operation: 'add' | 'remove'): void {
+  private updateAggregationsWithIVM(
+    rowIds: RowId[],
+    operation: 'add' | 'remove'
+  ): void {
     for (const [pipelineKey, pipeline] of this.activePipelines.entries()) {
       const state = this.aggregationStates.get(pipelineKey);
       if (!state || !state._ivmEngine || !state._executionPlan) {
@@ -461,7 +462,10 @@ export class StreamingCollection<
         }));
 
         // Apply deltas through IVM engine
-        const newResult = state._ivmEngine.applyDeltas(deltas, state._executionPlan);
+        const newResult = state._ivmEngine.applyDeltas(
+          deltas,
+          state._executionPlan
+        );
         state.lastResult = newResult;
 
         this.emit('result-updated', { result: newResult, pipeline });
@@ -470,7 +474,7 @@ export class StreamingCollection<
           `Error in IVM processing for pipeline ${pipelineKey}, falling back to full recalculation:`,
           error
         );
-        
+
         // Fallback to full recalculation
         try {
           const newResult = this.ivmEngine.execute(pipeline);
@@ -502,7 +506,11 @@ export class StreamingCollection<
   /**
    * Fallback to legacy aggregation update when IVM is not available
    */
-  private fallbackToLegacyUpdate(pipelineKey: string, pipeline: Pipeline, operation: 'add' | 'remove'): void {
+  private fallbackToLegacyUpdate(
+    pipelineKey: string,
+    pipeline: Pipeline,
+    operation: 'add' | 'remove'
+  ): void {
     const state = this.aggregationStates.get(pipelineKey);
     if (!state) return;
 
@@ -512,7 +520,10 @@ export class StreamingCollection<
       state.lastResult = newResult;
       this.emit('result-updated', { result: newResult, pipeline });
     } catch (error) {
-      console.error(`Fallback aggregation failed for pipeline ${pipelineKey}:`, error);
+      console.error(
+        `Fallback aggregation failed for pipeline ${pipelineKey}:`,
+        error
+      );
     }
   }
 
@@ -1656,7 +1667,7 @@ export class StreamingCollection<
     this.activePipelines.clear();
     this.eventConsumers.clear();
     this.eventListeners.clear();
-    
+
     // Clear IVM engine state
     this.ivmEngine.clear();
     this.docIndexToRowId.clear();

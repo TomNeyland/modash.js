@@ -33,35 +33,39 @@ export class MatchOperator implements IVMOperator {
 
   onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
     if (delta.sign !== 1) return [];
-    
+
     const doc = store.documents[delta.rowId];
     if (!doc) return [];
-    
+
     // Apply match filter
     if (this.compiledExpr(doc, delta.rowId)) {
       return [delta]; // Document passes filter, propagate
     }
-    
+
     return []; // Document filtered out
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     if (delta.sign !== -1) return [];
-    
+
     const doc = store.documents[delta.rowId];
     if (!doc) return [];
-    
+
     // If document was previously matched, it should be removed from result
     if (this.compiledExpr(doc, delta.rowId)) {
       return [delta]; // Propagate removal
     }
-    
+
     return []; // Document wasn't in result set anyway
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
     const result: Document[] = [];
-    
+
     // Iterate through all live documents
     for (const rowId of store.liveSet) {
       const doc = store.documents[rowId];
@@ -69,7 +73,7 @@ export class MatchOperator implements IVMOperator {
         result.push(doc);
       }
     }
-    
+
     return result;
   }
 
@@ -87,7 +91,7 @@ export class MatchOperator implements IVMOperator {
 
   private extractFieldsFromMatch(expr: any): string[] {
     const fields = new Set<string>();
-    
+
     if (typeof expr !== 'object' || expr === null) return [];
 
     for (const [field, condition] of Object.entries(expr)) {
@@ -102,7 +106,7 @@ export class MatchOperator implements IVMOperator {
         fields.add(field);
       }
     }
-    
+
     return Array.from(fields);
   }
 }
@@ -123,7 +127,7 @@ export class GroupOperator implements IVMOperator {
       getValue: (doc: Document, rowId: RowId) => DocumentValue;
     }>;
   };
-  
+
   private dimensionKey: string;
   private groupsKey: string;
 
@@ -138,36 +142,36 @@ export class GroupOperator implements IVMOperator {
 
   onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
     if (delta.sign !== 1) return [];
-    
+
     const doc = store.documents[delta.rowId];
     if (!doc) return [];
-    
+
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, delta.rowId);
-    
+
     // Serialize group key for consistent Map indexing
     const groupKeyStr = JSON.stringify(groupKey);
-    
+
     // Ensure dimension exists
     this.ensureDimension(store);
-    
+
     // Update dimension
     const dimension = store.dimensions.get(this.dimensionKey)!;
     dimension.addDocument(doc, delta.rowId);
-    
+
     // Get or create group state
     let groupsMap = store.groups.get(this.groupsKey);
     if (!groupsMap) {
       groupsMap = new Map();
       store.groups.set(this.groupsKey, groupsMap);
     }
-    
+
     let groupState = groupsMap.get(groupKeyStr);
     if (!groupState) {
       groupState = new GroupStateImpl(groupKey); // Store original key for result
       groupsMap.set(groupKeyStr, groupState); // Use serialized key for indexing
     }
-    
+
     // Add document to group
     const accumulators: any = {};
     for (const [field, expr] of Object.entries(this.groupExpr)) {
@@ -175,28 +179,32 @@ export class GroupOperator implements IVMOperator {
         accumulators[field] = expr;
       }
     }
-    
+
     groupState.addDocument(delta.rowId, doc, accumulators);
-    
+
     return [delta]; // Propagate for further stages
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     if (delta.sign !== -1) return [];
-    
+
     const doc = store.documents[delta.rowId];
     if (!doc) return [];
-    
+
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, delta.rowId);
     const groupKeyStr = JSON.stringify(groupKey);
-    
+
     // Update dimension
     const dimension = store.dimensions.get(this.dimensionKey);
     if (dimension) {
       dimension.removeDocument(delta.rowId);
     }
-    
+
     // Update group state
     const groupsMap = store.groups.get(this.groupsKey);
     if (groupsMap) {
@@ -208,16 +216,20 @@ export class GroupOperator implements IVMOperator {
             accumulators[field] = expr;
           }
         }
-        
-        const wasRemoved = groupState.removeDocument(delta.rowId, doc, accumulators);
-        
+
+        const wasRemoved = groupState.removeDocument(
+          delta.rowId,
+          doc,
+          accumulators
+        );
+
         // If group becomes empty, remove it
         if (wasRemoved && groupState.count === 0) {
           groupsMap.delete(groupKeyStr);
         }
       }
     }
-    
+
     return [delta]; // Propagate removal
   }
 
@@ -226,15 +238,15 @@ export class GroupOperator implements IVMOperator {
     if (!groupsMap || groupsMap.size === 0) {
       return [];
     }
-    
+
     const result: Document[] = [];
-    
+
     for (const groupState of groupsMap.values()) {
       if (groupState.count > 0) {
         result.push(groupState.materializeResult());
       }
     }
-    
+
     return result;
   }
 
@@ -244,16 +256,19 @@ export class GroupOperator implements IVMOperator {
 
   getInputFields(): string[] {
     const fields = new Set<string>();
-    
+
     // Group by field
-    if (typeof this.groupExpr._id === 'string' && this.groupExpr._id.startsWith('$')) {
+    if (
+      typeof this.groupExpr._id === 'string' &&
+      this.groupExpr._id.startsWith('$')
+    ) {
       fields.add(this.groupExpr._id.substring(1));
     }
-    
+
     // Accumulator fields
     for (const [field, expr] of Object.entries(this.groupExpr)) {
       if (field === '_id') continue;
-      
+
       if (typeof expr === 'object' && expr !== null) {
         for (const [accType, accField] of Object.entries(expr)) {
           if (typeof accField === 'string' && accField.startsWith('$')) {
@@ -262,7 +277,7 @@ export class GroupOperator implements IVMOperator {
         }
       }
     }
-    
+
     return Array.from(fields);
   }
 
@@ -279,7 +294,10 @@ export class GroupOperator implements IVMOperator {
 
   private ensureDimension(store: CrossfilterStore): void {
     if (!store.dimensions.has(this.dimensionKey)) {
-      store.dimensions.set(this.dimensionKey, new DimensionImpl(this.dimensionKey));
+      store.dimensions.set(
+        this.dimensionKey,
+        new DimensionImpl(this.dimensionKey)
+      );
     }
   }
 }
@@ -300,31 +318,35 @@ export class SortOperator implements IVMOperator {
     return [delta];
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     return [delta];
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
     // Get all live documents and sort them
     const documents: Document[] = [];
-    
+
     for (const rowId of store.liveSet) {
       const doc = store.documents[rowId];
       if (doc) {
         documents.push(doc);
       }
     }
-    
+
     // Sort according to sort specification
     return documents.sort((a, b) => {
       for (const [field, order] of Object.entries(this.sortExpr)) {
         const aVal = this.getFieldValue(a, field);
         const bVal = this.getFieldValue(b, field);
-        
+
         let comparison = 0;
         if (aVal < bVal) comparison = -1;
         else if (aVal > bVal) comparison = 1;
-        
+
         if (comparison !== 0) {
           return (order as number) === 1 ? comparison : -comparison;
         }
@@ -348,7 +370,7 @@ export class SortOperator implements IVMOperator {
   private getFieldValue(doc: Document, fieldPath: string): any {
     const parts = fieldPath.split('.');
     let value = doc;
-    
+
     for (const part of parts) {
       if (value && typeof value === 'object') {
         value = (value as any)[part];
@@ -356,7 +378,7 @@ export class SortOperator implements IVMOperator {
         return undefined;
       }
     }
-    
+
     return value;
   }
 }
@@ -383,20 +405,24 @@ export class ProjectOperator implements IVMOperator {
     return [delta];
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     return [delta];
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
     const result: Document[] = [];
-    
+
     for (const rowId of store.liveSet) {
       const doc = store.documents[rowId];
       if (doc) {
         result.push(this.compiledExpr(doc, rowId));
       }
     }
-    
+
     return result;
   }
 
@@ -406,7 +432,7 @@ export class ProjectOperator implements IVMOperator {
 
   getInputFields(): string[] {
     const fields = new Set<string>();
-    
+
     for (const [field, expr] of Object.entries(this.projectExpr)) {
       if (expr === 1 || expr === true) {
         fields.add(field);
@@ -414,13 +440,14 @@ export class ProjectOperator implements IVMOperator {
         fields.add(expr.substring(1));
       }
     }
-    
+
     return Array.from(fields);
   }
 
   getOutputFields(): string[] {
     return Object.keys(this.projectExpr).filter(
-      field => this.projectExpr[field] !== 0 && this.projectExpr[field] !== false
+      field =>
+        this.projectExpr[field] !== 0 && this.projectExpr[field] !== false
     );
   }
 }
@@ -440,24 +467,28 @@ export class LimitOperator implements IVMOperator {
     return [delta];
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     return [delta];
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
     const result: Document[] = [];
     let count = 0;
-    
+
     for (const rowId of store.liveSet) {
       if (count >= this.limitValue) break;
-      
+
       const doc = store.documents[rowId];
       if (doc) {
         result.push(doc);
         count++;
       }
     }
-    
+
     return result;
   }
 
@@ -488,26 +519,30 @@ export class SkipOperator implements IVMOperator {
     return [delta];
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
     return [delta];
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
     const result: Document[] = [];
     let skipped = 0;
-    
+
     for (const rowId of store.liveSet) {
       if (skipped < this.skipValue) {
         skipped++;
         continue;
       }
-      
+
       const doc = store.documents[rowId];
       if (doc) {
         result.push(doc);
       }
     }
-    
+
     return result;
   }
 
@@ -579,15 +614,25 @@ export class UnwindOperator implements IVMOperator {
   ) {}
 
   onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+    throw new Error(
+      'UnwindOperator is a stub - should use fallback aggregation'
+    );
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
+    throw new Error(
+      'UnwindOperator is a stub - should use fallback aggregation'
+    );
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
-    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+    throw new Error(
+      'UnwindOperator is a stub - should use fallback aggregation'
+    );
   }
 
   estimateComplexity(): string {
@@ -614,15 +659,25 @@ export class LookupOperator implements IVMOperator {
   constructor(private expr: any) {}
 
   onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+    throw new Error(
+      'LookupOperator is a stub - should use fallback aggregation'
+    );
   }
 
-  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
-    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+  onRemove(
+    delta: Delta,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Delta[] {
+    throw new Error(
+      'LookupOperator is a stub - should use fallback aggregation'
+    );
   }
 
   snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
-    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+    throw new Error(
+      'LookupOperator is a stub - should use fallback aggregation'
+    );
   }
 
   estimateComplexity(): string {
