@@ -15,54 +15,72 @@ export async function runPerformanceMeasurement() {
   
   console.log('🚀 Running modash.js Performance Measurement\n');
   
-  // Load historical data for comparison
-  const historicalData = await tracker.loadPreviousResults();
-  
-  const results = {};
-  
-  for (const size of TEST_SIZES) {
-    console.log(`📊 Measuring dataset size: ${size.toLocaleString()} documents`);
-    console.log('─'.repeat(60));
+  try {
+    // Load historical data for comparison
+    const historicalData = await tracker.loadPreviousResults();
     
-    const testData = generateTestData(size);
-    results[size] = {};
+    const results = {};
     
-    // Test each pipeline type with multiple iterations for accuracy
-    for (const [pipelineName, pipelineStages] of Object.entries(BENCHMARK_PIPELINES)) {
-      const iterations = size > 10000 ? 3 : 5; // Fewer iterations for large datasets
+    for (const size of TEST_SIZES) {
+      console.log(`📊 Measuring dataset size: ${size.toLocaleString()} documents`);
+      console.log('─'.repeat(60));
       
-      const result = tracker.benchmark(
-        `${pipelineName} (${size})`,
-        () => Modash.aggregate(testData, pipelineStages),
-        iterations
-      );
+      const testData = generateTestData(size);
+      results[size] = {};
       
-      results[size][pipelineName] = result;
+      // Test each pipeline type with multiple iterations for accuracy
+      for (const [pipelineName, pipelineStages] of Object.entries(BENCHMARK_PIPELINES)) {
+        const iterations = size > 10000 ? 3 : 5; // Fewer iterations for large datasets
+        
+        const result = tracker.benchmark(
+          `${pipelineName} (${size})`,
+          () => {
+            const output = Modash.aggregate(testData, pipelineStages);
+            if (!Array.isArray(output)) {
+              throw new Error(`Expected array output, got ${typeof output}`);
+            }
+            return output;
+          },
+          iterations
+        );
+        
+        // Skip error results
+        if (result.error) {
+          console.log(`  ${pipelineName.padEnd(20)} : ❌ Error: ${result.error}`);
+          continue;
+        }
+        
+        results[size][pipelineName] = result;
+        
+        // Display immediate results
+        const performance = result.avg < 1 ? `${(result.avg * 1000).toFixed(0)}μs` : `${result.avg}ms`;
+        const throughput = Math.round((size / result.avg) * 1000).toLocaleString();
+        const consistency = `±${result.stdDev}ms`;
+        
+        console.log(`  ${pipelineName.padEnd(20)} : ${performance.padStart(8)} ${consistency.padStart(10)} | ${throughput} docs/sec`);
+      }
       
-      // Display immediate results
-      const performance = result.avg < 1 ? `${(result.avg * 1000).toFixed(0)}μs` : `${result.avg}ms`;
-      const throughput = Math.round((size / result.avg) * 1000).toLocaleString();
-      const consistency = `±${result.stdDev}ms`;
-      
-      console.log(`  ${pipelineName.padEnd(20)} : ${performance.padStart(8)} ${consistency.padStart(10)} | ${throughput} docs/sec`);
+      console.log('');
     }
     
-    console.log('');
+    // Add performance deltas compared to previous runs
+    const enhancedResults = tracker.addPerformanceDeltas(results, historicalData);
+    
+    // Record results to file (if not in CI)
+    await tracker.recordResults(enhancedResults);
+    
+    // Print comprehensive comparison analysis
+    tracker.printPerformanceComparison(enhancedResults, historicalData);
+    
+    // Print performance insights
+    printPerformanceInsights(enhancedResults);
+    
+    return enhancedResults;
+  } catch (error) {
+    console.error('❌ Performance measurement failed:', error.message);
+    console.error('Stack trace:', error.stack);
+    throw error;
   }
-  
-  // Add performance deltas compared to previous runs
-  const enhancedResults = tracker.addPerformanceDeltas(results, historicalData);
-  
-  // Record results to file (if not in CI)
-  await tracker.recordResults(enhancedResults);
-  
-  // Print comprehensive comparison analysis
-  tracker.printPerformanceComparison(enhancedResults, historicalData);
-  
-  // Print performance insights
-  printPerformanceInsights(enhancedResults);
-  
-  return enhancedResults;
 }
 
 function printPerformanceInsights(results) {

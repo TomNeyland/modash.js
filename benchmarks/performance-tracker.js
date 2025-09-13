@@ -13,7 +13,17 @@ const RESULTS_DIR = join(__dirname, '../performance-results');
 export class PerformanceTracker {
   constructor() {
     this.timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    this.isCI = process.env.CI === 'true' || process.env.NODE_ENV === 'test';
+    // Detect CI environment - check multiple common CI environment variables
+    this.isCI = !!(
+      process.env.CI ||
+      process.env.CONTINUOUS_INTEGRATION ||
+      process.env.GITHUB_ACTIONS ||
+      process.env.TRAVIS ||
+      process.env.CIRCLECI ||
+      process.env.JENKINS_URL ||
+      process.env.BUILDKITE ||
+      process.env.DRONE
+    );
   }
 
   /**
@@ -23,12 +33,35 @@ export class PerformanceTracker {
     const times = [];
     const memoryBefore = process.memoryUsage().heapUsed;
     
-    // Run the function multiple times to get reliable measurements
-    for (let i = 0; i < iterations; i++) {
-      const start = process.hrtime.bigint();
-      fn();
-      const end = process.hrtime.bigint();
-      times.push(Number(end - start) / 1000000); // Convert to milliseconds
+    try {
+      // Run the function multiple times to get reliable measurements
+      for (let i = 0; i < iterations; i++) {
+        const start = process.hrtime.bigint();
+        const result = fn();
+        const end = process.hrtime.bigint();
+        
+        // Verify the function actually returns something (basic sanity check)
+        if (result === undefined) {
+          console.warn(`⚠️  Warning: ${name} returned undefined`);
+        }
+        
+        times.push(Number(end - start) / 1000000); // Convert to milliseconds
+      }
+    } catch (error) {
+      console.error(`❌ Error benchmarking ${name}:`, error.message);
+      // Return error result
+      return {
+        name,
+        error: error.message,
+        avg: 0,
+        min: 0,
+        max: 0,
+        median: 0,
+        stdDev: 0,
+        iterations: 0,
+        memoryDelta: 0,
+        rawTimes: []
+      };
     }
     
     const memoryAfter = process.memoryUsage().heapUsed;
