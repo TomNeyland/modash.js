@@ -16,6 +16,29 @@ import { aggregate } from './aggregation.js';
 export interface StreamingEvents {
   'data-added': { newDocuments: Document[]; totalCount: number };
   'result-updated': { result: Collection<Document>; pipeline: Pipeline };
+  'transform-error': { error: Error; originalEvent: any; eventName: string };
+}
+
+/**
+ * Transform function type for event processing
+ */
+export type EventTransform<T extends Document = Document> = (
+  eventData: any,
+  eventName: string
+) => T | T[] | null | undefined;
+
+/**
+ * Event consumer configuration
+ */
+export interface EventConsumerConfig<T extends Document = Document> {
+  /** Source EventEmitter to consume from */
+  source: EventEmitter;
+  /** Event name to listen for */
+  eventName: string;
+  /** Optional transform function to process events before adding to collection */
+  transform?: EventTransform<T>;
+  /** Whether to automatically start consuming events (default: true) */
+  autoStart?: boolean;
 }
 
 /**
@@ -50,6 +73,8 @@ export class StreamingCollection<
   private documents: Collection<T> = [];
   private aggregationStates = new Map<string, AggregationState>();
   private activePipelines = new Map<string, Pipeline>();
+  private eventConsumers = new Map<string, EventConsumerConfig<T>>();
+  private eventListeners = new Map<string, (data: any) => void>();
 
   constructor(initialData: Collection<T> = []) {
     super();
@@ -79,6 +104,103 @@ export class StreamingCollection<
 
     // Update all active aggregation results
     this.updateAggregations(newDocuments);
+  }
+
+  /**
+   * Connect to an external EventEmitter as a data source
+   */
+  connectEventSource(config: EventConsumerConfig<T>): string {
+    const consumerId = `${config.eventName}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    this.eventConsumers.set(consumerId, config);
+
+    if (config.autoStart !== false) {
+      this.startEventConsumer(consumerId);
+    }
+
+    return consumerId;
+  }
+
+  /**
+   * Disconnect from an external EventEmitter
+   */
+  disconnectEventSource(consumerId: string): void {
+    this.stopEventConsumer(consumerId);
+    this.eventConsumers.delete(consumerId);
+  }
+
+  /**
+   * Start consuming events from a configured source
+   */
+  startEventConsumer(consumerId: string): void {
+    const config = this.eventConsumers.get(consumerId);
+    if (!config) {
+      throw new Error(`Event consumer ${consumerId} not found`);
+    }
+
+    // Remove existing listener if any
+    this.stopEventConsumer(consumerId);
+
+    const listener = (eventData: any) => {
+      try {
+        let documentsToAdd: T[];
+
+        if (config.transform) {
+          const transformed = config.transform(eventData, config.eventName);
+          
+          if (!transformed) {
+            return; // Transform returned null/undefined, skip this event
+          }
+
+          documentsToAdd = Array.isArray(transformed) ? transformed : [transformed];
+        } else {
+          // No transform, assume eventData is the document(s)
+          documentsToAdd = Array.isArray(eventData) ? eventData : [eventData];
+        }
+
+        // Filter out any null/undefined values
+        documentsToAdd = documentsToAdd.filter(doc => doc != null);
+
+        if (documentsToAdd.length > 0) {
+          this.addBulk(documentsToAdd);
+        }
+      } catch (error) {
+        this.emit('transform-error', {
+          error: error as Error,
+          originalEvent: eventData,
+          eventName: config.eventName,
+        });
+      }
+    };
+
+    this.eventListeners.set(consumerId, listener);
+    config.source.on(config.eventName, listener);
+  }
+
+  /**
+   * Stop consuming events from a configured source
+   */
+  stopEventConsumer(consumerId: string): void {
+    const config = this.eventConsumers.get(consumerId);
+    const listener = this.eventListeners.get(consumerId);
+
+    if (config && listener) {
+      config.source.removeListener(config.eventName, listener);
+      this.eventListeners.delete(consumerId);
+    }
+  }
+
+  /**
+   * Get list of active event consumers
+   */
+  getEventConsumers(): Array<{ id: string; eventName: string; hasTransform: boolean }> {
+    return Array.from(this.eventConsumers.entries()).map(([id, config]) => ({
+      id,
+      eventName: config.eventName,
+      hasTransform: !!config.transform,
+    }));
   }
 
   /**
@@ -190,12 +312,27 @@ export class StreamingCollection<
   }
 
   /**
-   * Clear all streaming state
+   * Clear all streaming state and disconnect event sources
    */
   clear(): void {
+    // Stop all event consumers
+    for (const consumerId of this.eventConsumers.keys()) {
+      this.stopEventConsumer(consumerId);
+    }
+    
     this.documents = [];
     this.aggregationStates.clear();
     this.activePipelines.clear();
+    this.eventConsumers.clear();
+    this.eventListeners.clear();
+  }
+
+  /**
+   * Clean up all resources (call this when destroying the collection)
+   */
+  destroy(): void {
+    this.clear();
+    this.removeAllListeners();
   }
 }
 

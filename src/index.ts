@@ -365,7 +365,12 @@ export {
 } from './modash/streaming.js';
 
 // Re-export streaming types
-export type { StreamingEvents, AggregationState } from './modash/streaming.js';
+export type { 
+  StreamingEvents, 
+  AggregationState,
+  EventTransform,
+  EventConsumerConfig 
+} from './modash/streaming.js';
 
 // Import StreamingCollection for type checking
 import type { StreamingCollection } from './modash/streaming.js';
