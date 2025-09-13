@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    
+
     // Strict type checking
     "strict": true,
     "noImplicitAny": true,
@@ -18,22 +18,22 @@
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true,
-    
+
     // Additional checks
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false,
-    
+
     // Interop constraints
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
-    
+
     // Skip lib check for performance
     "skipLibCheck": true,
-    
+
     // Modern features
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
@@ -41,12 +41,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests"]
 }
