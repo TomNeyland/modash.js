@@ -1,7 +1,5 @@
 import Modash from '../src/index.ts';
-import {
-  createStreamingCollection,
-} from '../src/modash/streaming.ts';
+import { createStreamingCollection } from '../src/modash/streaming.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
@@ -12,9 +10,6 @@ const compareStreamingResults = (collection, pipeline, description = '') => {
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
-
-  // Clean up
-  streamingCollection.destroy();
 
   return {
     nonStreaming: nonStreamingResult,
@@ -56,6 +51,7 @@ describe('New Aggregation Operators', () => {
         testData.inventory,
         pipeline,
         '$match with equality'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.have.lengthOf(1);
       expect(results.streaming[0].item).to.equal('abc1');
@@ -118,6 +114,7 @@ describe('New Aggregation Operators', () => {
         testData.inventory,
         pipeline,
         'complex multi-stage pipeline'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.have.lengthOf(3);
       expect(results.streaming[0]).to.have.property('category');
@@ -133,7 +130,7 @@ describe('New Aggregation Operators', () => {
           { $sort: { price: -1 } },
           { $limit: 5 },
         ]
-
+      );
       expect(result).to.be.an('array');
       expect(result).to.have.lengthOf(0);
     });

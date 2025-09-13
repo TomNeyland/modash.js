@@ -407,7 +407,7 @@ describe('Streaming Collection - Record Removal', () => {
       // Remove documents that have 'urgent' tag and score > 90
       const removed = streaming.remove(
         doc => doc.tags.includes('urgent') && doc.score > 90
-
+      );
       expect(removed).to.have.length(1);
       expect(removed[0].id).to.equal(1);
       expect(streaming.count()).to.equal(2);
@@ -509,6 +509,7 @@ describe('Streaming Collection - Record Removal', () => {
       // Non-streaming approach (manual filtering)
       const filteredData = initialData.filter(
         doc => doc.department !== 'Marketing'
+      );
       const nonStreamingResult = Modash.aggregate(filteredData, pipeline);
 
       expect(streamingResult).to.deep.equal(nonStreamingResult);

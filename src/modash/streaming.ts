@@ -48,24 +48,64 @@ export interface EventConsumerConfig<T extends Document = Document> {
 
 /**
  * Cached state for incremental aggregation operations
+ * Inspired by crossfilter concepts for multi-dimensional analysis
  */
 export interface AggregationState {
-  // For $group operations - cache counts and running totals
+  // Crossfilter-inspired dimensions - indexed views by field
+  dimensions: Map<string, IndexedDimension>;
+  
+  // Crossfilter-inspired groups - aggregated views by dimension
+  groups: Map<string, IndexedGroup>;
+  
+  // For $group operations - cache counts and running totals  
   groupCounts: Map<string, number>;
   groupSums: Map<string, Map<string, number>>;
   groupMins: Map<string, Map<string, DocumentValue>>;
   groupMaxs: Map<string, Map<string, DocumentValue>>;
+  groupAvgs: Map<string, Map<string, { sum: number; count: number }>>;
+  groupSets: Map<string, Map<string, Set<DocumentValue>>>;
+  groupArrays: Map<string, Map<string, DocumentValue[]>>;
 
   // For $sort operations - maintain sorted indices
   sortedIndices: number[];
   sortSpec: Record<string, 1 | -1> | null;
 
-  // For $match operations - cache filtered results
+  // For $match operations - cache filtered results and match predicates
   filteredDocuments: Set<number>; // document indices
+  matchPredicates: Map<string, (doc: Document) => boolean>;
 
+  // Stage-by-stage intermediate results for complex pipelines
+  stageResults: Map<number, Collection<Document>>;
+  stageFilters: Map<number, Set<number>>; // indices that passed each stage
+  
   // General pipeline state
   lastResult: Collection<Document>;
   pipelineHash: string;
+  canIncrement: boolean;
+  canDecrement: boolean;
+}
+
+/**
+ * Indexed dimension for efficient filtering and grouping
+ * Similar to crossfilter dimensions
+ */
+export interface IndexedDimension {
+  fieldPath: string;
+  valueIndex: Map<DocumentValue, Set<number>>; // value -> document indices  
+  sortedValues: DocumentValue[];
+  type: 'string' | 'number' | 'date' | 'mixed';
+}
+
+/**
+ * Indexed group for efficient aggregation
+ * Similar to crossfilter groups
+ */
+export interface IndexedGroup {
+  dimension: string;
+  aggregationType: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'push' | 'addToSet';
+  field?: string; // field to aggregate (for sum/avg/etc)
+  results: Map<DocumentValue, DocumentValue>;
+  docContributions: Map<number, DocumentValue>; // doc index -> group key it belongs to
 }
 
 /**
@@ -83,7 +123,12 @@ export class StreamingCollection<
 
   constructor(initialData: Collection<T> = []) {
     super();
-    this.documents = [...initialData];
+    // Handle null, undefined, and non-iterable data
+    if (!initialData || !Array.isArray(initialData)) {
+      this.documents = [];
+    } else {
+      this.documents = [...initialData];
+    }
   }
 
   /**
@@ -467,27 +512,158 @@ export class StreamingCollection<
 
   /**
    * Check if a pipeline can be incrementally updated
+   * Now supports more complex scenarios using crossfilter-inspired techniques
    */
   private canIncrementPipeline(pipeline: Pipeline): boolean {
     const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
+    
+    // Support increasingly complex pipelines
+    for (const stage of stages) {
+      const stageType = Object.keys(stage)[0];
+      
+      switch (stageType) {
+        case '$match':
+          // Support complex match operations with indexed dimensions
+          if (!this.canIncrementMatch(stage.$match)) {
+            return false;
+          }
+          break;
+          
+        case '$group':
+          // Support group operations with crossfilter-style incremental aggregation
+          if (!this.canIncrementGroup(stage.$group)) {
+            return false;
+          }
+          break;
+          
+        case '$sort':
+          // Support sort with maintained indices
+          break;
+          
+        case '$project':
+          // Support projection - doesn't affect incremental capability
+          break;
+          
+        case '$limit':
+        case '$skip':
+          // Support pagination - use sorted indices
+          break;
+          
+        case '$addFields':
+        case '$set':
+          // Support field addition with expression evaluation
+          break;
+          
+        default:
+          // Unsupported operations fall back to full recalculation
+          return false;
+      }
+    }
+    
+    return true;
+  }
 
-    // For now, only support simple single-stage $match operations
-    // We'll expand this as we improve the incremental logic
-    return stages.length === 1 && '$match' in stages[0];
+  /**
+   * Check if a $match stage can be incrementally updated
+   */
+  private canIncrementMatch(matchExpr: any): boolean {
+    // Support simple field comparisons that can use indexed dimensions
+    if (typeof matchExpr !== 'object' || matchExpr === null) {
+      return false;
+    }
+    
+    // Check for supported operators
+    for (const [field, condition] of Object.entries(matchExpr)) {
+      if (field.startsWith('$')) {
+        // Logical operators - check recursively
+        if (field === '$and' || field === '$or') {
+          const conditions = condition as any[];
+          return conditions.every(cond => this.canIncrementMatch(cond));
+        }
+        // Other logical operators not yet supported incrementally
+        return false;
+      } else {
+        // Field-based conditions - check if supported
+        if (typeof condition === 'object' && condition !== null) {
+          const operators = Object.keys(condition);
+          const supportedOps = ['$eq', '$ne', '$gt', '$gte', '$lt', '$lte', '$in', '$nin', '$exists'];
+          if (!operators.every(op => supportedOps.includes(op))) {
+            return false;
+          }
+        }
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Check if a $group stage can be incrementally updated  
+   */
+  private canIncrementGroup(groupExpr: any): boolean {
+    if (!groupExpr || typeof groupExpr !== 'object') {
+      return false;
+    }
+    
+    // Check _id field (group by expression)
+    if (typeof groupExpr._id === 'string' && !groupExpr._id.startsWith('$')) {
+      return false; // Complex expressions not yet supported
+    }
+    
+    // Check accumulator expressions
+    for (const [field, expr] of Object.entries(groupExpr)) {
+      if (field === '_id') continue;
+      
+      if (typeof expr === 'object' && expr !== null) {
+        const accumulators = Object.keys(expr);
+        const supportedAccumulators = ['$sum', '$avg', '$min', '$max', '$count', '$push', '$addToSet'];
+        if (!accumulators.every(acc => supportedAccumulators.includes(acc))) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
   }
 
   /**
    * Check if a pipeline can be decrementally updated
+   * With crossfilter-inspired tracking, we can support removal for many cases
    */
   private canDecrementPipeline(pipeline: Pipeline): boolean {
-    // For decrements, be even more conservative - just use full recalc for now
-    // Decremental updates are more complex because we need to track which
-    // documents contributed to which results
+    const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
+    
+    // Use the same logic as incremental - if we can track contributions,
+    // we can generally remove them too
+    if (this.canIncrementPipeline(pipeline)) {
+      // Additional checks for decremental complexity
+      for (const stage of stages) {
+        const stageType = Object.keys(stage)[0];
+        
+        switch (stageType) {
+          case '$group':
+            // Group operations require tracking which documents contributed to which groups
+            // This is supported with our IndexedGroup.docContributions tracking
+            break;
+            
+          case '$sort':
+            // Sorting can be decremental by maintaining sorted indices
+            break;
+            
+          default:
+            // Other operations are generally decremental if incremental
+            break;
+        }
+      }
+      
+      return true;
+    }
+    
     return false;
   }
 
   /**
-   * Perform incremental update for new documents
+   * Perform incremental update for new documents using crossfilter-inspired techniques
    */
   private incrementalUpdate(
     newDocuments: T[],
@@ -495,52 +671,734 @@ export class StreamingCollection<
     state: AggregationState
   ): Collection<Document> {
     const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
-
-    // For simple match-only pipelines, we can do true incremental updates
-    if (stages.length === 1 && '$match' in stages[0]) {
-      // Apply match to new documents and combine with existing results
-      const newMatched = $match(newDocuments, stages[0].$match);
-      return [...state.lastResult, ...newMatched];
+    
+    // If we can't do incremental updates, fall back to full recalculation
+    if (!state.canIncrement) {
+      return aggregate(this.documents, pipeline);
     }
-
-    // For complex pipelines, fall back to full recalculation for now
-    // This is safer and ensures correctness while we improve incremental logic
-    return aggregate(this.documents, pipeline);
+    
+    try {
+      // Index new documents in our dimensions first
+      this.indexNewDocuments(newDocuments, state);
+      
+      // Apply pipeline stages incrementally
+      let currentResult = state.lastResult;
+      let currentIndices = new Set(Array.from({length: this.documents.length - newDocuments.length}, (_, i) => i));
+      
+      // Add new document indices
+      const newDocIndices = new Set(
+        Array.from({length: newDocuments.length}, (_, i) => this.documents.length - newDocuments.length + i)
+      );
+      
+      for (const [stageIndex, stage] of stages.entries()) {
+        const stageType = Object.keys(stage)[0];
+        
+        switch (stageType) {
+          case '$match':
+            currentResult = this.incrementalMatch(stage.$match, newDocuments, currentResult, state, newDocIndices);
+            break;
+            
+          case '$group':
+            currentResult = this.incrementalGroup(stage.$group, newDocuments, currentResult, state, newDocIndices);
+            break;
+            
+          case '$sort':
+            currentResult = this.incrementalSort(stage.$sort, currentResult, state);
+            break;
+            
+          case '$project':
+          case '$addFields':
+          case '$set':
+            // These don't affect incremental capability - apply normally
+            currentResult = aggregate(this.documents, pipeline);
+            break;
+            
+          case '$limit':
+          case '$skip':
+            // Apply to current result
+            if (stageType === '$limit') {
+              currentResult = currentResult.slice(0, stage.$limit);
+            } else {
+              currentResult = currentResult.slice(stage.$skip);
+            }
+            break;
+            
+          default:
+            // Fallback to full recalculation
+            return aggregate(this.documents, pipeline);
+        }
+        
+        // Store intermediate result
+        state.stageResults.set(stageIndex, currentResult);
+      }
+      
+      return currentResult;
+      
+    } catch (error) {
+      console.warn('Incremental update failed, falling back to full recalculation:', error);
+      return aggregate(this.documents, pipeline);
+    }
   }
 
   /**
-   * Perform decremental update for removed documents
+   * Index new documents in all relevant dimensions
+   */
+  private indexNewDocuments(newDocuments: T[], state: AggregationState): void {
+    const startIndex = this.documents.length - newDocuments.length;
+    
+    for (const [dimName, dimension] of state.dimensions) {
+      for (let i = 0; i < newDocuments.length; i++) {
+        const doc = newDocuments[i];
+        const docIndex = startIndex + i;
+        const value = this.getFieldValue(doc, dimension.fieldPath);
+        
+        if (!dimension.valueIndex.has(value)) {
+          dimension.valueIndex.set(value, new Set());
+          // Insert value in sorted position
+          this.insertSorted(dimension.sortedValues, value);
+        }
+        
+        dimension.valueIndex.get(value)!.add(docIndex);
+      }
+    }
+  }
+
+  /**
+   * Incremental match processing using indexed dimensions
+   */
+  private incrementalMatch(
+    matchExpr: any,
+    newDocuments: T[],
+    currentResult: Collection<Document>,
+    state: AggregationState,
+    newDocIndices: Set<number>
+  ): Collection<Document> {
+    // Apply match to new documents only and add matches to result
+    const newMatches = newDocuments.filter(doc => this.evaluateMatch(doc, matchExpr));
+    return [...currentResult, ...newMatches];
+  }
+
+  /**
+   * Incremental group processing using indexed groups
+   */
+  private incrementalGroup(
+    groupExpr: any,
+    newDocuments: T[],
+    _currentResult: Collection<Document>,
+    state: AggregationState,
+    newDocIndices: Set<number>
+  ): Collection<Document> {
+    // For group operations, we need to update the group aggregations
+    // and then rebuild the result from all groups
+    
+    const groupByField = groupExpr._id;
+    if (typeof groupByField !== 'string' || !groupByField.startsWith('$')) {
+      throw new Error('Unsupported group by expression for incremental updates');
+    }
+    
+    const field = groupByField.substring(1);
+    const startIndex = this.documents.length - newDocuments.length;
+    
+    // Update group aggregations for new documents
+    for (let i = 0; i < newDocuments.length; i++) {
+      const doc = newDocuments[i];
+      const docIndex = startIndex + i;
+      const groupKey = this.getFieldValue(doc, field);
+      
+      // Update each accumulator for this document
+      for (const [outputField, accumExpr] of Object.entries(groupExpr)) {
+        if (outputField === '_id') continue;
+        
+        if (typeof accumExpr === 'object' && accumExpr !== null) {
+          for (const [accType, accFieldExpr] of Object.entries(accumExpr)) {
+            this.updateGroupAccumulator(
+              field,
+              outputField,
+              accType,
+              accFieldExpr,
+              doc,
+              docIndex,
+              groupKey,
+              state
+            );
+          }
+        }
+      }
+    }
+    
+    // Rebuild result from updated groups
+    return this.rebuildGroupResult(groupExpr, state);
+  }
+
+  /**
+   * Incremental sort processing using maintained indices
+   */
+  private incrementalSort(
+    sortExpr: any,
+    currentResult: Collection<Document>,
+    state: AggregationState
+  ): Collection<Document> {
+    // For now, sort the entire result set
+    // TODO: Implement more efficient incremental sorting using sorted indices
+    return [...currentResult].sort((a, b) => {
+      for (const [field, order] of Object.entries(sortExpr)) {
+        const aVal = this.getFieldValue(a, field);
+        const bVal = this.getFieldValue(b, field);
+        
+        let comparison = 0;
+        if (aVal < bVal) comparison = -1;
+        else if (aVal > bVal) comparison = 1;
+        
+        if (comparison !== 0) {
+          return (order as number) === 1 ? comparison : -comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
+  /**
+   * Update a specific group accumulator with a new document
+   */
+  private updateGroupAccumulator(
+    dimensionField: string,
+    outputField: string,
+    accType: string,
+    accFieldExpr: any,
+    doc: T,
+    docIndex: number,
+    groupKey: DocumentValue,
+    state: AggregationState
+  ): void {
+    const groupId = `${dimensionField}_${outputField}_${accType}`;
+    const group = state.groups.get(groupId);
+    
+    if (!group) return;
+    
+    // Track that this document contributes to this group
+    group.docContributions.set(docIndex, groupKey);
+    
+    // Get accumulation value
+    const accValue = accFieldExpr === 1 ? 1 : 
+                     typeof accFieldExpr === 'string' && accFieldExpr.startsWith('$') ?
+                     this.getFieldValue(doc, accFieldExpr.substring(1)) : accFieldExpr;
+    
+    // Update group accumulation
+    const currentValue = group.results.get(groupKey);
+    
+    switch (accType) {
+      case '$sum':
+        group.results.set(groupKey, (currentValue || 0) + (Number(accValue) || 0));
+        break;
+        
+      case '$count':
+        group.results.set(groupKey, (currentValue || 0) + 1);
+        break;
+        
+      case '$min':
+        group.results.set(groupKey, currentValue === undefined ? accValue : 
+                          accValue < currentValue ? accValue : currentValue);
+        break;
+        
+      case '$max':
+        group.results.set(groupKey, currentValue === undefined ? accValue : 
+                          accValue > currentValue ? accValue : currentValue);
+        break;
+        
+      case '$push':
+        if (!currentValue) {
+          group.results.set(groupKey, [accValue]);
+        } else {
+          (currentValue as any[]).push(accValue);
+        }
+        break;
+        
+      case '$addToSet':
+        if (!currentValue) {
+          group.results.set(groupKey, new Set([accValue]));
+        } else {
+          (currentValue as Set<any>).add(accValue);
+        }
+        break;
+        
+      case '$avg':
+        // For avg, store both sum and count
+        if (!currentValue) {
+          group.results.set(groupKey, { sum: Number(accValue) || 0, count: 1 });
+        } else {
+          const avg = currentValue as { sum: number; count: number };
+          avg.sum += Number(accValue) || 0;
+          avg.count += 1;
+        }
+        break;
+    }
+  }
+
+  /**
+   * Rebuild the final group result from updated group state
+   */
+  private rebuildGroupResult(groupExpr: any, state: AggregationState): Collection<Document> {
+    const groupByField = groupExpr._id.substring(1);
+    const dimension = state.dimensions.get(groupByField);
+    
+    if (!dimension) {
+      throw new Error(`Dimension ${groupByField} not found`);
+    }
+    
+    const result: Document[] = [];
+    
+    // Iterate through all group keys
+    for (const groupKey of dimension.valueIndex.keys()) {
+      const resultDoc: Document = { _id: groupKey };
+      
+      // Add all accumulator results for this group
+      for (const [outputField, accumExpr] of Object.entries(groupExpr)) {
+        if (outputField === '_id') continue;
+        
+        if (typeof accumExpr === 'object' && accumExpr !== null) {
+          for (const [accType, _accFieldExpr] of Object.entries(accumExpr)) {
+            const groupId = `${groupByField}_${outputField}_${accType}`;
+            const group = state.groups.get(groupId);
+            
+            if (group && group.results.has(groupKey)) {
+              let value = group.results.get(groupKey);
+              
+              // Post-process some accumulator types
+              if (accType === '$avg' && value && typeof value === 'object') {
+                const avgData = value as { sum: number; count: number };
+                value = avgData.count > 0 ? avgData.sum / avgData.count : 0;
+              } else if (accType === '$addToSet' && value instanceof Set) {
+                value = Array.from(value);
+              }
+              
+              resultDoc[outputField] = value;
+            }
+          }
+        }
+      }
+      
+      result.push(resultDoc);
+    }
+    
+    return result;
+  }
+
+  /**
+   * Perform decremental update for removed documents using crossfilter-inspired tracking
    */
   private decrementalUpdate(
-    _removedDocuments: T[],
-    _pipeline: Pipeline,
-    _state: AggregationState
+    removedDocuments: T[],
+    pipeline: Pipeline,
+    state: AggregationState
   ): Collection<Document> {
-    // For now, always use full recalculation for removals
-    // This is safer and ensures correctness
-    return aggregate(this.documents, _pipeline);
+    const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
+    
+    // If we can't do decremental updates, fall back to full recalculation
+    if (!state.canDecrement) {
+      return aggregate(this.documents, pipeline);
+    }
+    
+    try {
+      // Remove documents from dimensions and update groups
+      this.removeDocumentsFromDimensions(removedDocuments, state);
+      
+      // Apply pipeline stages decrementally
+      let currentResult = state.lastResult;
+      
+      for (const [stageIndex, stage] of stages.entries()) {
+        const stageType = Object.keys(stage)[0];
+        
+        switch (stageType) {
+          case '$match':
+            // Remove matching documents from result
+            currentResult = this.decrementalMatch(stage.$match, removedDocuments, currentResult);
+            break;
+            
+          case '$group':
+            // Update group aggregations and rebuild result
+            currentResult = this.decrementalGroup(stage.$group, removedDocuments, state);
+            break;
+            
+          case '$sort':
+            // Sort the decremented result
+            currentResult = this.incrementalSort(stage.$sort, currentResult, state);
+            break;
+            
+          default:
+            // Fallback to full recalculation for complex stages
+            return aggregate(this.documents, pipeline);
+        }
+        
+        // Store intermediate result
+        state.stageResults.set(stageIndex, currentResult);
+      }
+      
+      return currentResult;
+      
+    } catch (error) {
+      console.warn('Decremental update failed, falling back to full recalculation:', error);
+      return aggregate(this.documents, pipeline);
+    }
   }
 
   /**
-   * Initialize aggregation state for a new pipeline
+   * Remove documents from all dimensions and groups
+   */
+  private removeDocumentsFromDimensions(removedDocuments: T[], state: AggregationState): void {
+    // We need to track which document indices were removed
+    // This is complex because document indices shift after removal
+    // For now, fall back to full recalculation of dimensions
+    
+    // Clear and rebuild all dimensions with remaining documents
+    for (const dimension of state.dimensions.values()) {
+      dimension.valueIndex.clear();
+      dimension.sortedValues = [];
+    }
+    
+    // Reindex all remaining documents
+    for (let i = 0; i < this.documents.length; i++) {
+      const doc = this.documents[i];
+      
+      for (const [_dimName, dimension] of state.dimensions) {
+        const value = this.getFieldValue(doc, dimension.fieldPath);
+        
+        if (!dimension.valueIndex.has(value)) {
+          dimension.valueIndex.set(value, new Set());
+          this.insertSorted(dimension.sortedValues, value);
+        }
+        
+        dimension.valueIndex.get(value)!.add(i);
+      }
+    }
+  }
+
+  /**
+   * Decremental match processing
+   */
+  private decrementalMatch(
+    matchExpr: any,
+    removedDocuments: T[],
+    currentResult: Collection<Document>
+  ): Collection<Document> {
+    // Remove documents that would have matched from the current result
+    const removedSet = new Set(removedDocuments.map(doc => JSON.stringify(doc)));
+    return currentResult.filter(doc => !removedSet.has(JSON.stringify(doc)));
+  }
+
+  /**
+   * Decremental group processing
+   */
+  private decrementalGroup(
+    groupExpr: any,
+    removedDocuments: T[],
+    state: AggregationState
+  ): Collection<Document> {
+    // For group operations, we need to recalculate affected groups
+    // This is complex because we need to track which documents contributed to which groups
+    
+    // For now, use a conservative approach: rebuild all groups from remaining documents
+    // Clear existing group state
+    for (const group of state.groups.values()) {
+      group.results.clear();
+      group.docContributions.clear();
+    }
+    
+    // Rebuild groups from all remaining documents
+    const groupByField = groupExpr._id.substring(1);
+    
+    for (let i = 0; i < this.documents.length; i++) {
+      const doc = this.documents[i];
+      const groupKey = this.getFieldValue(doc, groupByField);
+      
+      // Update each accumulator for this document
+      for (const [outputField, accumExpr] of Object.entries(groupExpr)) {
+        if (outputField === '_id') continue;
+        
+        if (typeof accumExpr === 'object' && accumExpr !== null) {
+          for (const [accType, accFieldExpr] of Object.entries(accumExpr)) {
+            this.updateGroupAccumulator(
+              groupByField,
+              outputField,
+              accType,
+              accFieldExpr,
+              doc,
+              i,
+              groupKey,
+              state
+            );
+          }
+        }
+      }
+    }
+    
+    // Rebuild result from updated groups
+    return this.rebuildGroupResult(groupExpr, state);
+  }
+
+  /**
+   * Get field value from document using dot notation
+   */
+  private getFieldValue(doc: any, fieldPath: string): DocumentValue {
+    const parts = fieldPath.split('.');
+    let value = doc;
+    
+    for (const part of parts) {
+      if (value && typeof value === 'object') {
+        value = value[part];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return value;
+  }
+
+  /**
+   * Insert value in sorted array maintaining order
+   */
+  private insertSorted(arr: DocumentValue[], value: DocumentValue): void {
+    if (arr.includes(value)) return; // Don't insert duplicates
+    
+    let left = 0;
+    let right = arr.length;
+    
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2);
+      if (arr[mid] < value) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+    
+    arr.splice(left, 0, value);
+  }
+
+  /**
+   * Evaluate match expression against a document
+   */
+  private evaluateMatch(doc: any, matchExpr: any): boolean {
+    if (typeof matchExpr !== 'object' || matchExpr === null) {
+      return false;
+    }
+    
+    for (const [field, condition] of Object.entries(matchExpr)) {
+      if (field.startsWith('$')) {
+        // Logical operators
+        switch (field) {
+          case '$and':
+            return (condition as any[]).every(cond => this.evaluateMatch(doc, cond));
+          case '$or':
+            return (condition as any[]).some(cond => this.evaluateMatch(doc, cond));
+          case '$not':
+            return !this.evaluateMatch(doc, condition);
+          default:
+            return false;
+        }
+      } else {
+        // Field-based conditions
+        const docValue = this.getFieldValue(doc, field);
+        
+        if (typeof condition === 'object' && condition !== null) {
+          // Complex condition with operators
+          for (const [op, expectedValue] of Object.entries(condition)) {
+            switch (op) {
+              case '$eq':
+                if (docValue !== expectedValue) return false;
+                break;
+              case '$ne':
+                if (docValue === expectedValue) return false;
+                break;
+              case '$gt':
+                if (!(docValue > expectedValue)) return false;
+                break;
+              case '$gte':
+                if (!(docValue >= expectedValue)) return false;
+                break;
+              case '$lt':
+                if (!(docValue < expectedValue)) return false;
+                break;
+              case '$lte':
+                if (!(docValue <= expectedValue)) return false;
+                break;
+              case '$in':
+                if (!Array.isArray(expectedValue) || !expectedValue.includes(docValue)) return false;
+                break;
+              case '$nin':
+                if (Array.isArray(expectedValue) && expectedValue.includes(docValue)) return false;
+                break;
+              case '$exists':
+                if ((docValue !== undefined) !== expectedValue) return false;
+                break;
+              default:
+                return false;
+            }
+          }
+        } else {
+          // Simple equality
+          if (docValue !== condition) return false;
+        }
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Initialize aggregation state for a new pipeline with crossfilter-inspired structures
    */
   private initializeAggregationState(
     pipelineKey: string,
-    _pipeline: Pipeline
+    pipeline: Pipeline
   ): void {
+    const stages = Array.isArray(pipeline) ? pipeline : [pipeline];
+    
     const state: AggregationState = {
+      // Crossfilter-inspired structures
+      dimensions: new Map(),
+      groups: new Map(),
+      
+      // Traditional aggregation state
       groupCounts: new Map(),
       groupSums: new Map(),
       groupMins: new Map(),
       groupMaxs: new Map(),
+      groupAvgs: new Map(),
+      groupSets: new Map(),
+      groupArrays: new Map(),
+      
+      // Sorting and filtering state
       sortedIndices: [],
       sortSpec: null,
       filteredDocuments: new Set(),
+      matchPredicates: new Map(),
+      
+      // Stage-by-stage processing
+      stageResults: new Map(),
+      stageFilters: new Map(),
+      
+      // General pipeline state
       lastResult: [],
       pipelineHash: pipelineKey,
+      canIncrement: this.canIncrementPipeline(pipeline),
+      canDecrement: this.canDecrementPipeline(pipeline),
     };
 
+    // Analyze pipeline and create dimensions/groups for supported operations
+    this.analyzePipelineForOptimization(stages, state);
+
     this.aggregationStates.set(pipelineKey, state);
+  }
+
+  /**
+   * Analyze pipeline stages and create optimized structures
+   * Similar to how crossfilter analyzes data for efficient filtering/grouping
+   */
+  private analyzePipelineForOptimization(stages: any[], state: AggregationState): void {
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
+      const stageType = Object.keys(stage)[0];
+      
+      switch (stageType) {
+        case '$match':
+          this.createMatchDimensions(stage.$match, state);
+          break;
+          
+        case '$group':
+          this.createGroupDimensions(stage.$group, state);
+          break;
+          
+        case '$sort':
+          this.createSortDimensions(stage.$sort, state);
+          break;
+      }
+    }
+  }
+
+  /**
+   * Create indexed dimensions for match operations
+   */
+  private createMatchDimensions(matchExpr: any, state: AggregationState): void {
+    if (typeof matchExpr !== 'object' || matchExpr === null) {
+      return;
+    }
+    
+    for (const [field, condition] of Object.entries(matchExpr)) {
+      if (!field.startsWith('$')) {
+        // Create dimension for this field if it doesn't exist
+        if (!state.dimensions.has(field)) {
+          state.dimensions.set(field, {
+            fieldPath: field,
+            valueIndex: new Map(),
+            sortedValues: [],
+            type: 'mixed'
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Create indexed dimensions and groups for group operations
+   */
+  private createGroupDimensions(groupExpr: any, state: AggregationState): void {
+    if (!groupExpr || typeof groupExpr !== 'object') {
+      return;
+    }
+    
+    // Create dimension for group by field
+    const groupByField = groupExpr._id;
+    if (typeof groupByField === 'string' && groupByField.startsWith('$')) {
+      const field = groupByField.substring(1);
+      if (!state.dimensions.has(field)) {
+        state.dimensions.set(field, {
+          fieldPath: field,
+          valueIndex: new Map(),
+          sortedValues: [],
+          type: 'mixed'
+        });
+      }
+      
+      // Create groups for each accumulator
+      for (const [outputField, accumExpr] of Object.entries(groupExpr)) {
+        if (outputField === '_id') continue;
+        
+        if (typeof accumExpr === 'object' && accumExpr !== null) {
+          for (const [accType, accField] of Object.entries(accumExpr)) {
+            const groupId = `${field}_${outputField}_${accType}`;
+            state.groups.set(groupId, {
+              dimension: field,
+              aggregationType: accType.substring(1) as any, // Remove $ prefix
+              field: typeof accField === 'string' && accField.startsWith('$') ? accField.substring(1) : undefined,
+              results: new Map(),
+              docContributions: new Map()
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Create indexed dimensions for sort operations
+   */
+  private createSortDimensions(sortExpr: any, state: AggregationState): void {
+    if (typeof sortExpr !== 'object' || sortExpr === null) {
+      return;
+    }
+    
+    for (const field of Object.keys(sortExpr)) {
+      if (!state.dimensions.has(field)) {
+        state.dimensions.set(field, {
+          fieldPath: field,
+          valueIndex: new Map(),
+          sortedValues: [],
+          type: 'mixed'
+        });
+      }
+    }
+    
+    state.sortSpec = sortExpr;
   }
 
   /**

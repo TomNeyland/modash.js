@@ -1,8 +1,6 @@
 import { expect } from 'chai';
 import Modash from '../src/index.ts';
-import {
-  createStreamingCollection,
-} from '../src/modash/streaming.ts';
+import { createStreamingCollection } from '../src/modash/streaming.ts';
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
@@ -11,9 +9,6 @@ const compareStreamingResults = (collection, pipeline, description = '') => {
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
-
-  // Clean up
-  streamingCollection.destroy();
 
   return {
     nonStreaming: nonStreamingResult,
@@ -150,6 +145,7 @@ describe('Enhanced MongoDB Operators', () => {
         testData,
         pipeline,
         '$addFields with computed fields'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.have.length(4);
       expect(results.streaming[0].averageScore).to.be.closeTo(87.67, 0.1);
