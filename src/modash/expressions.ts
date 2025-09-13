@@ -10,7 +10,13 @@ import {
 } from 'lodash-es';
 
 import EXPRESSION_OPERATORS from './operators.js';
-import type { Document, Expression, DocumentValue, FieldPath, SystemVariable } from '../index.js';
+import type {
+  Document,
+  Expression,
+  DocumentValue,
+  FieldPath,
+  SystemVariable,
+} from '../index.js';
 
 function isFieldPath(expression: unknown): expression is FieldPath {
   return (
@@ -24,7 +30,9 @@ function isSystemVariable(expression: unknown): expression is SystemVariable {
   return typeof expression === 'string' && expression.indexOf('$$') === 0;
 }
 
-function isExpressionObject(expression: unknown): expression is { [key: string]: Expression } {
+function isExpressionObject(
+  expression: unknown
+): expression is { [key: string]: Expression } {
   return (
     isObject(expression) &&
     !isExpressionOperator(expression) &&
@@ -33,8 +41,14 @@ function isExpressionObject(expression: unknown): expression is { [key: string]:
   );
 }
 
-function isExpressionOperator(expression: unknown): expression is Record<string, unknown> {
-  return isObject(expression) && size(expression) === 1 && keys(expression)[0]! in EXPRESSION_OPERATORS;
+function isExpressionOperator(
+  expression: unknown
+): expression is Record<string, unknown> {
+  return (
+    isObject(expression) &&
+    size(expression) === 1 &&
+    keys(expression)[0]! in EXPRESSION_OPERATORS
+  );
 }
 
 /**
@@ -44,7 +58,11 @@ function isExpressionOperator(expression: unknown): expression is Record<string,
  * @param root - Root document (defaults to obj)
  * @returns Result of the expression
  */
-function $expression(obj: Document, expression: Expression, root?: Document): DocumentValue {
+function $expression(
+  obj: Document,
+  expression: Expression,
+  root?: Document
+): DocumentValue {
   let result: DocumentValue;
 
   if (root === undefined) {
@@ -72,7 +90,11 @@ function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
   return get(obj, cleanPath) as DocumentValue;
 }
 
-function $expressionOperator(obj: Document, operatorExpression: Record<string, unknown>, root: Document): DocumentValue {
+function $expressionOperator(
+  obj: Document,
+  operatorExpression: Record<string, unknown>,
+  root: Document
+): DocumentValue {
   const [operator] = keys(operatorExpression);
   let args = operatorExpression[operator!];
   const operatorFunction = EXPRESSION_OPERATORS[operator!];
@@ -85,13 +107,19 @@ function $expressionOperator(obj: Document, operatorExpression: Record<string, u
     args = [args];
   }
 
-  const evaluatedArgs = (args as Expression[]).map(argExpression => () => $expression(obj, argExpression, root));
+  const evaluatedArgs = (args as Expression[]).map(
+    argExpression => () => $expression(obj, argExpression, root)
+  );
 
   const result = operatorFunction(...evaluatedArgs);
   return result as DocumentValue;
 }
 
-function $expressionObject(obj: Document, specifications: { [key: string]: Expression }, root?: Document): Document {
+function $expressionObject(
+  obj: Document,
+  specifications: { [key: string]: Expression },
+  root?: Document
+): Document {
   const result: Document = {};
 
   if (root === undefined) {
@@ -121,7 +149,11 @@ function $expressionObject(obj: Document, specifications: { [key: string]: Expre
           set(
             {},
             headPath,
-            $expression(head as Document, { [pathParts.join('.')]: expression }, root)
+            $expression(
+              head as Document,
+              { [pathParts.join('.')]: expression },
+              root
+            )
           )
         );
       }
@@ -146,11 +178,16 @@ function $expressionObject(obj: Document, specifications: { [key: string]: Expre
           set(
             {},
             path,
-            (target as Document[]).map(subtarget => $expression(subtarget, expression, root))
+            (target as Document[]).map(subtarget =>
+              $expression(subtarget, expression, root)
+            )
           )
         );
       } else {
-        merge(result, set({}, path, $expression(target as Document, expression, root)));
+        merge(
+          result,
+          set({}, path, $expression(target as Document, expression, root))
+        );
       }
     }
   }
@@ -158,7 +195,11 @@ function $expressionObject(obj: Document, specifications: { [key: string]: Expre
   return result;
 }
 
-function $systemVariable(obj: Document, variableName: SystemVariable, root: Document): Document {
+function $systemVariable(
+  obj: Document,
+  variableName: SystemVariable,
+  root: Document
+): Document {
   switch (variableName) {
     case '$$ROOT':
       return root;

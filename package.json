@@ -58,6 +58,7 @@
   "devDependencies": {
     "@microsoft/eslint-formatter-sarif": "^3.1.0",
     "@types/lodash-es": "^4.17.12",
+    "@types/node": "^24.3.3",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "c8": "^10.1.2",
