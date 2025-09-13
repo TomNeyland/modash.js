@@ -225,6 +225,89 @@ The library implements a comprehensive subset of MongoDB aggregation:
 4. **Document complex logic** - Add JSDoc comments for non-obvious code
 5. **Performance matters** - Consider efficiency for large datasets
 6. **Maintain immutability** - Never modify input collections or documents
+7. **No fallbacks or placeholders** - CRITICAL: All code must be fully implemented
+
+## CRITICAL: Fallback and Placeholder Detection
+
+**⚠️ MANDATORY REQUIREMENT: No fallback implementations or placeholder code is allowed.**
+
+### Fallback Detection System
+
+The project has a mandatory fallback detection system that will **FAIL CI** if any problematic patterns are found:
+
+```bash
+npm run check-fallbacks
+```
+
+This command scans all TypeScript files for:
+- `// fallback.*for now`
+- `// TODO.*fallback`  
+- `// FIXME.*fallback`
+- `// placeholder.*implementation`
+- `return collection.*// placeholder`
+- `return.*unchanged.*// fallback`
+- `// simplified for now`
+
+### What is NOT allowed:
+
+❌ **Broken fallbacks that return unchanged data:**
+```typescript
+function optimizedSort(data) {
+  // TODO: implement optimized sorting
+  return data; // This will fail CI!
+}
+```
+
+❌ **Placeholder implementations:**
+```typescript
+function complexAlgorithm() {
+  // Simplified for now - will implement later
+  return []; // This will fail CI!
+}
+```
+
+❌ **Empty fallback methods:**
+```typescript
+private executeFallback(collection, pipeline) {
+  // Fallback to traditional execution - just return collection for now
+  return collection; // This will fail CI!
+}
+```
+
+### What IS allowed:
+
+✅ **Proper error handling with real implementations:**
+```typescript
+function optimizedSort(data) {
+  try {
+    return advancedSortAlgorithm(data);
+  } catch (error) {
+    // Fallback to working traditional sort
+    return traditionalSort(data);
+  }
+}
+```
+
+✅ **Legitimate algorithmic choices:**
+```typescript
+function processData(data) {
+  if (data.length > 10000) {
+    return vectorizedProcessing(data);
+  } else {
+    // Row-by-row processing for smaller datasets
+    return rowByRowProcessing(data);
+  }
+}
+```
+
+### Integration with CI
+
+The fallback check is integrated into:
+- `npm run quality` - Full quality gate including fallback detection
+- CI workflow - Automatically run on all pull requests
+- Local development - Run `npm run check-fallbacks` before commits
+
+**If the CI fails due to fallback detection, you MUST remove the problematic code patterns before the PR can be merged.**
 
 ## Useful Resources
 

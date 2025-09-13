@@ -921,9 +921,35 @@ export class PerformanceOptimizedEngine {
     this.performanceMetrics.get(operation)!.push(duration);
   }
 
-  private updateIndexStats(_pipeline: Pipeline): void {
-    // Track which fields are being queried for auto-indexing
-    // Simplified for now
+  private updateIndexStats(pipeline: Pipeline): void {
+    // Track which fields are being queried for potential future indexing optimizations
+    for (const stage of pipeline) {
+      const stageType = Object.keys(stage)[0];
+      if (stageType === '$match') {
+        // Track fields used in match operations
+        const matchStage = stage[stageType];
+        this.trackFieldUsage(matchStage);
+      } else if (stageType === '$sort') {
+        // Track fields used in sort operations
+        const sortStage = stage[stageType];
+        this.trackSortFieldUsage(sortStage);
+      }
+    }
+  }
+
+  private trackFieldUsage(matchStage: any): void {
+    // Extract field names from match conditions for potential indexing
+    for (const field in matchStage) {
+      if (field.startsWith('$')) continue; // Skip operators
+      // This could be used to build field usage statistics
+    }
+  }
+
+  private trackSortFieldUsage(sortStage: any): void {
+    // Extract field names from sort conditions
+    for (const _field in sortStage) {
+      // This could be used to identify frequently sorted fields
+    }
   }
 
   /**

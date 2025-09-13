@@ -106,7 +106,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
     // Use optimized property access - prefer cached access for nested properties
-    const fieldValue = field.includes('.') 
+    const fieldValue = field.includes('.')
       ? FastPropertyAccess.get(doc, field)
       : doc[field];
 
@@ -555,6 +555,7 @@ function traditionalAggregate<T extends Document = Document>(
 
 export {
   aggregate,
+  traditionalAggregate,
   $project,
   $group,
   $match,
