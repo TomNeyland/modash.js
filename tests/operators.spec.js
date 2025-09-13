@@ -1,8 +1,8 @@
 import { mapValues } from 'lodash-es';
 import { expect } from 'chai';
-import Modash from '../src/modash/index.js';
+import Modash from '../dist/index.js';
 import testData from './test-data.js';
-import { $project } from '../src/modash/aggregation.js';
+import { $project } from '../dist/modash/aggregation.js';
 
 let _db;
 
@@ -24,7 +24,7 @@ describe('Modash Boolean Operator', () => {
         result: {
           $and: [{ $gt: ['$qty', 100] }, { $lt: ['$qty', 250] }],
         },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
       expect(projection[1].result).to.equal(true); // qty: 200, between 100-250
@@ -38,7 +38,7 @@ describe('Modash Boolean Operator', () => {
         result: {
           $or: [{ $gt: ['$qty', 250] }, { $lt: ['$qty', 200] }],
         },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -51,7 +51,7 @@ describe('Modash Boolean Operator', () => {
         result: {
           $not: [{ $gt: ['$qty', 250] }],
         },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -63,7 +63,7 @@ describe('Modash Set Operator', () => {
     it('should compare sets', () => {
       const projection = $project(testData.experiments, {
         result: { $setEquals: ['$A', '$B'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(9);
       expect(projection[0].result).to.equal(true);
@@ -74,7 +74,7 @@ describe('Modash Set Operator', () => {
     it('should intersect sets', () => {
       const projection = $project(testData.experiments, {
         result: { $setIntersection: ['$A', '$B'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(9);
     });
@@ -84,7 +84,7 @@ describe('Modash Set Operator', () => {
     it('should union sets', () => {
       const projection = $project(testData.experiments, {
         result: { $setUnion: ['$A', '$B'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(9);
     });
@@ -94,7 +94,7 @@ describe('Modash Set Operator', () => {
     it('should difference sets', () => {
       const projection = $project(testData.experiments, {
         result: { $setDifference: ['$B', '$A'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(9);
     });
@@ -104,7 +104,7 @@ describe('Modash Set Operator', () => {
     it('should detect subsets', () => {
       const projection = $project(testData.experiments, {
         result: { $setIsSubset: ['$A', '$B'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(9);
     });
@@ -114,7 +114,7 @@ describe('Modash Set Operator', () => {
     it('should OR the elements of an array', () => {
       const projection = $project(testData.survey, {
         result: { $anyElementTrue: ['$responses'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(10);
     });
@@ -124,7 +124,7 @@ describe('Modash Set Operator', () => {
     it('should AND the elements of an array', () => {
       const projection = $project(testData.survey, {
         result: { $allElementsTrue: ['$responses'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(10);
     });
@@ -138,7 +138,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         cmpTo250: { $cmp: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -150,7 +150,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyEq250: { $eq: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -162,7 +162,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyGt250: { $gt: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -174,7 +174,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyGte250: { $gte: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -186,7 +186,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyLt250: { $lt: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -198,7 +198,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyLte250: { $lte: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -210,7 +210,7 @@ describe('Modash Comparison Operator', () => {
         item: 1,
         qty: 1,
         qtyNe250: { $ne: ['$qty', 250] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });
@@ -223,7 +223,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.sales, {
         item: 1,
         total: { $add: ['$price', '$fee'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -232,7 +232,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.sales, {
         item: 1,
         billing_date: { $add: ['$date', 3 * 24 * 60 * 60 * 1000] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -243,7 +243,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.sales, {
         item: 1,
         total: { $subtract: [{ $add: ['$price', '$fee'] }, '$discount'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -254,7 +254,7 @@ describe('Modash Arithmetic Operator', () => {
         dateDifference: {
           $subtract: [new Date('2014-03-01T08:00:00Z'), '$date'],
         },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -263,7 +263,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.sales, {
         item: 1,
         dateDifference: { $subtract: ['$date', 5 * 60 * 1000] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -274,7 +274,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.sales, {
         item: 1,
         total: { $multiply: ['$price', '$quantity'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(3);
     });
@@ -285,7 +285,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.planning, {
         name: 1,
         workdays: { $divide: ['$hours', 8] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(2);
     });
@@ -296,7 +296,7 @@ describe('Modash Arithmetic Operator', () => {
       const projection = $project(testData.planning, {
         name: 1,
         remainder: { $mod: ['$hours', '$tasks'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(2);
     });
@@ -309,7 +309,7 @@ describe('Modash String Operator', () => {
       const projection = $project(testData.inventory, {
         item: 1,
         itemDescription: { $concat: ['$item', ' - ', '$description'] },
-      }).value();
+      });
 
       expect(projection).to.have.lengthOf(5);
     });

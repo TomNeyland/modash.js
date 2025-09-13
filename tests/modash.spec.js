@@ -1,4 +1,4 @@
-import Modash from '../src/modash/index.js';
+import Modash from '../dist/index.js';
 import { expect } from 'chai';
 
 describe('Modash Module Exports', () => {
