@@ -1,5 +1,5 @@
 import { mapValues } from 'lodash-es';
-import Modash from '../src/modash/index.js';
+import Modash from '../dist/index.js';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
