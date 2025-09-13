@@ -5,11 +5,13 @@ This document outlines Node.js-specific performance optimizations for modash.js,
 ## Executive Summary
 
 **Current Performance Baseline (10,000 documents):**
+
 - Simple Filter: 1.38ms
-- Group & Aggregate: 18.29ms  
+- Group & Aggregate: 18.29ms
 - Complex Pipeline: 66.27ms
 
 **Target Improvements:**
+
 - 10-20x performance improvement for large datasets
 - Sub-millisecond operations for small to medium datasets
 - Efficient memory usage for high-concurrency scenarios
@@ -20,6 +22,7 @@ This document outlines Node.js-specific performance optimizations for modash.js,
 ### 1. Worker Threads for CPU-Intensive Operations
 
 **Implementation Strategy:**
+
 ```javascript
 // modash-worker-pool.js
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
@@ -32,7 +35,7 @@ class ModashWorkerPool {
     this.availableWorkers = [];
     this.jobQueue = [];
     this.activeJobs = new Map();
-    
+
     for (let i = 0; i < poolSize; i++) {
       this.createWorker(i);
     }
@@ -40,27 +43,27 @@ class ModashWorkerPool {
 
   createWorker(id) {
     const worker = new Worker(__filename, {
-      workerData: { isWorker: true, workerId: id }
+      workerData: { isWorker: true, workerId: id },
     });
-    
-    worker.on('message', (result) => {
+
+    worker.on('message', result => {
       this.handleWorkerMessage(worker, result);
     });
-    
-    worker.on('error', (error) => {
+
+    worker.on('error', error => {
       console.error(`Worker ${id} error:`, error);
       this.replaceWorker(worker, id);
     });
-    
+
     this.workers.push(worker);
     this.availableWorkers.push(worker);
-    
+
     return worker;
   }
 
   async aggregate(collection, pipeline, options = {}) {
     const jobId = crypto.randomUUID();
-    
+
     return new Promise((resolve, reject) => {
       const job = {
         id: jobId,
@@ -69,9 +72,9 @@ class ModashWorkerPool {
         options,
         resolve,
         reject,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      
+
       this.scheduleJob(job);
     });
   }
@@ -87,25 +90,25 @@ class ModashWorkerPool {
   executeJob(job) {
     const worker = this.availableWorkers.pop();
     this.activeJobs.set(worker, job);
-    
+
     worker.postMessage({
       type: 'aggregate',
       jobId: job.id,
       collection: job.collection,
       pipeline: job.pipeline,
-      options: job.options
+      options: job.options,
     });
   }
 }
 
 // Worker thread code
 if (workerData?.isWorker) {
-  parentPort.on('message', async (message) => {
+  parentPort.on('message', async message => {
     const { type, jobId, collection, pipeline, options } = message;
-    
+
     try {
       let result;
-      
+
       switch (type) {
         case 'aggregate':
           result = Modash.aggregate(collection, pipeline);
@@ -116,17 +119,17 @@ if (workerData?.isWorker) {
         default:
           throw new Error(`Unknown job type: ${type}`);
       }
-      
+
       parentPort.postMessage({
         jobId,
         result,
-        workerId: workerData.workerId
+        workerId: workerData.workerId,
       });
     } catch (error) {
       parentPort.postMessage({
         jobId,
         error: error.message,
-        workerId: workerData.workerId
+        workerId: workerData.workerId,
       });
     }
   });
@@ -134,6 +137,7 @@ if (workerData?.isWorker) {
 ```
 
 **Benefits:**
+
 - True parallel processing on multi-core systems
 - Non-blocking main thread for web servers
 - Automatic load balancing across CPU cores
@@ -142,6 +146,7 @@ if (workerData?.isWorker) {
 ### 2. Native C++ Bindings for Critical Operations
 
 **Implementation Strategy:**
+
 ```cpp
 // modash-native.cpp - Native addon using N-API
 #include <node_api.h>
@@ -155,28 +160,28 @@ napi_value FastGroupBy(napi_env env, napi_callback_info info) {
     size_t argc = 3;
     napi_value args[3];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    
+
     // Extract JavaScript array
     uint32_t length;
     napi_get_array_length(env, args[0], &length);
-    
+
     // Use vectorized operations for numeric aggregations
     std::vector<double> values(length);
     std::unordered_map<std::string, std::vector<size_t>> groups;
-    
+
     // Process in SIMD chunks of 8 elements
     const size_t simdWidth = 8;
     const size_t alignedLength = (length / simdWidth) * simdWidth;
-    
+
     for (size_t i = 0; i < alignedLength; i += simdWidth) {
         __m256d chunk = _mm256_loadu_pd(&values[i]);
         // Vectorized operations here
     }
-    
+
     // Create result object
     napi_value result;
     napi_create_object(env, &result);
-    
+
     return result;
 }
 
@@ -185,7 +190,7 @@ napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"fastGroupBy", nullptr, FastGroupBy, nullptr, nullptr, nullptr, napi_default, nullptr}
     };
-    
+
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;
 }
@@ -203,7 +208,9 @@ let nativeModule = null;
 try {
   nativeModule = require('./build/Release/modash-native');
 } catch (error) {
-  console.warn('Native module not available, falling back to JavaScript implementation');
+  console.warn(
+    'Native module not available, falling back to JavaScript implementation'
+  );
 }
 
 export class ModashNative {
@@ -215,7 +222,7 @@ export class ModashNative {
     if (!nativeModule) {
       throw new Error('Native module not available');
     }
-    
+
     return nativeModule.fastGroupBy(collection, keyFields, aggregations);
   }
 
@@ -224,13 +231,14 @@ export class ModashNative {
     if (!nativeModule) {
       return ModashNative.fallbackMath(operation, values);
     }
-    
+
     return nativeModule.fastMath(operation, values);
   }
 }
 ```
 
 **Benefits:**
+
 - Near-native performance for compute-intensive operations
 - SIMD vectorization for mathematical operations
 - Optimized memory layout and access patterns
@@ -239,6 +247,7 @@ export class ModashNative {
 ### 3. Streaming Data Processing
 
 **Implementation Strategy:**
+
 ```javascript
 import { Readable, Transform, Writable } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -249,14 +258,14 @@ class ModashStream {
     const { batchSize = 1000, highWaterMark = 16 } = options;
     let buffer = [];
     let stageIndex = 0;
-    
+
     return new Transform({
       objectMode: true,
       highWaterMark,
-      
+
       transform(chunk, encoding, callback) {
         buffer.push(chunk);
-        
+
         if (buffer.length >= batchSize) {
           this.processBatch(buffer, pipelineStages, callback);
           buffer = [];
@@ -264,7 +273,7 @@ class ModashStream {
           callback();
         }
       },
-      
+
       flush(callback) {
         if (buffer.length > 0) {
           this.processBatch(buffer, pipelineStages, callback);
@@ -272,7 +281,7 @@ class ModashStream {
           callback();
         }
       },
-      
+
       processBatch(batch, stages, callback) {
         try {
           const result = Modash.aggregate(batch, stages);
@@ -281,7 +290,7 @@ class ModashStream {
         } catch (error) {
           callback(error);
         }
-      }
+      },
     });
   }
 
@@ -289,7 +298,7 @@ class ModashStream {
   static createLookupStream(foreignCollection, joinConfig) {
     // Build index for foreign collection
     const index = new Map();
-    
+
     for (const doc of foreignCollection) {
       const key = doc[joinConfig.foreignField];
       if (!index.has(key)) {
@@ -297,21 +306,21 @@ class ModashStream {
       }
       index.get(key).push(doc);
     }
-    
+
     return new Transform({
       objectMode: true,
-      
+
       transform(chunk, encoding, callback) {
         const localValue = chunk[joinConfig.localField];
         const matches = index.get(localValue) || [];
-        
+
         const result = {
           ...chunk,
-          [joinConfig.as]: matches
+          [joinConfig.as]: matches,
         };
-        
+
         callback(null, result);
-      }
+      },
     });
   }
 }
@@ -327,6 +336,7 @@ async function processLargeDataset(inputStream, outputStream, pipeline) {
 ```
 
 **Benefits:**
+
 - Memory-efficient processing of large datasets
 - Backpressure handling for flow control
 - Composable with other Node.js streams
@@ -335,6 +345,7 @@ async function processLargeDataset(inputStream, outputStream, pipeline) {
 ### 4. Memory-Mapped Files for Large Datasets
 
 **Implementation Strategy:**
+
 ```javascript
 import { createRequire } from 'module';
 import fs from 'fs/promises';
@@ -350,22 +361,28 @@ class ModashMappedFile {
 
   async initialize(schema) {
     this.schema = schema;
-    
+
     // Memory map the file for zero-copy access
     const stats = await fs.stat(this.filePath);
     const fd = await fs.open(this.filePath, 'r');
-    
+
     // Use mmap for direct memory access (requires native addon)
     try {
       const mmap = require('mmap-io');
-      this.mapping = mmap.map(fd.fd, 0, stats.size, mmap.PROT_READ, mmap.MAP_SHARED);
+      this.mapping = mmap.map(
+        fd.fd,
+        0,
+        stats.size,
+        mmap.PROT_READ,
+        mmap.MAP_SHARED
+      );
       this.recordCount = this.calculateRecordCount(stats.size, schema);
     } catch (error) {
       console.warn('Memory mapping not available, using regular file I/O');
       await fd.close();
       return false;
     }
-    
+
     return true;
   }
 
@@ -374,9 +391,9 @@ class ModashMappedFile {
     if (!this.mapping) {
       throw new Error('File not memory mapped');
     }
-    
+
     const recordSize = this.schema.recordSize;
-    
+
     for (let offset = 0; offset < this.mapping.length; offset += recordSize) {
       yield this.deserializeRecord(offset);
     }
@@ -386,22 +403,23 @@ class ModashMappedFile {
   filter(predicate, limit = Infinity) {
     const results = [];
     let count = 0;
-    
+
     for (const record of this.iterateRecords()) {
       if (count >= limit) break;
-      
+
       if (predicate(record)) {
         results.push(record);
         count++;
       }
     }
-    
+
     return results;
   }
 }
 ```
 
 **Benefits:**
+
 - Zero-copy file access
 - Operating system-level caching
 - Efficient random access patterns
@@ -410,6 +428,7 @@ class ModashMappedFile {
 ### 5. Cluster Mode for Horizontal Scaling
 
 **Implementation Strategy:**
+
 ```javascript
 import cluster from 'cluster';
 import { cpus } from 'os';
@@ -424,16 +443,16 @@ class ModashCluster {
   async initialize(workerCount = cpus().length) {
     if (cluster.isPrimary) {
       console.log(`Starting Modash cluster with ${workerCount} workers`);
-      
+
       for (let i = 0; i < workerCount; i++) {
         this.createWorker();
       }
-      
+
       cluster.on('exit', (worker, code, signal) => {
         console.log(`Worker ${worker.process.pid} died`);
         this.createWorker(); // Replace dead worker
       });
-      
+
       return this.createMasterInterface();
     } else {
       // Worker process
@@ -443,17 +462,17 @@ class ModashCluster {
 
   createWorker() {
     const worker = cluster.fork();
-    
-    worker.on('message', (message) => {
+
+    worker.on('message', message => {
       this.handleWorkerResponse(message);
     });
-    
+
     this.workers.set(worker.id, {
       worker,
       busy: false,
-      requests: 0
+      requests: 0,
     });
-    
+
     return worker;
   }
 
@@ -463,30 +482,30 @@ class ModashCluster {
       aggregate: (collection, pipeline) => {
         return this.distributeWork('aggregate', { collection, pipeline });
       },
-      
-      bulkAggregate: (jobs) => {
-        return Promise.all(jobs.map(job => 
-          this.distributeWork('aggregate', job)
-        ));
-      }
+
+      bulkAggregate: jobs => {
+        return Promise.all(
+          jobs.map(job => this.distributeWork('aggregate', job))
+        );
+      },
     };
   }
 
   distributeWork(type, data) {
     return new Promise((resolve, reject) => {
       const requestId = ++this.requestId;
-      
+
       this.pendingRequests.set(requestId, { resolve, reject });
-      
+
       // Find least busy worker
       const worker = this.selectWorker();
-      
+
       worker.worker.send({
         type,
         requestId,
-        data
+        data,
       });
-      
+
       worker.busy = true;
       worker.requests++;
     });
@@ -496,32 +515,34 @@ class ModashCluster {
     // Round-robin with load balancing
     let leastBusy = null;
     let minRequests = Infinity;
-    
+
     for (const workerInfo of this.workers.values()) {
       if (!workerInfo.busy) {
         return workerInfo;
       }
-      
+
       if (workerInfo.requests < minRequests) {
         minRequests = workerInfo.requests;
         leastBusy = workerInfo;
       }
     }
-    
+
     return leastBusy;
   }
 }
 ```
 
 **Benefits:**
+
 - Horizontal scaling across CPU cores
-- Fault tolerance with automatic worker replacement  
+- Fault tolerance with automatic worker replacement
 - Load balancing for optimal resource utilization
 - Simplified deployment and monitoring
 
 ### 6. V8 Engine Optimizations
 
 **Implementation Strategy:**
+
 ```javascript
 class ModashV8Optimizations {
   // Optimize object shapes for V8's hidden classes
@@ -533,9 +554,9 @@ class ModashV8Optimizations {
       price: null,
       quantity: null,
       date: null,
-      active: null
+      active: null,
     };
-    
+
     // Set actual values
     Object.assign(doc, data);
     return doc;
@@ -545,15 +566,15 @@ class ModashV8Optimizations {
   static createTypedCollection(collection, numericFields) {
     const length = collection.length;
     const typedData = {};
-    
+
     for (const field of numericFields) {
       typedData[field] = new Float64Array(length);
-      
+
       for (let i = 0; i < length; i++) {
         typedData[field][i] = collection[i][field] || 0;
       }
     }
-    
+
     return typedData;
   }
 
@@ -566,7 +587,7 @@ class ModashV8Optimizations {
         category: 'test',
         price: 100,
         quantity: 1,
-        active: true
+        active: true,
       });
     }
   }
@@ -574,12 +595,12 @@ class ModashV8Optimizations {
   // Memory-efficient string interning
   static createStringInterner() {
     const internMap = new Map();
-    
+
     return function intern(str) {
       if (internMap.has(str)) {
         return internMap.get(str);
       }
-      
+
       internMap.set(str, str);
       return str;
     };
@@ -588,6 +609,7 @@ class ModashV8Optimizations {
 ```
 
 **Benefits:**
+
 - Optimized V8 hidden class usage
 - Reduced garbage collection pressure
 - Better JIT compilation
@@ -596,12 +618,13 @@ class ModashV8Optimizations {
 ## Node.js-Specific APIs Integration
 
 ### 1. Process Performance Hooks
+
 ```javascript
 import { PerformanceObserver, performance } from 'perf_hooks';
 
 class ModashNodeMetrics {
   constructor() {
-    this.observer = new PerformanceObserver((list) => {
+    this.observer = new PerformanceObserver(list => {
       const entries = list.getEntries();
       entries.forEach(entry => {
         if (entry.name.startsWith('modash-')) {
@@ -609,25 +632,26 @@ class ModashNodeMetrics {
         }
       });
     });
-    
+
     this.observer.observe({ entryTypes: ['measure', 'function'] });
   }
 
   measureOperation(name, fn) {
     const marker = `modash-${name}`;
     performance.mark(`${marker}-start`);
-    
+
     const result = fn();
-    
+
     performance.mark(`${marker}-end`);
     performance.measure(marker, `${marker}-start`, `${marker}-end`);
-    
+
     return result;
   }
 }
 ```
 
 ### 2. AsyncLocalStorage for Context Tracking
+
 ```javascript
 import { AsyncLocalStorage } from 'async_hooks';
 
@@ -647,9 +671,9 @@ class ModashContextManager {
       operationId: crypto.randomUUID(),
       pipeline,
       collectionSize: collection.length,
-      startTime: process.hrtime.bigint()
+      startTime: process.hrtime.bigint(),
     };
-    
+
     return ModashContextManager.run(context, () => {
       return Modash.aggregate(collection, pipeline);
     });
@@ -658,6 +682,7 @@ class ModashContextManager {
 ```
 
 ### 3. Diagnostic Report Integration
+
 ```javascript
 import { writeHeapSnapshot, getHeapSnapshot } from 'v8';
 
@@ -665,32 +690,33 @@ class ModashDiagnostics {
   static async capturePerformanceSnapshot() {
     const filename = `modash-heap-${Date.now()}.heapsnapshot`;
     writeHeapSnapshot(filename);
-    
+
     return {
       filename,
       memoryUsage: process.memoryUsage(),
       cpuUsage: process.cpuUsage(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
   static monitorMemoryLeaks() {
     let baseline = null;
-    
+
     return setInterval(() => {
       const current = process.memoryUsage();
-      
+
       if (baseline) {
         const growth = current.heapUsed - baseline.heapUsed;
-        
-        if (growth > 50 * 1024 * 1024) { // 50MB growth
+
+        if (growth > 50 * 1024 * 1024) {
+          // 50MB growth
           console.warn('Potential memory leak detected:', {
             growth: `${Math.round(growth / 1024 / 1024)}MB`,
-            current: `${Math.round(current.heapUsed / 1024 / 1024)}MB`
+            current: `${Math.round(current.heapUsed / 1024 / 1024)}MB`,
           });
         }
       }
-      
+
       baseline = current;
     }, 30000); // Check every 30 seconds
   }
@@ -700,6 +726,7 @@ class ModashDiagnostics {
 ## Caching Strategies
 
 ### 1. LRU Cache with TTL
+
 ```javascript
 import { LRUCache } from 'lru-cache';
 
@@ -709,7 +736,7 @@ class ModashCache {
       max: options.maxItems || 1000,
       ttl: options.ttl || 1000 * 60 * 60, // 1 hour
       updateAgeOnGet: true,
-      allowStale: false
+      allowStale: false,
     });
   }
 
@@ -733,6 +760,7 @@ class ModashCache {
 ```
 
 ### 2. Redis Integration for Distributed Caching
+
 ```javascript
 import Redis from 'ioredis';
 
@@ -746,7 +774,7 @@ class ModashRedisCache {
   async getCachedResult(collection, pipeline) {
     const key = this.generateCacheKey(collection, pipeline);
     const cached = await this.redis.get(key);
-    
+
     return cached ? JSON.parse(cached) : null;
   }
 
@@ -767,6 +795,7 @@ class ModashRedisCache {
 ## Performance Metrics & Monitoring
 
 ### Key Performance Indicators
+
 1. **Throughput**: Operations per second
 2. **Latency**: P50, P95, P99 response times
 3. **Memory Usage**: Heap usage and GC frequency
@@ -774,6 +803,7 @@ class ModashRedisCache {
 5. **Cache Performance**: Hit/miss ratios and effectiveness
 
 ### Monitoring Implementation
+
 ```javascript
 class ModashNodeMonitoring {
   constructor() {
@@ -782,9 +812,9 @@ class ModashNodeMonitoring {
       totalLatency: 0,
       errorCount: 0,
       cacheHits: 0,
-      cacheMisses: 0
+      cacheMisses: 0,
     };
-    
+
     // Export metrics for Prometheus
     this.setupPrometheusMetrics();
   }
@@ -792,7 +822,7 @@ class ModashNodeMonitoring {
   recordOperation(latency, cacheHit = false) {
     this.metrics.operations++;
     this.metrics.totalLatency += latency;
-    
+
     if (cacheHit) {
       this.metrics.cacheHits++;
     } else {
@@ -804,9 +834,11 @@ class ModashNodeMonitoring {
     return {
       ...this.metrics,
       avgLatency: this.metrics.totalLatency / this.metrics.operations,
-      cacheHitRate: this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses),
+      cacheHitRate:
+        this.metrics.cacheHits /
+        (this.metrics.cacheHits + this.metrics.cacheMisses),
       memoryUsage: process.memoryUsage(),
-      uptime: process.uptime()
+      uptime: process.uptime(),
     };
   }
 }
@@ -814,10 +846,9 @@ class ModashNodeMonitoring {
 
 ## Expected Performance Improvements
 
-| Operation | Current (10k docs) | Target | Improvement |
-|-----------|-------------------|---------|-------------|
-| Simple Filter | 1.38ms | 0.1ms | 14x faster |
-| Group & Aggregate | 18.29ms | 2ms | 9x faster |
-| Complex Pipeline | 66.27ms | 5ms | 13x faster |
-| Streaming (per batch) | N/A | 0.5ms | New capability |
-
+| Operation             | Current (10k docs) | Target | Improvement    |
+| --------------------- | ------------------ | ------ | -------------- |
+| Simple Filter         | 1.38ms             | 0.1ms  | 14x faster     |
+| Group & Aggregate     | 18.29ms            | 2ms    | 9x faster      |
+| Complex Pipeline      | 66.27ms            | 5ms    | 13x faster     |
+| Streaming (per batch) | N/A                | 0.5ms  | New capability |
