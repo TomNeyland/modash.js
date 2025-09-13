@@ -379,27 +379,45 @@ export class StreamingCollection<
     // Store the pipeline for future updates
     this.activePipelines.set(pipelineKey, pipeline);
 
-    // Compile pipeline with IVM engine
-    const executionPlan = this.ivmEngine.compilePipeline(pipeline);
+    try {
+      // Compile pipeline with IVM engine
+      const executionPlan = this.ivmEngine.compilePipeline(pipeline);
 
-    // Initialize aggregation state with IVM backing
-    const state: AggregationState = {
-      lastResult: [],
-      pipelineHash: pipelineKey,
-      canIncrement: executionPlan.canFullyIncrement,
-      canDecrement: executionPlan.canFullyDecrement,
-      _ivmEngine: this.ivmEngine,
-      _executionPlan: executionPlan,
-      _documentRowIds: new Map(this.docIndexToRowId),
-    };
+      // Initialize aggregation state with IVM backing
+      const state: AggregationState = {
+        lastResult: [],
+        pipelineHash: pipelineKey,
+        canIncrement: executionPlan.canFullyIncrement,
+        canDecrement: executionPlan.canFullyDecrement,
+        _ivmEngine: this.ivmEngine,
+        _executionPlan: executionPlan,
+        _documentRowIds: new Map(this.docIndexToRowId),
+      };
 
-    this.aggregationStates.set(pipelineKey, state);
+      this.aggregationStates.set(pipelineKey, state);
 
-    // Calculate initial result using IVM engine
-    const result = this.ivmEngine.execute(pipeline);
-    state.lastResult = result;
+      // Calculate initial result using IVM engine
+      const result = this.ivmEngine.execute(pipeline);
+      state.lastResult = result;
 
-    return result;
+      return result;
+    } catch (error) {
+      console.warn('IVM engine failed, falling back to standard aggregation:', error);
+      
+      // Fallback to standard aggregation for now
+      const result = aggregate(this.documents, pipeline);
+      
+      // Still store the pipeline for potential future IVM processing
+      const state: AggregationState = {
+        lastResult: result,
+        pipelineHash: pipelineKey,
+        canIncrement: false,
+        canDecrement: false,
+      };
+      this.aggregationStates.set(pipelineKey, state);
+      
+      return result;
+    }
   }
 
   /**

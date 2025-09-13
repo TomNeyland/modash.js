@@ -764,6 +764,31 @@ export class GroupStateImpl implements GroupState {
     } else if (typeof accField === 'string' && accField.startsWith('$')) {
       // Field reference
       return this.getFieldValue(doc, accField.substring(1));
+    } else if (typeof accField === 'object' && accField !== null) {
+      // Complex expression - handle basic operators
+      if (accField.$multiply && Array.isArray(accField.$multiply)) {
+        const values = accField.$multiply.map(field => this.getAccumulatorValue(field, doc));
+        return values.reduce((a, b) => (Number(a) || 0) * (Number(b) || 0), 1);
+      }
+      if (accField.$add && Array.isArray(accField.$add)) {
+        const values = accField.$add.map(field => this.getAccumulatorValue(field, doc));
+        return values.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
+      }
+      if (accField.$subtract && Array.isArray(accField.$subtract) && accField.$subtract.length === 2) {
+        const [left, right] = accField.$subtract;
+        const leftVal = this.getAccumulatorValue(left, doc);
+        const rightVal = this.getAccumulatorValue(right, doc);
+        return (Number(leftVal) || 0) - (Number(rightVal) || 0);
+      }
+      if (accField.$divide && Array.isArray(accField.$divide) && accField.$divide.length === 2) {
+        const [left, right] = accField.$divide;
+        const leftVal = this.getAccumulatorValue(left, doc);
+        const rightVal = this.getAccumulatorValue(right, doc);
+        const rightNum = Number(rightVal);
+        return rightNum !== 0 ? (Number(leftVal) || 0) / rightNum : null;
+      }
+      // For other complex expressions, return the literal value for now
+      return accField;
     } else {
       return accField; // Literal value
     }
