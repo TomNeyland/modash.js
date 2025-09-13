@@ -198,15 +198,28 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     // Build projection function
     const projections: string[] = [];
     
+    // Check if _id should be included (default is include unless explicitly excluded)
+    const excludeId = expr._id === 0 || expr._id === false;
+    if (!excludeId) {
+      projections.push(`if (doc._id !== undefined) result._id = doc._id;`);
+    }
+    
     for (const [field, projection] of Object.entries(expr)) {
-      if (projection === 1 || projection === true) {
+      if (field === '_id' && (projection === 0 || projection === false)) {
+        // Skip _id exclusion, already handled above
+        continue;
+      } else if (projection === 1 || projection === true) {
         // Include field
-        projections.push(`result.${field} = ${this.generateFieldAccess(field)};`);
+        projections.push(`if (${this.generateFieldAccess(field)} !== undefined) result.${field} = ${this.generateFieldAccess(field)};`);
       } else if (projection === 0 || projection === false) {
         // Exclude field (handled by not including it)
         continue;
       } else if (typeof projection === 'object' && projection !== null) {
         // Computed field with expression
+        const exprCode = this.generateExpressionCode(projection);
+        projections.push(`result.${field} = ${exprCode};`);
+      } else if (typeof projection === 'string' && projection.startsWith('$')) {
+        // Field reference
         const exprCode = this.generateExpressionCode(projection);
         projections.push(`result.${field} = ${exprCode};`);
       } else {
@@ -217,7 +230,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
     const functionBody = `
       const result = {};
-      ${projections.join('\n')}
+      ${projections.join('\n      ')}
       return result;
     `;
 
@@ -348,6 +361,13 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             const leftVal = evalExpr(left, doc);
             const rightVal = evalExpr(right, doc);
             return (leftVal || 0) * (rightVal || 0);
+          }
+          if (expr.$substr && Array.isArray(expr.$substr) && expr.$substr.length === 3) {
+            const [strExpr, startExpr, lengthExpr] = expr.$substr;
+            const str = String(evalExpr(strExpr, doc) || '');
+            const start = Number(evalExpr(startExpr, doc) || 0);
+            const length = Number(evalExpr(lengthExpr, doc) || 0);
+            return str.substring(start, start + length);
           }
           // Add other operators as needed
           return expr;

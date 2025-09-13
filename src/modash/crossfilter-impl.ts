@@ -761,6 +761,8 @@ export class GroupStateImpl implements GroupState {
   private getAccumulatorValue(accField: any, doc: Document): DocumentValue {
     if (accField === 1) {
       return 1; // Count
+    } else if (accField === '$$ROOT') {
+      return doc; // Return the entire document
     } else if (typeof accField === 'string' && accField.startsWith('$')) {
       // Field reference
       return this.getFieldValue(doc, accField.substring(1));
