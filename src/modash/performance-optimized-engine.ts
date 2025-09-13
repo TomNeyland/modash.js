@@ -921,9 +921,53 @@ export class PerformanceOptimizedEngine {
     this.performanceMetrics.get(operation)!.push(duration);
   }
 
-  private updateIndexStats(_pipeline: Pipeline): void {
+  private updateIndexStats(pipeline: Pipeline): void {
     // Track which fields are being queried for auto-indexing
-    // Simplified for now
+    for (const stage of pipeline) {
+      if (stage.$match) {
+        const matchFields = this.extractFieldsFromMatch(stage.$match);
+        for (const field of matchFields) {
+          if (!this.fieldStats.has(field)) {
+            this.fieldStats.set(field, {
+              accessCount: 0,
+              selectivity: 0,
+              lastAccessed: Date.now()
+            });
+          }
+          this.fieldStats.get(field)!.accessCount++;
+          this.fieldStats.get(field)!.lastAccessed = Date.now();
+        }
+      }
+      if (stage.$group && stage.$group._id) {
+        const groupField = typeof stage.$group._id === 'string' ? stage.$group._id : null;
+        if (groupField) {
+          if (!this.fieldStats.has(groupField)) {
+            this.fieldStats.set(groupField, {
+              accessCount: 0,
+              selectivity: 0,
+              lastAccessed: Date.now()
+            });
+          }
+          this.fieldStats.get(groupField)!.accessCount++;
+        }
+      }
+    }
+  }
+
+  private extractFieldsFromMatch(matchSpec: any): string[] {
+    const fields: string[] = [];
+    for (const key in matchSpec) {
+      if (key.startsWith('$')) continue; // Skip operators
+      fields.push(key);
+      // Handle nested operators
+      if (typeof matchSpec[key] === 'object' && matchSpec[key] !== null) {
+        if (matchSpec[key].$elemMatch) {
+          // For $elemMatch, the field itself is what's being queried
+          continue;
+        }
+      }
+    }
+    return fields;
   }
 
   /**

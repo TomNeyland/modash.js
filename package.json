@@ -51,7 +51,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
     "build": "echo 'No build step needed - TypeScript native'",
     "build:watch": "echo 'No build step needed - TypeScript native'",
-    "quality": "npm run format:check && npm run lint && npm run test:coverage",
+    "check-fallbacks": "node --import=tsx/esm scripts/check-fallbacks.js",
+    "quality": "npm run format:check && npm run lint && npm run check-fallbacks && npm run test:coverage",
     "quality:fix": "npm run format && npm run lint:fix",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
@@ -70,10 +71,10 @@
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "glob": "^11.0.3",
     "mocha": "^10.8.2",
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.9.2"
-  },
-  "dependencies": {}
+  }
 }
