@@ -1,6 +1,35 @@
-import { isArray, drop, flatMap } from 'lodash-es';
-import { FastOperations } from './fast-operations.js';
-import { FastPathAccess } from './fast-path-access.js';
+import { isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
+
+// Simple performance optimization: pre-compile frequently used property paths
+const pathCache = new Map<string, string[]>();
+
+function getCompiledPath(path: string): string[] {
+  if (!pathCache.has(path)) {
+    pathCache.set(path, path.split('.'));
+  }
+  return pathCache.get(path)!;
+}
+
+// Fast path access that's optimized for common patterns
+function fastGet(obj: any, path: string): any {
+  // Handle simple cases faster than lodash
+  if (!path || typeof obj !== 'object' || obj === null) return lodashGet(obj, path);
+  
+  // Fast path for single-level access (most common case)
+  if (!path.includes('.')) {
+    return obj[path];
+  }
+  
+  // Fast path for two-level access (second most common)
+  if (path.indexOf('.') === path.lastIndexOf('.')) {
+    const [first, second] = path.split('.');
+    const intermediate = obj[first!];
+    return intermediate != null ? intermediate[second!] : undefined;
+  }
+  
+  // Fall back to lodash for complex paths
+  return lodashGet(obj, path);
+}
 
 import {
   $expressionObject,
@@ -74,7 +103,7 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return FastOperations.map(collection, obj => $expressionObject(obj, specs, obj)) as Collection<T>;
+  return collection.map(obj => $expressionObject(obj, specs, obj)) as Collection<T>;
 }
 
 /**
@@ -88,7 +117,7 @@ function $match<T extends Document = Document>(
   if (!Array.isArray(collection)) {
     return [];
   }
-  return FastOperations.filter(collection, item => matchDocument(item, query));
+  return collection.filter(item => matchDocument(item, query));
 }
 
 /**
@@ -97,7 +126,7 @@ function $match<T extends Document = Document>(
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
-    const fieldValue = FastPathAccess.get(doc, field);
+    const fieldValue = fastGet(doc, field);
 
     // Handle logical operators
     if (field === '$and') {
@@ -263,8 +292,8 @@ function $sort<T extends Document = Document>(
   return [...collection].sort((a, b) => {
     for (const key of sortKeys) {
       const direction = sortSpec[key]!; // 1 for asc, -1 for desc
-      const valueA = FastPathAccess.get(a, key);
-      const valueB = FastPathAccess.get(b, key);
+      const valueA = fastGet(a, key);
+      const valueB = fastGet(b, key);
 
       // Handle null/undefined values (MongoDB behavior: null < any value)
       if (
@@ -302,8 +331,8 @@ function $unwind<T extends Document = Document>(
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
 
-  return FastOperations.flatMap(collection, doc => {
-    const arrayValue = FastPathAccess.get(doc, cleanPath);
+  return flatMap(collection, doc => {
+    const arrayValue = fastGet(doc, cleanPath);
 
     if (!isArray(arrayValue)) {
       return [doc]; // Return original document if field is not an array
@@ -330,12 +359,19 @@ function $group<T extends Document = Document>(
 ): Collection<T> {
   const _idSpec = specifications._id;
 
-  const groups = FastOperations.groupBy(collection, obj =>
-    _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null'
-  );
+  // Create groups using native Map for better performance
+  const groupMap = new Map<string, T[]>();
+  
+  for (const obj of collection) {
+    const groupKey = _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null';
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, []);
+    }
+    groupMap.get(groupKey)!.push(obj);
+  }
 
   const results: T[] = [];
-  for (const [groupKey, members] of groups) {
+  for (const [groupKey, members] of groupMap) {
     const result: GroupResult = {};
     for (const [field, fieldSpec] of Object.entries(specifications)) {
       if (field === '_id') {
@@ -371,9 +407,9 @@ function $lookup<T extends Document = Document>(
   }
 
   return collection.map(doc => {
-    const localValue = FastPathAccess.get(doc, localField);
+    const localValue = fastGet(doc, localField);
     const matches = from.filter(
-      foreignDoc => FastPathAccess.get(foreignDoc, foreignField) === localValue
+      foreignDoc => fastGet(foreignDoc, foreignField) === localValue
     );
 
     return {

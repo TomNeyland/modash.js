@@ -11,6 +11,26 @@ import {
 
 import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
 
+// Performance optimization: fast path access for common property patterns
+function fastGet(obj: any, path: string): any {
+  if (!path || typeof obj !== 'object' || obj === null) return get(obj, path);
+  
+  // Fast path for simple property access
+  if (!path.includes('.')) {
+    return obj[path];
+  }
+  
+  // Fast path for two-level access
+  if (path.indexOf('.') === path.lastIndexOf('.')) {
+    const [first, second] = path.split('.');
+    const intermediate = obj[first!];
+    return intermediate != null ? intermediate[second!] : undefined;
+  }
+  
+  // Fall back to lodash for complex paths
+  return get(obj, path);
+}
+
 // Basic value types that can appear in documents
 // Basic value types
 export type PrimitiveValue = string | number | boolean | Date | null;
@@ -137,7 +157,7 @@ function $expression(
 function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
   // slice the $ and use the regular get
   const cleanPath = path.slice(1);
-  return get(obj, cleanPath) as DocumentValue;
+  return fastGet(obj, cleanPath) as DocumentValue;
 }
 
 function $expressionOperator(
@@ -183,7 +203,7 @@ function $expressionObject(
     if (path.indexOf('.') !== -1) {
       const pathParts = path.split('.');
       const headPath = pathParts.shift()!;
-      const head = get(obj, headPath);
+      const head = fastGet(obj, headPath);
 
       if (isArray(head)) {
         set(
@@ -223,7 +243,7 @@ function $expressionObject(
         !isExpressionOperator(expression)
       ) {
         // Check if this is a nested projection (field projection) or computed object (expression object)
-        const fieldValue = get(obj, path);
+        const fieldValue = fastGet(obj, path);
         const isFieldProjection = fieldValue && typeof fieldValue === 'object';
 
         if (isFieldProjection) {
