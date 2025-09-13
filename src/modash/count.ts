@@ -1,5 +1,3 @@
-import { size } from 'lodash-es';
-
 // Import basic types from expressions module
 import type { Collection, Document } from './expressions.js';
 
@@ -11,7 +9,7 @@ import type { Collection, Document } from './expressions.js';
 function count<T extends Document = Document>(
   collection: Collection<T>
 ): number {
-  return size(collection);
+  return collection.length;
 }
 
 export { count };
