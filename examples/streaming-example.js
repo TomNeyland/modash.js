@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import Modash, { createStreamingCollection } from '../src/modash/index.js';
+import Modash, { createStreamingCollection } from '../src/modash/index.ts';
 
 console.log('🔄 Modash.js Enhanced Streaming/Event Consumer Example\n');
 

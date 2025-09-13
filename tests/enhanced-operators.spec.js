@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import Modash from '../src/index.ts';
-import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.js';
+import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.ts';
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {

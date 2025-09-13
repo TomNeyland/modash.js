@@ -1,5 +1,5 @@
 import Modash from '../src/index.ts';
-import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.js';
+import { createStreamingCollection, aggregateStreaming } from '../src/modash/streaming.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
