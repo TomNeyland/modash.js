@@ -76,18 +76,23 @@ describe('New Aggregation Operators', () => {
 
   describe('Edge Cases & Error Handling', () => {
     it('should handle empty arrays gracefully', () => {
-      const result = Modash.aggregate([], [
-        { $match: { price: { $gt: 100 } } },
-        { $sort: { price: -1 } },
-        { $limit: 5 }
-      ]);
+      const result = Modash.aggregate(
+        [],
+        [
+          { $match: { price: { $gt: 100 } } },
+          { $sort: { price: -1 } },
+          { $limit: 5 },
+        ]
+      );
 
       expect(result).to.be.an('array');
       expect(result).to.have.lengthOf(0);
     });
 
     it('should handle null/undefined collections gracefully', () => {
-      const result1 = Modash.aggregate(null, [{ $match: { price: { $gt: 100 } } }]);
+      const result1 = Modash.aggregate(null, [
+        { $match: { price: { $gt: 100 } } },
+      ]);
       const result2 = Modash.aggregate(undefined, [{ $sort: { price: -1 } }]);
 
       expect(result1).to.be.an('array');
@@ -99,7 +104,7 @@ describe('New Aggregation Operators', () => {
     it('should handle non-array inputs gracefully', () => {
       const result = Modash.aggregate('not-an-array', [
         { $match: { price: { $gt: 100 } } },
-        { $limit: 5 }
+        { $limit: 5 },
       ]);
 
       expect(result).to.be.an('array');
