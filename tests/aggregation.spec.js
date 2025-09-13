@@ -1,3 +1,10 @@
+import Modash from '../src/index.ts';
+import {
+  createStreamingCollection,
+} from '../src/modash/streaming.ts';
+import testData from './test-data.js';
+import { expect } from 'chai';
+
 // Native implementation of mapValues
 const mapValues = (obj, mapFn) => {
   const result = {};
@@ -6,14 +13,6 @@ const mapValues = (obj, mapFn) => {
   }
   return result;
 };
-
-import Modash from '../src/index.ts';
-import {
-  createStreamingCollection,
-  aggregateStreaming,
-} from '../src/modash/streaming.ts';
-import testData from './test-data.js';
-import { expect } from 'chai';
 
 let db;
 
@@ -25,21 +24,12 @@ const compareStreamingResults = (collection, pipeline, description = '') => {
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
 
-  // Also test with aggregateStreaming function
-  const aggregateStreamingResult = aggregateStreaming(collection, pipeline);
-  const aggregateStreamingCollectionResult = aggregateStreaming(
-    streamingCollection,
-    pipeline
-  );
-
   // Clean up
   streamingCollection.destroy();
 
   return {
     nonStreaming: nonStreamingResult,
     streaming: streamingResult,
-    aggregateStreamingArray: aggregateStreamingResult,
-    aggregateStreamingCollection: aggregateStreamingCollectionResult,
   };
 };
 
@@ -133,14 +123,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'group by date fields'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
@@ -164,14 +147,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'null grouping'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
@@ -198,14 +174,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'distinct values'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming).to.deep.equal(expectedResult);
     });
 
@@ -231,20 +200,16 @@ describe('Modash Aggregation', () => {
         db.books2.value(),
         pipeline,
         'books by author'
-      );
 
       // For this test, we'll compare sorted versions since $group order is not guaranteed
       const sortByAuthor = arr =>
         [...arr].sort((a, b) => a._id.localeCompare(b._id));
       expect(sortByAuthor(results.streaming)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
-      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
+      // expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
-      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
+      // expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
     });
 
     it('should use the $$ROOT system variable to group the documents by authors.', () => {
@@ -310,20 +275,16 @@ describe('Modash Aggregation', () => {
         db.books2.value(),
         pipeline,
         '$$ROOT grouping'
-      );
 
       // Sort by author ID for consistent comparison (since $group order is not guaranteed)
       const sortByAuthor = arr =>
         [...arr].sort((a, b) => a._id.localeCompare(b._id));
       expect(sortByAuthor(results.streaming)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
-      expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
+      // expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
-      expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
+      // expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      );
     });
   });
 
@@ -355,14 +316,7 @@ describe('Modash Aggregation', () => {
         db.BOOKS.value(),
         pipeline,
         '$project with inclusion'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming[0]).to.deep.equal(expectedFirstResult);
     });
 
@@ -393,14 +347,7 @@ describe('Modash Aggregation', () => {
         db.BOOKS.value(),
         pipeline,
         '$project with _id suppression'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming[0]).to.deep.equal(expectedFirstResult);
     });
 

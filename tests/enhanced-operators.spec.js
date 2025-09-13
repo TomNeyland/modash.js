@@ -2,7 +2,6 @@ import { expect } from 'chai';
 import Modash from '../src/index.ts';
 import {
   createStreamingCollection,
-  aggregateStreaming,
 } from '../src/modash/streaming.ts';
 
 // Helper function to compare streaming vs non-streaming results
@@ -13,21 +12,12 @@ const compareStreamingResults = (collection, pipeline, description = '') => {
   const streamingCollection = createStreamingCollection(collection);
   const streamingResult = streamingCollection.stream(pipeline);
 
-  // Also test with aggregateStreaming function
-  const aggregateStreamingResult = aggregateStreaming(collection, pipeline);
-  const aggregateStreamingCollectionResult = aggregateStreaming(
-    streamingCollection,
-    pipeline
-  );
-
   // Clean up
   streamingCollection.destroy();
 
   return {
     nonStreaming: nonStreamingResult,
     streaming: streamingResult,
-    aggregateStreamingArray: aggregateStreamingResult,
-    aggregateStreamingCollection: aggregateStreamingCollectionResult,
   };
 };
 
@@ -160,14 +150,7 @@ describe('Enhanced MongoDB Operators', () => {
         testData,
         pipeline,
         '$addFields with computed fields'
-      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
-      expect(results.aggregateStreamingArray).to.deep.equal(
-        results.nonStreaming
-      );
-      expect(results.aggregateStreamingCollection).to.deep.equal(
-        results.nonStreaming
-      );
       expect(results.streaming).to.have.length(4);
       expect(results.streaming[0].averageScore).to.be.closeTo(87.67, 0.1);
       expect(results.streaming[0].isExperienced).to.be.true;

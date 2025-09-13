@@ -375,7 +375,6 @@ export {
 export {
   StreamingCollection,
   createStreamingCollection,
-  aggregateStreaming,
 } from './modash/streaming.js';
 
 // Re-export streaming types
