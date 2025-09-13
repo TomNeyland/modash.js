@@ -15,6 +15,7 @@ import { aggregate } from './aggregation.js';
  */
 export interface StreamingEvents {
   'data-added': { newDocuments: Document[]; totalCount: number };
+  'data-removed': { removedDocuments: Document[]; removedCount: number; totalCount: number };
   'result-updated': { result: Collection<Document>; pipeline: Pipeline };
   'transform-error': { error: Error; originalEvent: any; eventName: string };
 }
@@ -104,6 +105,115 @@ export class StreamingCollection<
 
     // Update all active aggregation results
     this.updateAggregations(newDocuments);
+  }
+
+  /**
+   * Remove documents by predicate function and trigger incremental updates
+   */
+  remove(predicate: (doc: T, index: number) => boolean): T[] {
+    const removedDocuments: T[] = [];
+    const indicesToRemove: number[] = [];
+
+    // Find documents to remove
+    this.documents.forEach((doc, index) => {
+      if (predicate(doc, index)) {
+        removedDocuments.push(doc);
+        indicesToRemove.push(index);
+      }
+    });
+
+    // Remove documents (in reverse order to maintain correct indices)
+    indicesToRemove.reverse().forEach(index => {
+      this.documents.splice(index, 1);
+    });
+
+    if (removedDocuments.length > 0) {
+      // Emit data-removed event
+      this.emit('data-removed', {
+        removedDocuments: removedDocuments as Document[],
+        removedCount: removedDocuments.length,
+        totalCount: this.documents.length,
+      });
+
+      // Update all active aggregation results
+      this.updateAggregationsAfterRemoval(removedDocuments);
+    }
+
+    return removedDocuments;
+  }
+
+  /**
+   * Remove documents by ID (assumes documents have an 'id' or '_id' field)
+   */
+  removeById(id: any): T | null {
+    const removed = this.remove((doc) => 
+      (doc as any).id === id || (doc as any)._id === id
+    );
+    return removed.length > 0 ? removed[0] : null;
+  }
+
+  /**
+   * Remove multiple documents by IDs
+   */
+  removeByIds(ids: any[]): T[] {
+    const idSet = new Set(ids);
+    return this.remove((doc) => 
+      idSet.has((doc as any).id) || idSet.has((doc as any)._id)
+    );
+  }
+
+  /**
+   * Remove documents by matching query (similar to MongoDB deleteMany)
+   */
+  removeByQuery(query: Partial<T>): T[] {
+    return this.remove((doc) => {
+      return Object.entries(query).every(([key, value]) => {
+        return (doc as any)[key] === value;
+      });
+    });
+  }
+
+  /**
+   * Remove a specific number of documents from the beginning
+   */
+  removeFirst(count: number = 1): T[] {
+    const removed = this.documents.splice(0, count);
+    
+    if (removed.length > 0) {
+      // Emit data-removed event
+      this.emit('data-removed', {
+        removedDocuments: removed as Document[],
+        removedCount: removed.length,
+        totalCount: this.documents.length,
+      });
+
+      // Update all active aggregation results
+      this.updateAggregationsAfterRemoval(removed);
+    }
+
+    return removed;
+  }
+
+  /**
+   * Remove a specific number of documents from the end
+   */
+  removeLast(count: number = 1): T[] {
+    const startIndex = Math.max(0, this.documents.length - count);
+    const removed = this.documents.splice(startIndex, count);
+    
+    if (removed.length > 0) {
+      // Emit data-removed event
+      this.emit('data-removed', {
+        removedDocuments: removed as Document[],
+        removedCount: removed.length,
+        totalCount: this.documents.length,
+      });
+
+      // Update all active aggregation results
+      this.updateAggregationsAfterRemoval(removed);
+    }
+
+    return removed;
   }
 
   /**
@@ -275,6 +385,31 @@ export class StreamingCollection<
       } catch (error) {
         console.warn(
           `Error updating streaming aggregation for pipeline ${pipelineKey}:`,
+          error
+        );
+        // Continue with other pipelines even if one fails
+      }
+    }
+  }
+
+  /**
+   * Update all active aggregations after removal of documents
+   */
+  private updateAggregationsAfterRemoval(_removedDocuments: T[]): void {
+    for (const [pipelineKey, pipeline] of this.activePipelines.entries()) {
+      const state = this.aggregationStates.get(pipelineKey);
+      if (!state) continue;
+
+      try {
+        // For now, use full recalculation as fallback
+        // TODO: Implement true incremental decremental updates per pipeline stage
+        const newResult = aggregate(this.documents, pipeline);
+        state.lastResult = newResult;
+
+        this.emit('result-updated', { result: newResult, pipeline });
+      } catch (error) {
+        console.warn(
+          `Error updating streaming aggregation after removal for pipeline ${pipelineKey}:`,
           error
         );
         // Continue with other pipelines even if one fails

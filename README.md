@@ -158,10 +158,152 @@ liveOrders.addBulk([
 ### Streaming Features
 
 - **Live Data Updates**: Use `.add()` and `.addBulk()` for incremental updates
+- **Record Removal**: Use `.remove()`, `.removeById()`, and other removal methods for incremental subtraction
 - **Multiple Pipelines**: Run multiple concurrent streaming aggregations
-- **Event-Driven**: Listen for `data-added` and `result-updated` events
+- **Event-Driven**: Listen for `data-added`, `data-removed`, and `result-updated` events
 - **Memory Efficient**: Optimized for large datasets with intelligent caching
 - **Backward Compatible**: Existing API unchanged, streaming is opt-in
+
+### 🔌 EventEmitter Integration
+
+**Connect to any EventEmitter as a data source with automatic streaming updates:**
+
+```typescript
+import { EventEmitter } from 'events';
+import { createStreamingCollection } from 'modash';
+
+interface PaymentEvent {
+  orderId: string;
+  customerId: number;
+  amount: number;
+  currency: string;
+  status: 'completed' | 'failed';
+  timestamp: Date;
+}
+
+interface Order {
+  id: string;
+  customerId: number;
+  item: string;
+  price: number;
+  status: string;
+  processedAt: Date;
+}
+
+// Create payment processing EventEmitter
+const paymentService = new EventEmitter();
+
+// Start with existing orders
+const liveOrders = createStreamingCollection<Order>([
+  { id: 'ord-1', customerId: 1, item: 'laptop', price: 1200, status: 'pending', processedAt: new Date() }
+]);
+
+// Connect EventEmitter with transform function
+const consumerId = liveOrders.connectEventSource({
+  source: paymentService,
+  eventName: 'payment-completed',
+  transform: (eventData: PaymentEvent, eventName: string): Order | null => {
+    // Skip failed payments
+    if (eventData.status === 'failed') return null;
+    
+    // Transform payment event to order format
+    return {
+      id: eventData.orderId,
+      customerId: eventData.customerId,
+      item: 'processed-payment',
+      price: eventData.amount,
+      status: 'paid',
+      processedAt: eventData.timestamp
+    };
+  }
+});
+
+// Set up real-time analytics
+const revenueAnalytics = [
+  { $match: { status: 'paid' } },
+  { $group: { 
+    _id: '$customerId', 
+    totalSpent: { $sum: '$price' },
+    orderCount: { $sum: 1 } 
+  }},
+  { $sort: { totalSpent: -1 } }
+];
+
+// Start streaming - gets live updates from EventEmitter
+const results = liveOrders.stream(revenueAnalytics);
+console.log('Initial revenue:', results);
+
+// Listen for real-time updates
+liveOrders.on('result-updated', (event) => {
+  console.log('📊 Live analytics updated:', event.result);
+});
+
+liveOrders.on('data-added', (event) => {
+  console.log(`💰 ${event.newDocuments.length} new payments processed`);
+});
+
+// Simulate external payment events
+paymentService.emit('payment-completed', {
+  orderId: 'ord-2',
+  customerId: 1,
+  amount: 750,
+  currency: 'USD',
+  status: 'completed',
+  timestamp: new Date()
+});
+
+paymentService.emit('payment-completed', {
+  orderId: 'ord-3',
+  customerId: 2,
+  amount: 400,
+  currency: 'USD', 
+  status: 'completed',
+  timestamp: new Date()
+});
+
+// Results automatically update! Analytics now show:
+// [
+//   { _id: 1, totalSpent: 1950, orderCount: 2 },  // laptop + payment
+//   { _id: 2, totalSpent: 400, orderCount: 1 }    // new customer
+// ]
+
+// Cleanup when done
+liveOrders.disconnectEventSource(consumerId);
+```
+
+### 🔄 Advanced Record Removal
+
+**Dynamic data removal with automatic aggregation updates:**
+
+```typescript
+const inventory = createStreamingCollection([
+  { id: 1, product: 'laptop', quantity: 50, category: 'electronics' },
+  { id: 2, product: 'mouse', quantity: 200, category: 'accessories' },
+  { id: 3, product: 'monitor', quantity: 30, category: 'electronics' },
+  { id: 4, product: 'keyboard', quantity: 100, category: 'accessories' }
+]);
+
+const stockAnalytics = [
+  { $group: { _id: '$category', totalItems: { $sum: '$quantity' }, products: { $sum: 1 } } },
+  { $sort: { totalItems: -1 } }
+];
+
+inventory.stream(stockAnalytics);
+
+// Remove out-of-stock items
+inventory.remove(item => item.quantity === 0);
+
+// Remove specific products by ID
+inventory.removeById(2);
+
+// Remove products by query
+inventory.removeByQuery({ category: 'accessories' });
+
+// Remove in batches
+const removed = inventory.removeFirst(2); // Remove oldest items
+
+// All operations automatically update streaming analytics!
+```
 
 ### Performance Benefits
 
