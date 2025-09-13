@@ -14,11 +14,7 @@ import {
 } from './aggregation.js';
 import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
-import {
-  createStreamingCollection,
-  aggregateStreaming,
-  StreamingCollection,
-} from './streaming.js';
+import { createStreamingCollection, StreamingCollection } from './streaming.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -100,10 +96,7 @@ export {
 export type { Collection, Document, QueryExpression };
 
 // Re-export streaming capabilities
-export {
-  StreamingCollection,
-  createStreamingCollection,
-} from './streaming.js';
+export { StreamingCollection, createStreamingCollection } from './streaming.js';
 
 // Re-export streaming types
 export type { StreamingEvents, AggregationState } from './streaming.js';
