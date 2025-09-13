@@ -276,6 +276,26 @@ export interface ModashStatic {
    */
   $expression(obj: Document, expression: Expression): DocumentValue;
 
+  /**
+   * Creates a streaming collection for incremental updates.
+   * @param initialData - Initial documents (optional)
+   * @returns StreamingCollection instance
+   */
+  createStreamingCollection<T extends Document = Document>(
+    initialData?: Collection<T>
+  ): StreamingCollection<T>;
+
+  /**
+   * Performs aggregation with streaming support.
+   * @param collection - Array of documents or StreamingCollection
+   * @param pipeline - Array of pipeline stages
+   * @returns Processed array of documents
+   */
+  aggregateStreaming<T extends Document = Document>(
+    collection: Collection<T> | StreamingCollection<T>,
+    pipeline: Pipeline
+  ): Collection<Document>;
+
   // Stage operators (can be used standalone)
   $group<T extends Document = Document>(
     collection: Collection<T>,
@@ -336,3 +356,16 @@ export {
   $set,
   default,
 } from './modash/index.js';
+
+// Re-export streaming capabilities
+export {
+  StreamingCollection,
+  createStreamingCollection,
+  aggregateStreaming,
+} from './modash/streaming.js';
+
+// Re-export streaming types
+export type { StreamingEvents, AggregationState } from './modash/streaming.js';
+
+// Import StreamingCollection for type checking
+import type { StreamingCollection } from './modash/streaming.js';

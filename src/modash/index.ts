@@ -14,6 +14,7 @@ import {
 } from './aggregation.js';
 import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
+import { createStreamingCollection, aggregateStreaming } from './streaming.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -49,6 +50,9 @@ const Modash: ModashStatic = {
   $lookup,
   $addFields,
   $set,
+  // Streaming methods
+  createStreamingCollection,
+  aggregateStreaming,
 };
 
 export default Modash;
@@ -70,6 +74,16 @@ export {
 
 // Re-export basic types from local modules
 export type { Collection, Document, QueryExpression };
+
+// Re-export streaming capabilities
+export {
+  StreamingCollection,
+  createStreamingCollection,
+  aggregateStreaming,
+} from './streaming.js';
+
+// Re-export streaming types
+export type { StreamingEvents, AggregationState } from './streaming.js';
 
 // Re-export complex types from main index for convenience
 export type {
