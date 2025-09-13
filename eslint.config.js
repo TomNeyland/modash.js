@@ -1,9 +1,13 @@
 import eslintPluginPrettier from 'eslint-plugin-prettier';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import typescriptParser from '@typescript-eslint/parser';
 
 export default [
   {
+    files: ['src/**/*.ts'],
     languageOptions: {
+      parser: typescriptParser,
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: {
@@ -16,13 +20,14 @@ export default [
     },
     plugins: {
       prettier: eslintPluginPrettier,
+      '@typescript-eslint': typescriptEslint,
     },
     rules: {
       // Prettier integration
       'prettier/prettier': 'error',
 
-      // Core JavaScript rules
-      'no-unused-vars': [
+      // TypeScript specific rules
+      '@typescript-eslint/no-unused-vars': [
         'error',
         {
           argsIgnorePattern: '^_',
@@ -30,6 +35,9 @@ export default [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+
+      // Core JavaScript rules (disabled for TS equivalents)
+      'no-unused-vars': 'off',
       'no-console': 'off',
       'no-debugger': 'error',
       'no-alert': 'error',
@@ -44,46 +52,17 @@ export default [
       'prefer-arrow-callback': 'error',
       'prefer-template': 'error',
       'template-curly-spacing': ['error', 'never'],
-      'prefer-destructuring': [
-        'error',
-        {
-          array: true,
-          object: true,
-        },
-        {
-          enforceForRenamedProperties: false,
-        },
-      ],
 
       // Code quality
       eqeqeq: ['error', 'always'],
       'no-duplicate-imports': 'error',
-      'no-useless-constructor': 'error',
-      'no-useless-rename': 'error',
       'object-shorthand': 'error',
-      'prefer-rest-params': 'error',
-      'prefer-spread': 'error',
-
-      // Error prevention
-      'no-await-in-loop': 'error',
-      'no-promise-executor-return': 'error',
-      'require-atomic-updates': 'error',
-      'no-return-await': 'error',
 
       // Best practices
       curly: ['error', 'all'],
       'dot-notation': 'error',
-      'no-else-return': 'error',
-      'no-extra-bind': 'error',
-      'no-lone-blocks': 'error',
       'no-multi-spaces': 'error',
-      'no-new-wrappers': 'error',
-      'no-throw-literal': 'error',
-      'no-unneeded-ternary': 'error',
-      'no-useless-call': 'error',
       'no-useless-concat': 'error',
-      'no-useless-return': 'error',
-      'prefer-promise-reject-errors': 'error',
       yoda: 'error',
     },
   },

@@ -3,9 +3,9 @@
 [![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 [![Tag](https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 
-**Modern MongoDB-inspired aggregation library for JavaScript**
+**Modern MongoDB-inspired aggregation library for TypeScript**
 
-A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Now fully modernized with ES2022+ support, zero security vulnerabilities, and a comprehensive set of aggregation operators.
+A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Built TypeScript-first with full type safety and modern language features.
 
 ## ✨ Features
 
@@ -13,10 +13,10 @@ A clean, elegant API for processing JavaScript arrays using MongoDB aggregation 
 - **Rich Expression Operators**: 40+ operators including boolean, comparison, arithmetic, string, date, array, and set operations
 - **Enhanced Query Operators**: Advanced `$match` with `$regex`, `$exists`, `$elemMatch`, `$all`, `$and`, `$or`, `$nor`
 - **Array Manipulation**: Comprehensive array operators like `$arrayElemAt`, `$filter`, `$map`, `$slice`, `$concatArrays`
-- **Modern ES2022+**: Native modules, latest JavaScript features, no transpilation needed
-- **TypeScript Support**: Complete type definitions for excellent developer experience
+- **TypeScript-First**: Built with TypeScript for complete type safety and excellent developer experience
+- **Modern ES2022+**: Native modules, latest JavaScript features, compiled output for maximum compatibility
 - **Zero Security Vulnerabilities**: Completely modernized dependency tree
-- **Production Ready**: 68 comprehensive tests, battle-tested implementations
+- **Production Ready**: 66+ comprehensive tests, battle-tested implementations
 
 ## 🚀 Installation
 
@@ -59,6 +59,48 @@ console.log(revenueByDate);
 //   { _id: 15, totalRevenue: 2250, itemCount: 2 },
 //   { _id: 16, totalRevenue: 375, itemCount: 1 }
 // ]
+```
+
+### TypeScript Example
+
+```typescript
+import Modash, { type Document, type Collection } from 'modash';
+
+interface Sale extends Document {
+  item: string;
+  price: number;
+  quantity: number;
+  date: Date;
+}
+
+interface DailyRevenue extends Document {
+  _id: number;
+  totalRevenue: number;
+  itemCount: number;
+}
+
+const sales: Collection<Sale> = [
+  { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
+  { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
+  { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
+];
+
+// TypeScript provides full type safety and intellisense
+const revenueByDate: Collection<DailyRevenue> = Modash.aggregate(sales, [
+  {
+    $project: {
+      date: { $dayOfMonth: '$date' },
+      revenue: { $multiply: ['$price', '$quantity'] },
+    },
+  },
+  {
+    $group: {
+      _id: '$date',
+      totalRevenue: { $sum: '$revenue' },
+      itemCount: { $sum: 1 },
+    },
+  },
+]);
 ```
 
 ## 🌟 Real-World Examples

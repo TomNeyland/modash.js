@@ -34,5 +34,12 @@
     "isolatedModules": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "coverage", "examples", "**/*.js"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests",
+    "coverage",
+    "examples",
+    "**/*.js"
+  ]
 }

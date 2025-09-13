@@ -1,8 +1,16 @@
 import { size, keys, map, first, last, uniq } from 'lodash-es';
 import { $expression } from './expressions.js';
-import type { Collection, Document, Expression, DocumentValue, AccumulatorExpression } from '../index.js';
+import type {
+  Collection,
+  Expression,
+  DocumentValue,
+  AccumulatorExpression,
+} from '../index.js';
 
-const ACCUMULATORS: Record<string, (collection: Collection, spec: Expression) => any> = {
+const ACCUMULATORS: Record<
+  string,
+  (collection: Collection, spec: Expression) => any
+> = {
   $accumulate,
   $sum,
   $avg,
@@ -14,18 +22,25 @@ const ACCUMULATORS: Record<string, (collection: Collection, spec: Expression) =>
   $addToSet,
 };
 
-function isAccumulatorExpression(expression: unknown): expression is AccumulatorExpression {
-  return typeof expression === 'object' && 
-         expression !== null && 
-         size(expression) === 1 && 
-         keys(expression)[0]! in ACCUMULATORS;
+function isAccumulatorExpression(
+  expression: unknown
+): expression is AccumulatorExpression {
+  return (
+    typeof expression === 'object' &&
+    expression !== null &&
+    size(expression) === 1 &&
+    keys(expression)[0]! in ACCUMULATORS
+  );
 }
 
 /**
  * Accumulators for aggregation operations
  */
 
-function $accumulate(collection: Collection, operatorExpression: Expression): DocumentValue {
+function $accumulate(
+  collection: Collection,
+  operatorExpression: Expression
+): DocumentValue {
   if (isAccumulatorExpression(operatorExpression)) {
     const [operator] = keys(operatorExpression);
     const args = (operatorExpression as any)[operator!];
@@ -37,7 +52,7 @@ function $accumulate(collection: Collection, operatorExpression: Expression): Do
 
     return accumulatorFunction(collection, args);
   }
-  
+
   throw new Error('Invalid accumulator expression');
 }
 

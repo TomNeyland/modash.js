@@ -1,11 +1,4 @@
-import {
-  chain,
-  isArray,
-  mapValues,
-  drop,
-  flatMap,
-  get as lodashGet,
-} from 'lodash-es';
+import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
 
 import { $expressionObject, $expression } from './expressions.js';
 import { $accumulate } from './accumulators.js';
@@ -22,7 +15,6 @@ import type {
   SortStage,
   LookupStage,
   AddFieldsStage,
-  SetStage,
 } from '../index.js';
 
 /**
@@ -34,7 +26,7 @@ import type {
  * removing existing fields. For each input document, outputs one document.
  */
 function $project<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   specifications: ProjectStage['$project']
 ): Collection<T> {
   const specs = { ...specifications };
@@ -42,9 +34,9 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return chain(collection).map(obj =>
-    $expressionObject(obj, specs, obj)
-  ).value() as Collection<T>;
+  return chain(collection)
+    .map(obj => $expressionObject(obj, specs, obj))
+    .value() as Collection<T>;
 }
 
 /**
@@ -52,7 +44,7 @@ function $project<T extends Document = Document>(
  * unmodified into the next pipeline stage.
  */
 function $match<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   query: QueryExpression
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -72,15 +64,21 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
     // Handle logical operators
     if (field === '$and') {
       if (!Array.isArray(condition)) return false;
-      return condition.every(subQuery => matchDocument(doc, subQuery as QueryExpression));
+      return condition.every(subQuery =>
+        matchDocument(doc, subQuery as QueryExpression)
+      );
     }
     if (field === '$or') {
       if (!Array.isArray(condition)) return false;
-      return condition.some(subQuery => matchDocument(doc, subQuery as QueryExpression));
+      return condition.some(subQuery =>
+        matchDocument(doc, subQuery as QueryExpression)
+      );
     }
     if (field === '$nor') {
       if (!Array.isArray(condition)) return false;
-      return !condition.some(subQuery => matchDocument(doc, subQuery as QueryExpression));
+      return !condition.some(subQuery =>
+        matchDocument(doc, subQuery as QueryExpression)
+      );
     }
 
     // Simple equality check
@@ -98,22 +96,34 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
             if (fieldValue === expectedValue) return false;
             break;
           case '$gt':
-            if (typeof fieldValue === 'number' && typeof expectedValue === 'number') {
+            if (
+              typeof fieldValue === 'number' &&
+              typeof expectedValue === 'number'
+            ) {
               if (fieldValue <= expectedValue) return false;
             } else if (fieldValue <= expectedValue) return false;
             break;
           case '$gte':
-            if (typeof fieldValue === 'number' && typeof expectedValue === 'number') {
+            if (
+              typeof fieldValue === 'number' &&
+              typeof expectedValue === 'number'
+            ) {
               if (fieldValue < expectedValue) return false;
             } else if (fieldValue < expectedValue) return false;
             break;
           case '$lt':
-            if (typeof fieldValue === 'number' && typeof expectedValue === 'number') {
+            if (
+              typeof fieldValue === 'number' &&
+              typeof expectedValue === 'number'
+            ) {
               if (fieldValue >= expectedValue) return false;
             } else if (fieldValue >= expectedValue) return false;
             break;
           case '$lte':
-            if (typeof fieldValue === 'number' && typeof expectedValue === 'number') {
+            if (
+              typeof fieldValue === 'number' &&
+              typeof expectedValue === 'number'
+            ) {
               if (fieldValue > expectedValue) return false;
             } else if (fieldValue > expectedValue) return false;
             break;
@@ -174,7 +184,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
  * Limits the number of documents passed to the next stage in the pipeline.
  */
 function $limit<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   count: number
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -188,7 +198,7 @@ function $limit<T extends Document = Document>(
  * the remaining documents unmodified to the pipeline
  */
 function $skip<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   count: number
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -201,7 +211,7 @@ function $skip<T extends Document = Document>(
  * Reorders the document stream by a specified sort key.
  */
 function $sort<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   sortSpec: SortStage['$sort']
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -242,7 +252,7 @@ function $sort<T extends Document = Document>(
  * for each element. Each output document replaces the array with an element value.
  */
 function $unwind<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   fieldPath: string
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -274,7 +284,7 @@ function $unwind<T extends Document = Document>(
  * accumulator expression(s), if specified, to each group.
  */
 function $group<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   specifications: GroupStage['$group'] = { _id: null }
 ): Collection<T> {
   const _idSpec = specifications._id;
@@ -283,17 +293,19 @@ function $group<T extends Document = Document>(
     _idSpec ? JSON.stringify($expression(obj, _idSpec)) : null
   );
 
-  return groups.map(members => {
-    const result: any = {};
-    for (const [field, fieldSpec] of Object.entries(specifications)) {
-      if (field === '_id') {
-        result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
-      } else {
-        result[field] = $accumulate(members, fieldSpec as Expression);
+  return groups
+    .map(members => {
+      const result: any = {};
+      for (const [field, fieldSpec] of Object.entries(specifications)) {
+        if (field === '_id') {
+          result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
+        } else {
+          result[field] = $accumulate(members, fieldSpec as Expression);
+        }
       }
-    }
-    return result;
-  }).value() as Collection<T>;
+      return result;
+    })
+    .value() as Collection<T>;
 }
 
 /**
@@ -301,7 +313,7 @@ function $group<T extends Document = Document>(
  * to filter in documents from the "joined" collection for processing.
  */
 function $lookup<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   { from, localField, foreignField, as }: LookupStage['$lookup']
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -334,7 +346,7 @@ function $lookup<T extends Document = Document>(
  * contain all existing fields from the input documents and newly added fields.
  */
 function $addFields<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   fieldSpecs: AddFieldsStage['$addFields']
 ): Collection<T> {
   if (!Array.isArray(collection)) {
@@ -357,7 +369,7 @@ const $set = $addFields;
  * to process data from a collection with a sequence of stage-based manipulations.
  */
 function aggregate<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   pipeline: Pipeline
 ): Collection<T> {
   let stages: PipelineStage[];
@@ -376,10 +388,14 @@ function aggregate<T extends Document = Document>(
       result = result.thru(data => $match(data as Collection<T>, stage.$match));
     }
     if ('$project' in stage) {
-      result = result.thru(data => $project(data as Collection<T>, stage.$project)).chain();
+      result = result
+        .thru(data => $project(data as Collection<T>, stage.$project))
+        .chain();
     }
     if ('$group' in stage) {
-      result = result.thru(data => $group(data as Collection<T>, stage.$group)).chain();
+      result = result
+        .thru(data => $group(data as Collection<T>, stage.$group))
+        .chain();
     }
     if ('$sort' in stage) {
       result = result.thru(data => $sort(data as Collection<T>, stage.$sort));
@@ -392,14 +408,19 @@ function aggregate<T extends Document = Document>(
     }
     if ('$unwind' in stage) {
       const unwindSpec = stage.$unwind;
-      const fieldPath = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+      const fieldPath =
+        typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
       result = result.thru(data => $unwind(data as Collection<T>, fieldPath));
     }
     if ('$lookup' in stage) {
-      result = result.thru(data => $lookup(data as Collection<T>, stage.$lookup));
+      result = result.thru(data =>
+        $lookup(data as Collection<T>, stage.$lookup)
+      );
     }
     if ('$addFields' in stage) {
-      result = result.thru(data => $addFields(data as Collection<T>, stage.$addFields));
+      result = result.thru(data =>
+        $addFields(data as Collection<T>, stage.$addFields)
+      );
     }
     if ('$set' in stage) {
       result = result.thru(data => $set(data as Collection<T>, stage.$set));

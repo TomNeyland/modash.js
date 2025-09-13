@@ -16,7 +16,7 @@ import {
   isFunction,
 } from 'lodash-es';
 
-import type { Document, DocumentValue } from '../index.js';
+import type { DocumentValue } from '../index.js';
 
 /**
  * Modern MongoDB Expression Operators for TypeScript
@@ -43,6 +43,7 @@ function $not(...values: EvaluatableValue[]): boolean {
 
 // Set Operators
 function $asSet(array: DocumentValue[]): DocumentValue[] {
+  if (!Array.isArray(array)) return [];
   return uniq(array.map(evaluate)).sort();
 }
 
@@ -53,19 +54,28 @@ function $setEquals(...arrays: EvaluatableValue[]): boolean {
 }
 
 function $setIntersection(...arrays: EvaluatableValue[]): DocumentValue[] {
-  return $asSet(intersection(...arrays.map(arr => evaluate(arr) as DocumentValue[])));
+  return $asSet(
+    intersection(...arrays.map(arr => evaluate(arr) as DocumentValue[]))
+  );
 }
 
 function $setUnion(...arrays: EvaluatableValue[]): DocumentValue[] {
-  return union(...arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[])));
+  return union(
+    ...arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[]))
+  );
 }
 
 function $setDifference(...arrays: EvaluatableValue[]): DocumentValue[] {
-  const evaluatedArrays = arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[]));
+  const evaluatedArrays = arrays
+    .map(evaluate)
+    .map(arr => $asSet(arr as DocumentValue[]));
   return difference(evaluatedArrays[0], ...evaluatedArrays.slice(1));
 }
 
-function $setIsSubset(subset: EvaluatableValue, superset: EvaluatableValue): boolean {
+function $setIsSubset(
+  subset: EvaluatableValue,
+  superset: EvaluatableValue
+): boolean {
   const sub = evaluate(subset) as DocumentValue[];
   const sup = evaluate(superset) as DocumentValue[];
   return isEqual($asSet(intersection(sub, sup)), $asSet(sub));
@@ -74,7 +84,7 @@ function $setIsSubset(subset: EvaluatableValue, superset: EvaluatableValue): boo
 function $anyElementTrue(values: EvaluatableValue): boolean {
   const vals = evaluate(values);
   if (!isArray(vals)) {
-    throw new Error(`values must be an array, got ${typeof vals}`);
+    return false; // Return false instead of throwing for undefined
   }
   return $or(...(vals as DocumentValue[]));
 }
@@ -82,7 +92,7 @@ function $anyElementTrue(values: EvaluatableValue): boolean {
 function $allElementsTrue(values: EvaluatableValue): boolean {
   const vals = evaluate(values);
   if (!isArray(vals)) {
-    throw new Error(`values must be an array, got ${typeof vals}`);
+    return false; // Return false instead of throwing for undefined
   }
   return $and(...(vals as DocumentValue[]));
 }
@@ -96,9 +106,15 @@ function $cmp(value1: EvaluatableValue, value2: EvaluatableValue): number {
     return 0;
   }
 
-  if (val1 == null && val2 == null) return 0;
-  if (val1 == null) return -1;
-  if (val2 == null) return 1;
+  if (val1 === null && val2 === null) {
+    return 0;
+  }
+  if (val1 === null) {
+    return -1;
+  }
+  if (val2 === null) {
+    return 1;
+  }
 
   if (val1 < val2) return -1;
   if (val1 > val2) return 1;
@@ -172,7 +188,10 @@ function $add(...values: EvaluatableValue[]): number | Date {
   return resultAsDate ? new Date(result as number) : result;
 }
 
-function $subtract(value1: EvaluatableValue, value2: EvaluatableValue): number | Date {
+function $subtract(
+  value1: EvaluatableValue,
+  value2: EvaluatableValue
+): number | Date {
   const val1 = evaluate(value1) as number | Date;
   const val2 = evaluate(value2) as number | Date;
 
@@ -187,7 +206,9 @@ function $subtract(value1: EvaluatableValue, value2: EvaluatableValue): number |
 }
 
 function $multiply(...values: EvaluatableValue[]): number {
-  return values.map(evaluate).reduce((product: number, n) => product * (n as number), 1);
+  return values
+    .map(evaluate)
+    .reduce((product: number, n) => product * (n as number), 1);
 }
 
 function $divide(value1: EvaluatableValue, value2: EvaluatableValue): number {
@@ -231,7 +252,11 @@ function $concat(...expressions: EvaluatableValue[]): string {
   return expressions.map(evaluate).join('');
 }
 
-function $substr(string: EvaluatableValue, start: EvaluatableValue, len: EvaluatableValue): string {
+function $substr(
+  string: EvaluatableValue,
+  start: EvaluatableValue,
+  len: EvaluatableValue
+): string {
   const str = evaluate(string) as string;
   const startPos = evaluate(start) as number;
   const length = evaluate(len) as number;
@@ -247,7 +272,10 @@ function $toUpper(string: EvaluatableValue): string {
 }
 
 // Additional String Operators
-function $split(string: EvaluatableValue, delimiter: EvaluatableValue): string[] {
+function $split(
+  string: EvaluatableValue,
+  delimiter: EvaluatableValue
+): string[] {
   const str = evaluate(string) as string;
   const delim = evaluate(delimiter) as string;
   return str.split(delim);
@@ -304,7 +332,7 @@ function $rtrim(string: EvaluatableValue, chars?: EvaluatableValue): string {
   return str.slice(0, end);
 }
 
-// Array Operators  
+// Array Operators
 function $size(collection: EvaluatableValue): number {
   const val = evaluate(collection);
   if (typeof val === 'string' || Array.isArray(val)) {
@@ -313,7 +341,10 @@ function $size(collection: EvaluatableValue): number {
   return 0;
 }
 
-function $arrayElemAt(array: EvaluatableValue, index: EvaluatableValue): DocumentValue {
+function $arrayElemAt(
+  array: EvaluatableValue,
+  index: EvaluatableValue
+): DocumentValue {
   const arr = evaluate(array) as DocumentValue[];
   let idx = evaluate(index) as number;
   if (!Array.isArray(arr)) return null;
@@ -326,37 +357,55 @@ function $arrayElemAt(array: EvaluatableValue, index: EvaluatableValue): Documen
   return idx >= 0 && idx < arr.length ? arr[idx]! : null;
 }
 
-function $filter(input: { input: EvaluatableValue; cond: any; as?: string }): DocumentValue[] | null {
+// Import $expression at runtime to avoid circular dependency
+function getExpressionFunction() {
+  // Use dynamic import to avoid circular dependency
+  return require('./expressions.js').$expression;
+}
+
+function $filter(input: {
+  input: EvaluatableValue;
+  cond: any;
+  as?: string;
+}): DocumentValue[] | null {
   const { input: array, cond, as = 'this' } = input;
   const evaluatedArray = evaluate(array);
 
   if (!Array.isArray(evaluatedArray)) return null;
 
-  // We need to import $expression to avoid circular dependency issues
-  // For now, we'll return the array as-is and handle filtering in the calling code
+  const $expression = getExpressionFunction();
+
   return evaluatedArray.filter(item => {
     // Create temporary context with the array element
     const tempDoc = { [as]: item };
-    // This will be properly implemented when we resolve circular dependencies
-    return true; // Placeholder
+    return $expression(tempDoc, cond);
   });
 }
 
-function $map(input: { input: EvaluatableValue; in: any; as?: string }): DocumentValue[] | null {
+function $map(input: {
+  input: EvaluatableValue;
+  in: any;
+  as?: string;
+}): DocumentValue[] | null {
   const { input: array, in: expression, as = 'this' } = input;
   const evaluatedArray = evaluate(array);
 
   if (!Array.isArray(evaluatedArray)) return null;
 
+  const $expression = getExpressionFunction();
+
   return evaluatedArray.map(item => {
-    // Create temporary context with the array element  
+    // Create temporary context with the array element
     const tempDoc = { [as]: item };
-    // This will be properly implemented when we resolve circular dependencies
-    return item; // Placeholder
+    return $expression(tempDoc, expression);
   });
 }
 
-function $slice(array: EvaluatableValue, position: EvaluatableValue, n?: EvaluatableValue): DocumentValue[] | null {
+function $slice(
+  array: EvaluatableValue,
+  position: EvaluatableValue,
+  n?: EvaluatableValue
+): DocumentValue[] | null {
   const arr = evaluate(array) as DocumentValue[];
   let pos = evaluate(position) as number;
 
@@ -365,7 +414,8 @@ function $slice(array: EvaluatableValue, position: EvaluatableValue, n?: Evaluat
   if (n === undefined) {
     // $slice: [array, n] format
     n = position;
-    pos = (evaluate(n) as number) >= 0 ? 0 : arr.length + (evaluate(n) as number);
+    pos =
+      (evaluate(n) as number) >= 0 ? 0 : arr.length + (evaluate(n) as number);
   } else {
     n = evaluate(n) as number;
   }
@@ -385,7 +435,9 @@ function $concatArrays(...arrays: EvaluatableValue[]): DocumentValue[] | null {
     if (!Array.isArray(arr)) return null;
   }
 
-  return ([] as DocumentValue[]).concat(...(evaluatedArrays as DocumentValue[][]));
+  return ([] as DocumentValue[]).concat(
+    ...(evaluatedArrays as DocumentValue[][])
+  );
 }
 
 function $in(value: EvaluatableValue, array: EvaluatableValue): boolean {
@@ -397,9 +449,9 @@ function $in(value: EvaluatableValue, array: EvaluatableValue): boolean {
 }
 
 function $indexOfArray(
-  array: EvaluatableValue, 
-  searchValue: EvaluatableValue, 
-  start?: EvaluatableValue, 
+  array: EvaluatableValue,
+  searchValue: EvaluatableValue,
+  start?: EvaluatableValue,
   end?: EvaluatableValue
 ): number | null {
   const arr = evaluate(array) as DocumentValue[];
@@ -429,7 +481,9 @@ function $avg(array: EvaluatableValue): number | null {
   const arr = evaluate(array) as DocumentValue[];
   if (!Array.isArray(arr)) return null;
 
-  const numbers = arr.filter(val => typeof val === 'number' && !isNaN(val)) as number[];
+  const numbers = arr.filter(
+    val => typeof val === 'number' && !isNaN(val)
+  ) as number[];
   if (numbers.length === 0) return null;
 
   const sum = numbers.reduce((total, val) => total + val, 0);
@@ -440,7 +494,9 @@ function $sum(array: EvaluatableValue): number | null {
   const arr = evaluate(array) as DocumentValue[];
   if (!Array.isArray(arr)) return null;
 
-  const numbers = arr.filter(val => typeof val === 'number' && !isNaN(val)) as number[];
+  const numbers = arr.filter(
+    val => typeof val === 'number' && !isNaN(val)
+  ) as number[];
   return numbers.reduce((total, val) => total + val, 0);
 }
 
@@ -448,7 +504,9 @@ function $min(array: EvaluatableValue): number | null {
   const arr = evaluate(array) as DocumentValue[];
   if (!Array.isArray(arr)) return null;
 
-  const numbers = arr.filter(val => typeof val === 'number' && !isNaN(val)) as number[];
+  const numbers = arr.filter(
+    val => typeof val === 'number' && !isNaN(val)
+  ) as number[];
   if (numbers.length === 0) return null;
 
   return Math.min(...numbers);
@@ -458,7 +516,9 @@ function $max(array: EvaluatableValue): number | null {
   const arr = evaluate(array) as DocumentValue[];
   if (!Array.isArray(arr)) return null;
 
-  const numbers = arr.filter(val => typeof val === 'number' && !isNaN(val)) as number[];
+  const numbers = arr.filter(
+    val => typeof val === 'number' && !isNaN(val)
+  ) as number[];
   if (numbers.length === 0) return null;
 
   return Math.max(...numbers);
@@ -520,11 +580,18 @@ function $millisecond(date: EvaluatableValue): number {
 }
 
 // Conditional Operators
-function $cond(isTrue: EvaluatableValue, thenValue: EvaluatableValue, elseValue: EvaluatableValue): DocumentValue {
+function $cond(
+  isTrue: EvaluatableValue,
+  thenValue: EvaluatableValue,
+  elseValue: EvaluatableValue
+): DocumentValue {
   return evaluate(isTrue) ? evaluate(thenValue) : evaluate(elseValue);
 }
 
-function $ifNull(value: EvaluatableValue, defaultValue: EvaluatableValue): DocumentValue {
+function $ifNull(
+  value: EvaluatableValue,
+  defaultValue: EvaluatableValue
+): DocumentValue {
   const val = evaluate(value);
   return val !== null ? val : evaluate(defaultValue);
 }
