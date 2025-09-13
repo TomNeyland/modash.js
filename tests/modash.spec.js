@@ -18,7 +18,7 @@ describe('Modash Module Exports', () => {
     expect(Modash.$project).to.be.a('function');
   });
 
-  it('should mix with lodash', () => {
+  it('should export all expected functions', () => {
     // Modern approach: functions are directly available on Modash
     expect(Modash.aggregate).to.be.a('function');
     expect(Modash.count).to.be.a('function');

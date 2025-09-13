@@ -1,4 +1,5 @@
-import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
+// Modern JavaScript - use our utility functions instead of lodash
+import { get as lodashGet } from './util.js';
 import { PerformanceOptimizedEngine } from './performance-optimized-engine.js';
 
 import {
@@ -76,9 +77,9 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return chain(collection)
-    .map(obj => $expressionObject(obj, specs, obj))
-    .value() as Collection<T>;
+  return collection.map(obj =>
+    $expressionObject(obj, specs, obj)
+  ) as Collection<T>;
 }
 
 /**
@@ -249,7 +250,7 @@ function $skip<T extends Document = Document>(
   if (!Array.isArray(collection)) {
     return [];
   }
-  return drop(collection, count) as Collection<T>;
+  return collection.slice(count) as Collection<T>;
 }
 
 /**
@@ -306,22 +307,28 @@ function $unwind<T extends Document = Document>(
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
 
-  return flatMap(collection, doc => {
+  const result: Document[] = [];
+
+  for (const doc of collection) {
     const arrayValue = lodashGet(doc, cleanPath);
 
-    if (!isArray(arrayValue)) {
-      return [doc]; // Return original document if field is not an array
+    if (!Array.isArray(arrayValue)) {
+      result.push(doc); // Return original document if field is not an array
+      continue;
     }
 
     if (arrayValue.length === 0) {
-      return []; // Skip documents with empty arrays
+      continue; // Skip documents with empty arrays
     }
 
-    return arrayValue.map(item => ({
+    const newDocs = arrayValue.map(item => ({
       ...doc,
       [cleanPath]: item,
     }));
-  }) as Collection<T>;
+    result.push(...newDocs);
+  }
+
+  return result as Collection<T>;
 }
 
 /**
@@ -334,23 +341,32 @@ function $group<T extends Document = Document>(
 ): Collection<T> {
   const _idSpec = specifications._id;
 
-  const groups = chain(collection).groupBy(obj =>
-    _idSpec ? JSON.stringify($expression(obj, _idSpec)) : null
-  );
+  // Group by using native JavaScript
+  const groupsMap = new Map<string, Document[]>();
 
-  return groups
-    .map(members => {
-      const result: GroupResult = {};
-      for (const [field, fieldSpec] of Object.entries(specifications)) {
-        if (field === '_id') {
-          result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
-        } else {
-          result[field] = $accumulate(members, fieldSpec as Expression);
-        }
+  for (const obj of collection) {
+    const key = _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null';
+    if (!groupsMap.has(key)) {
+      groupsMap.set(key, []);
+    }
+    groupsMap.get(key)!.push(obj);
+  }
+
+  // Process groups
+  const results: Document[] = [];
+  for (const members of groupsMap.values()) {
+    const result: GroupResult = {};
+    for (const [field, fieldSpec] of Object.entries(specifications)) {
+      if (field === '_id') {
+        result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
+      } else {
+        result[field] = $accumulate(members, fieldSpec as Expression);
       }
-      return result;
-    })
-    .value() as Collection<T>;
+    }
+    results.push(result);
+  }
+
+  return results as Collection<T>;
 }
 
 /**
@@ -423,7 +439,7 @@ function aggregate<T extends Document = Document>(
   }
 
   let stages: PipelineStage[];
-  if (!isArray(pipeline)) {
+  if (!Array.isArray(pipeline)) {
     stages = [pipeline as PipelineStage];
   } else {
     stages = pipeline;
@@ -444,7 +460,7 @@ function aggregate<T extends Document = Document>(
     }
   }
 
-  // Traditional execution using lodash chains
+  // Traditional execution using native JavaScript
   return traditionalAggregate(collection, stages);
 }
 
@@ -463,57 +479,47 @@ function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
   stages: PipelineStage[]
 ): Collection<T> {
-  let result = chain(collection);
+  let result = collection as Collection<T>;
 
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
 
     if ('$match' in stage) {
-      result = result.thru(data => $match(data as Collection<T>, stage.$match));
+      result = $match(result, stage.$match);
     }
     if ('$project' in stage) {
-      result = result
-        .thru(data => $project(data as Collection<T>, stage.$project))
-        .chain();
+      result = $project(result, stage.$project);
     }
     if ('$group' in stage) {
-      result = result
-        .thru(data => $group(data as Collection<T>, stage.$group))
-        .chain();
+      result = $group(result, stage.$group);
     }
     if ('$sort' in stage) {
-      result = result.thru(data => $sort(data as Collection<T>, stage.$sort));
+      result = $sort(result, stage.$sort);
     }
     if ('$skip' in stage) {
-      result = result.thru(data => $skip(data as Collection<T>, stage.$skip));
+      result = $skip(result, stage.$skip);
     }
     if ('$limit' in stage) {
-      result = result.thru(data => $limit(data as Collection<T>, stage.$limit));
+      result = $limit(result, stage.$limit);
     }
     if ('$unwind' in stage) {
       const unwindSpec = stage.$unwind;
       const fieldPath =
         typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
-      result = result.thru(data => $unwind(data as Collection<T>, fieldPath));
+      result = $unwind(result, fieldPath);
     }
     if ('$lookup' in stage) {
-      result = result.thru(data =>
-        $lookup(data as Collection<T>, stage.$lookup)
-      );
+      result = $lookup(result, stage.$lookup);
     }
     if ('$addFields' in stage) {
-      result = result.thru(data =>
-        $addFields(data as Collection<T>, stage.$addFields)
-      );
+      result = $addFields(result, stage.$addFields);
     }
     if ('$set' in stage) {
-      result = result.thru(data =>
-        $addFields(data as Collection<T>, stage.$set)
-      );
+      result = $addFields(result, stage.$set);
     }
   }
 
-  return result.value() as Collection<T>;
+  return result;
 }
 
 export {
