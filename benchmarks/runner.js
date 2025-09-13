@@ -2,7 +2,7 @@
  * Benchmark runner for modash.js performance testing
  */
 
-import Modash from '../src/modash/index.js';
+import Modash from '../src/modash/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES, DATA_SIZES } from './setup.js';
 
 /**
