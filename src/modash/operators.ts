@@ -283,13 +283,13 @@ function $split(
 
 function $strLen(string: EvaluatableValue): number {
   const str = evaluate(string);
-  return str != null ? (str as string).length : 0;
+  return str !== null ? (str as string).length : 0;
 }
 
 function $trim(string: EvaluatableValue, chars?: EvaluatableValue): string {
   const str = evaluate(string) as string;
   if (!str) return '';
-  
+
   const c = chars !== undefined ? (evaluate(chars) as string) : ' ';
 
   if (c === ' ') {

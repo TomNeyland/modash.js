@@ -168,11 +168,14 @@ function $expressionObject(
       } else if (typeof expression === 'string') {
         // Assume a pathspec, use root as the target
         target = root;
-      } else if (typeof expression === 'object' && !isExpressionOperator(expression)) {
+      } else if (
+        typeof expression === 'object' &&
+        !isExpressionOperator(expression)
+      ) {
         // Check if this is a nested projection (field projection) or computed object (expression object)
         const fieldValue = get(obj, path);
         const isFieldProjection = fieldValue && typeof fieldValue === 'object';
-        
+
         if (isFieldProjection) {
           // This is a nested projection object - apply to the field's value
           if (isArray(fieldValue)) {
@@ -182,21 +185,35 @@ function $expressionObject(
               set(
                 {},
                 path,
-                fieldValue.map(item => $expressionObject(item, expression as { [key: string]: Expression }, root))
+                fieldValue.map(item =>
+                  $expressionObject(
+                    item,
+                    expression as { [key: string]: Expression },
+                    root
+                  )
+                )
               )
             );
           } else {
             // Apply projection to the object
             merge(
               result,
-              set({}, path, $expressionObject(fieldValue as Document, expression as { [key: string]: Expression }, root))
+              set(
+                {},
+                path,
+                $expressionObject(
+                  fieldValue as Document,
+                  expression as { [key: string]: Expression },
+                  root
+                )
+              )
             );
           }
         } else {
           // This is a computed object - each property is an expression
           target = obj;
         }
-        
+
         if (isFieldProjection) {
           continue;
         }
