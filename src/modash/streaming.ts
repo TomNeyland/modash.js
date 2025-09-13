@@ -384,10 +384,7 @@ export class StreamingCollection<
       const executionPlan = this.ivmEngine.compilePipeline(pipeline);
 
       // Check if pipeline can be handled incrementally
-      if (
-        !executionPlan.canIncrement ||
-        !executionPlan.canDecrement
-      ) {
+      if (!executionPlan.canIncrement || !executionPlan.canDecrement) {
         console.warn(
           'Pipeline contains unsupported operations for IVM, falling back to standard aggregation'
         );

@@ -937,12 +937,139 @@ export class IVMOperatorFactoryImpl implements IVMOperatorFactory {
   }
 
   createUnwindOperator(path: string, options?: any): IVMOperator {
-    // For now, return a stub that forces fallback to standard aggregation
     return new UnwindOperator(path, options);
   }
 
   createLookupOperator(expr: any): IVMOperator {
-    // For now, return a stub that forces fallback to standard aggregation
     return new LookupOperator(expr);
+  }
+
+  createTopKOperator(expr: any): IVMOperator {
+    // Top-K optimization combining sort + limit
+    return new TopKOperator(expr);
+  }
+}
+
+/**
+ * $topK operator for efficient top-k operations (sort + limit fusion)
+ */
+export class TopKOperator implements IVMOperator {
+  readonly type = '$topK';
+  readonly canIncrement = true;
+  readonly canDecrement = true;
+
+  private sortKeys: Array<{ field: string; direction: 1 | -1 }> = [];
+  private limit: number;
+  private results: Array<{ doc: Document; rowId: RowId }> = [];
+
+  constructor(private expr: any) {
+    // Parse sort expression
+    const sortExpr = expr.sort || {};
+    for (const [field, direction] of Object.entries(sortExpr)) {
+      this.sortKeys.push({
+        field,
+        direction: direction === -1 ? -1 : 1,
+      });
+    }
+
+    this.limit = expr.limit || 10;
+  }
+
+  onAdd(
+    _delta: Delta,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Delta[] {
+    if (_delta.sign !== 1) return [];
+
+    const doc = _store.documents[_delta.rowId];
+    if (!doc) return [];
+
+    // Insert into sorted results maintaining top-k
+    const newItem = { doc, rowId: _delta.rowId };
+
+    if (this.results.length < this.limit) {
+      this.results.push(newItem);
+      this.results.sort((a, b) => this.compareDocuments(a.doc, b.doc));
+    } else {
+      // Check if this item should replace the worst item
+      const comparison = this.compareDocuments(
+        doc,
+        this.results[this.results.length - 1].doc
+      );
+      if (comparison < 0) {
+        this.results[this.results.length - 1] = newItem;
+        this.results.sort((a, b) => this.compareDocuments(a.doc, b.doc));
+      }
+    }
+
+    return [_delta];
+  }
+
+  onRemove(
+    _delta: Delta,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Delta[] {
+    if (_delta.sign !== -1) return [];
+
+    // Remove from results if present
+    const index = this.results.findIndex(item => item.rowId === _delta.rowId);
+    if (index >= 0) {
+      this.results.splice(index, 1);
+      return [_delta];
+    }
+
+    return [];
+  }
+
+  snapshot(
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Collection<Document> {
+    return this.results.map(item => item.doc);
+  }
+
+  estimateComplexity(): string {
+    return 'O(k log k)'; // Where k is the limit
+  }
+
+  getInputFields(): string[] {
+    return this.sortKeys.map(key => key.field);
+  }
+
+  getOutputFields(): string[] {
+    return []; // TopK doesn't add fields
+  }
+
+  private compareDocuments(a: Document, b: Document): number {
+    for (const sortKey of this.sortKeys) {
+      const aVal = this.getFieldValue(a, sortKey.field);
+      const bVal = this.getFieldValue(b, sortKey.field);
+
+      let comparison = 0;
+      if (aVal < bVal) comparison = -1;
+      else if (aVal > bVal) comparison = 1;
+
+      if (comparison !== 0) {
+        return comparison * sortKey.direction;
+      }
+    }
+    return 0;
+  }
+
+  private getFieldValue(doc: Document, fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let value = doc;
+
+    for (const part of parts) {
+      if (value && typeof value === 'object') {
+        value = (value as any)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return value;
   }
 }

@@ -173,7 +173,7 @@ export interface ExecutionPlan {
   // Optimization hints
   optimizations: {
     hasSort: boolean;
-    hasSortLimit: boolean; // Sort followed by limit (top-k optimization)  
+    hasSortLimit: boolean; // Sort followed by limit (top-k optimization)
     hasGroupBy: boolean;
     canUseTopK: boolean;
     canVectorize: boolean;
