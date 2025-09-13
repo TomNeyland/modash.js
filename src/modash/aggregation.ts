@@ -1,4 +1,6 @@
-import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
+import { isArray, drop, flatMap } from 'lodash-es';
+import { FastOperations } from './fast-operations.js';
+import { FastPathAccess } from './fast-path-access.js';
 
 import {
   $expressionObject,
@@ -72,9 +74,7 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return chain(collection)
-    .map(obj => $expressionObject(obj, specs, obj))
-    .value() as Collection<T>;
+  return FastOperations.map(collection, obj => $expressionObject(obj, specs, obj)) as Collection<T>;
 }
 
 /**
@@ -88,7 +88,7 @@ function $match<T extends Document = Document>(
   if (!Array.isArray(collection)) {
     return [];
   }
-  return collection.filter(item => matchDocument(item, query));
+  return FastOperations.filter(collection, item => matchDocument(item, query));
 }
 
 /**
@@ -97,7 +97,7 @@ function $match<T extends Document = Document>(
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
-    const fieldValue = lodashGet(doc, field);
+    const fieldValue = FastPathAccess.get(doc, field);
 
     // Handle logical operators
     if (field === '$and') {
@@ -263,8 +263,8 @@ function $sort<T extends Document = Document>(
   return [...collection].sort((a, b) => {
     for (const key of sortKeys) {
       const direction = sortSpec[key]!; // 1 for asc, -1 for desc
-      const valueA = lodashGet(a, key);
-      const valueB = lodashGet(b, key);
+      const valueA = FastPathAccess.get(a, key);
+      const valueB = FastPathAccess.get(b, key);
 
       // Handle null/undefined values (MongoDB behavior: null < any value)
       if (
@@ -302,8 +302,8 @@ function $unwind<T extends Document = Document>(
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
 
-  return flatMap(collection, doc => {
-    const arrayValue = lodashGet(doc, cleanPath);
+  return FastOperations.flatMap(collection, doc => {
+    const arrayValue = FastPathAccess.get(doc, cleanPath);
 
     if (!isArray(arrayValue)) {
       return [doc]; // Return original document if field is not an array
@@ -330,23 +330,24 @@ function $group<T extends Document = Document>(
 ): Collection<T> {
   const _idSpec = specifications._id;
 
-  const groups = chain(collection).groupBy(obj =>
-    _idSpec ? JSON.stringify($expression(obj, _idSpec)) : null
+  const groups = FastOperations.groupBy(collection, obj =>
+    _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null'
   );
 
-  return groups
-    .map(members => {
-      const result: GroupResult = {};
-      for (const [field, fieldSpec] of Object.entries(specifications)) {
-        if (field === '_id') {
-          result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
-        } else {
-          result[field] = $accumulate(members, fieldSpec as Expression);
-        }
+  const results: T[] = [];
+  for (const [groupKey, members] of groups) {
+    const result: GroupResult = {};
+    for (const [field, fieldSpec] of Object.entries(specifications)) {
+      if (field === '_id') {
+        result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
+      } else {
+        result[field] = $accumulate(members, fieldSpec as Expression);
       }
-      return result;
-    })
-    .value() as Collection<T>;
+    }
+    results.push(result as T);
+  }
+  
+  return results as Collection<T>;
 }
 
 /**
@@ -370,9 +371,9 @@ function $lookup<T extends Document = Document>(
   }
 
   return collection.map(doc => {
-    const localValue = lodashGet(doc, localField);
+    const localValue = FastPathAccess.get(doc, localField);
     const matches = from.filter(
-      foreignDoc => lodashGet(foreignDoc, foreignField) === localValue
+      foreignDoc => FastPathAccess.get(foreignDoc, foreignField) === localValue
     );
 
     return {
@@ -420,57 +421,47 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
-  let result = chain(collection);
+  let result = collection;
 
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
 
     if ('$match' in stage) {
-      result = result.thru(data => $match(data as Collection<T>, stage.$match));
+      result = $match(result, stage.$match);
     }
     if ('$project' in stage) {
-      result = result
-        .thru(data => $project(data as Collection<T>, stage.$project))
-        .chain();
+      result = $project(result, stage.$project);
     }
     if ('$group' in stage) {
-      result = result
-        .thru(data => $group(data as Collection<T>, stage.$group))
-        .chain();
+      result = $group(result, stage.$group);
     }
     if ('$sort' in stage) {
-      result = result.thru(data => $sort(data as Collection<T>, stage.$sort));
+      result = $sort(result, stage.$sort);
     }
     if ('$skip' in stage) {
-      result = result.thru(data => $skip(data as Collection<T>, stage.$skip));
+      result = $skip(result, stage.$skip);
     }
     if ('$limit' in stage) {
-      result = result.thru(data => $limit(data as Collection<T>, stage.$limit));
+      result = $limit(result, stage.$limit);
     }
     if ('$unwind' in stage) {
       const unwindSpec = stage.$unwind;
       const fieldPath =
         typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
-      result = result.thru(data => $unwind(data as Collection<T>, fieldPath));
+      result = $unwind(result, fieldPath);
     }
     if ('$lookup' in stage) {
-      result = result.thru(data =>
-        $lookup(data as Collection<T>, stage.$lookup)
-      );
+      result = $lookup(result, stage.$lookup);
     }
     if ('$addFields' in stage) {
-      result = result.thru(data =>
-        $addFields(data as Collection<T>, stage.$addFields)
-      );
+      result = $addFields(result, stage.$addFields);
     }
     if ('$set' in stage) {
-      result = result.thru(data =>
-        $addFields(data as Collection<T>, stage.$set)
-      );
+      result = $addFields(result, stage.$set);
     }
   }
 
-  return result.value() as Collection<T>;
+  return result;
 }
 
 export {
