@@ -96,6 +96,10 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     // Ensure required dimensions exist
     this.ensureDimensions(plan.primaryDimensions);
 
+    // CRITICAL: Process existing documents through new operators
+    // This initializes operator state (like groups) for documents already in the store
+    this.initializeOperatorsWithExistingData(operators, plan);
+
     return plan;
   }
 
@@ -340,6 +344,22 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       if (currentDeltas.length === 0) {
         break;
       }
+    }
+  }
+
+  /**
+   * Initialize operators with existing documents in the store
+   * This is critical for building operator state (like groups) when pipelines are compiled
+   * after documents have already been added to the store
+   */
+  private initializeOperatorsWithExistingData(
+    operators: IVMOperator[],
+    plan: ExecutionPlan
+  ): void {
+    // Process all existing documents through the new operators
+    for (const rowId of this.store.liveSet) {
+      const delta: Delta = { rowId, sign: 1 };
+      this.processDeltaThroughPipeline(delta, operators, plan);
     }
   }
 

@@ -145,6 +145,9 @@ export class GroupOperator implements IVMOperator {
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, delta.rowId);
     
+    // Serialize group key for consistent Map indexing
+    const groupKeyStr = JSON.stringify(groupKey);
+    
     // Ensure dimension exists
     this.ensureDimension(store);
     
@@ -159,10 +162,10 @@ export class GroupOperator implements IVMOperator {
       store.groups.set(this.groupsKey, groupsMap);
     }
     
-    let groupState = groupsMap.get(groupKey);
+    let groupState = groupsMap.get(groupKeyStr);
     if (!groupState) {
-      groupState = new GroupStateImpl(groupKey);
-      groupsMap.set(groupKey, groupState);
+      groupState = new GroupStateImpl(groupKey); // Store original key for result
+      groupsMap.set(groupKeyStr, groupState); // Use serialized key for indexing
     }
     
     // Add document to group
@@ -186,6 +189,7 @@ export class GroupOperator implements IVMOperator {
     
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, delta.rowId);
+    const groupKeyStr = JSON.stringify(groupKey);
     
     // Update dimension
     const dimension = store.dimensions.get(this.dimensionKey);
@@ -196,7 +200,7 @@ export class GroupOperator implements IVMOperator {
     // Update group state
     const groupsMap = store.groups.get(this.groupsKey);
     if (groupsMap) {
-      const groupState = groupsMap.get(groupKey);
+      const groupState = groupsMap.get(groupKeyStr);
       if (groupState) {
         const accumulators: any = {};
         for (const [field, expr] of Object.entries(this.groupExpr)) {
@@ -209,7 +213,7 @@ export class GroupOperator implements IVMOperator {
         
         // If group becomes empty, remove it
         if (wasRemoved && groupState.count === 0) {
-          groupsMap.delete(groupKey);
+          groupsMap.delete(groupKeyStr);
         }
       }
     }

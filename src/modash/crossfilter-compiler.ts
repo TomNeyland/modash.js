@@ -312,6 +312,49 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         }
         return value;
       }
+      
+      function evalExpr(expr, doc) {
+        // Fallback expression evaluator for complex expressions
+        if (typeof expr === 'string' && expr.startsWith('$')) {
+          return getField(doc, expr.substring(1));
+        } else if (typeof expr === 'object' && expr !== null) {
+          // For complex expressions, we'll implement basic operators
+          if (expr.$year) {
+            const dateField = expr.$year;
+            const dateValue = getField(doc, dateField.substring(1));
+            if (dateValue && dateValue instanceof Date) {
+              return dateValue.getFullYear();
+            }
+            return null;
+          }
+          if (expr.$month) {
+            const dateField = expr.$month;
+            const dateValue = getField(doc, dateField.substring(1));
+            if (dateValue && dateValue instanceof Date) {
+              return dateValue.getMonth() + 1; // MongoDB months are 1-based
+            }
+            return null;
+          }
+          if (expr.$dayOfMonth) {
+            const dateField = expr.$dayOfMonth;
+            const dateValue = getField(doc, dateField.substring(1));
+            if (dateValue && dateValue instanceof Date) {
+              return dateValue.getDate();
+            }
+            return null;
+          }
+          if (expr.$multiply && Array.isArray(expr.$multiply)) {
+            const [left, right] = expr.$multiply;
+            const leftVal = evalExpr(left, doc);
+            const rightVal = evalExpr(right, doc);
+            return (leftVal || 0) * (rightVal || 0);
+          }
+          // Add other operators as needed
+          return expr;
+        } else {
+          return expr;
+        }
+      }
     `;
   }
 
@@ -364,12 +407,37 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private generateExpressionCode(expr: any): string {
     if (typeof expr === 'string' && expr.startsWith('$')) {
       return this.generateFieldAccess(expr.substring(1));
+    } else if (Array.isArray(expr)) {
+      // Array expression
+      const elements = expr.map(item => this.generateExpressionCode(item));
+      return `[${elements.join(', ')}]`;
     } else if (typeof expr === 'object' && expr !== null) {
-      // Complex expression - for now, fall back to runtime evaluation
-      return `evalExpr(${JSON.stringify(expr)}, doc)`;
+      // Check if it's a plain object (like {day: ..., month: ..., year: ...})
+      if (this.isPlainObject(expr)) {
+        // Generate code to create an object with each field evaluated
+        const fields = Object.entries(expr)
+          .map(([key, value]) => `"${key}": ${this.generateExpressionCode(value)}`)
+          .join(', ');
+        return `{${fields}}`;
+      } else {
+        // Complex expression with operators - fall back to runtime evaluation
+        return `evalExpr(${JSON.stringify(expr)}, doc)`;
+      }
     } else {
       return JSON.stringify(expr);
     }
+  }
+
+  private isPlainObject(obj: any): boolean {
+    // Check if object contains only string keys and no MongoDB operators
+    if (typeof obj !== 'object' || obj === null) return false;
+    
+    for (const key of Object.keys(obj)) {
+      if (key.startsWith('$')) {
+        return false; // Contains MongoDB operator, not a plain object
+      }
+    }
+    return true;
   }
 
   // Fallback evaluation methods for when JIT compilation fails
