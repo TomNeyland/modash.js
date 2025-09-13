@@ -604,9 +604,210 @@ export class PerformanceOptimizedEngine {
   }
 
   private executeTraditional<T extends Document>(collection: Collection<T>, pipeline: Pipeline): Collection<T> {
-    // Simplified fallback - just return the original collection for now
-    // In a real implementation, this would use a traditional execution path
-    return collection;
+    // Traditional sequential execution of pipeline stages
+    let result: Collection<T> = collection;
+    
+    for (const stage of pipeline) {
+      if ('$match' in stage) {
+        result = this.executeMatch(result, stage.$match);
+      } else if ('$project' in stage) {
+        result = this.executeProject(result, stage.$project);
+      } else if ('$group' in stage) {
+        result = this.executeGroup(result, stage.$group);
+      } else if ('$sort' in stage) {
+        result = this.executeSort(result, stage.$sort);
+      } else if ('$limit' in stage) {
+        result = this.executeLimit(result, stage.$limit);
+      } else if ('$skip' in stage) {
+        result = this.executeSkip(result, stage.$skip);
+      } else if ('$unwind' in stage) {
+        result = this.executeUnwind(result, stage.$unwind);
+      } else if ('$addFields' in stage) {
+        result = this.executeAddFields(result, stage.$addFields);
+      } else if ('$set' in stage) {
+        result = this.executeAddFields(result, stage.$set);
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Traditional stage execution methods for fallback
+   */
+  private executeMatch<T extends Document>(collection: Collection<T>, matchSpec: any): Collection<T> {
+    return collection.filter(doc => this.matchesQuery(doc, matchSpec)) as Collection<T>;
+  }
+
+  private executeProject<T extends Document>(collection: Collection<T>, projectSpec: any): Collection<T> {
+    return collection.map(doc => this.applyProjection(doc, projectSpec)) as Collection<T>;
+  }
+
+  private executeGroup<T extends Document>(collection: Collection<T>, groupSpec: any): Collection<T> {
+    const groups = new Map<string, any>();
+    const { _id: groupKey, ...aggregations } = groupSpec;
+    const accumulators = this.createAccumulators(aggregations);
+
+    for (const doc of collection) {
+      const key = this.evaluateExpression(doc, groupKey);
+      const keyStr = typeof key === 'object' ? JSON.stringify(key) : String(key);
+
+      if (!groups.has(keyStr)) {
+        groups.set(keyStr, {
+          _id: key,
+          ...Object.fromEntries(
+            Object.keys(aggregations).map(field => [field, accumulators[field].init()])
+          )
+        });
+      }
+
+      const group = groups.get(keyStr)!;
+      for (const [field, accumulator] of Object.entries(accumulators)) {
+        const operationSpec = aggregations[field];
+        let value: any;
+        
+        if (typeof operationSpec === 'object' && operationSpec !== null) {
+          const opType = Object.keys(operationSpec)[0];
+          const operand = operationSpec[opType];
+          value = this.evaluateExpression(doc, operand);
+        } else {
+          value = this.evaluateExpression(doc, operationSpec);
+        }
+        
+        group[field] = accumulator.update(group[field], value);
+      }
+    }
+
+    return Array.from(groups.values()).map(group => {
+      const result = { ...group };
+      for (const [field, accumulator] of Object.entries(accumulators)) {
+        result[field] = accumulator.finalize(result[field]);
+      }
+      return result;
+    }) as Collection<T>;
+  }
+
+  private executeSort<T extends Document>(collection: Collection<T>, sortSpec: any): Collection<T> {
+    return [...collection].sort(this.createComparer(sortSpec)) as Collection<T>;
+  }
+
+  private executeLimit<T extends Document>(collection: Collection<T>, limit: number): Collection<T> {
+    return collection.slice(0, limit) as Collection<T>;
+  }
+
+  private executeSkip<T extends Document>(collection: Collection<T>, skip: number): Collection<T> {
+    return collection.slice(skip) as Collection<T>;
+  }
+
+  private executeUnwind<T extends Document>(collection: Collection<T>, unwindSpec: any): Collection<T> {
+    const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+    const field = path.startsWith('$') ? path.slice(1) : path;
+    const result: T[] = [];
+
+    for (const doc of collection) {
+      const arrayValue = this.getNestedValue(doc, field);
+      
+      if (Array.isArray(arrayValue)) {
+        for (const item of arrayValue) {
+          const newDoc = { ...doc };
+          this.setNestedValue(newDoc, field, item);
+          result.push(newDoc);
+        }
+      } else if (arrayValue != null) {
+        // Non-array values are treated as single-element arrays
+        result.push(doc);
+      }
+      // Documents without the field or with null/undefined are omitted
+    }
+
+    return result as Collection<T>;
+  }
+
+  private executeAddFields<T extends Document>(collection: Collection<T>, fieldsSpec: any): Collection<T> {
+    return collection.map(doc => {
+      const newFields: Record<string, any> = {};
+      for (const [fieldName, expression] of Object.entries(fieldsSpec)) {
+        newFields[fieldName] = this.evaluateExpression(doc, expression);
+      }
+      return { ...doc, ...newFields };
+    }) as Collection<T>;
+  }
+
+  private matchesQuery(doc: Document, query: any): boolean {
+    for (const [field, condition] of Object.entries(query)) {
+      if (field === '$and') {
+        if (!Array.isArray(condition) || !condition.every(subQuery => this.matchesQuery(doc, subQuery))) {
+          return false;
+        }
+      } else if (field === '$or') {
+        if (!Array.isArray(condition) || !condition.some(subQuery => this.matchesQuery(doc, subQuery))) {
+          return false;
+        }
+      } else if (field === '$nor') {
+        if (Array.isArray(condition) && condition.some(subQuery => this.matchesQuery(doc, subQuery))) {
+          return false;
+        }
+      } else {
+        const value = this.getNestedValue(doc, field);
+        if (!this.matchesCondition(value, condition)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private matchesCondition(value: any, condition: any): boolean {
+    if (typeof condition !== 'object' || condition === null) {
+      return value === condition;
+    }
+
+    for (const [operator, operand] of Object.entries(condition)) {
+      switch (operator) {
+        case '$eq':
+          if (value !== operand) return false;
+          break;
+        case '$ne':
+          if (value === operand) return false;
+          break;
+        case '$gt':
+          if (value <= operand) return false;
+          break;
+        case '$gte':
+          if (value < operand) return false;
+          break;
+        case '$lt':
+          if (value >= operand) return false;
+          break;
+        case '$lte':
+          if (value > operand) return false;
+          break;
+        case '$in':
+          if (!Array.isArray(operand) || !operand.includes(value)) return false;
+          break;
+        case '$nin':
+          if (!Array.isArray(operand) || operand.includes(value)) return false;
+          break;
+        default:
+          return false;
+      }
+    }
+    return true;
+  }
+
+  private setNestedValue(obj: any, path: string, value: any): void {
+    const keys = path.split('.');
+    let current = obj;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (!(key in current) || typeof current[key] !== 'object') {
+        current[key] = {};
+      }
+      current = current[key];
+    }
+    
+    current[keys[keys.length - 1]] = value;
   }
 
   private recordMetric(operation: string, duration: number): void {
