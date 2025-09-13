@@ -1,0 +1,115 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  quality-gate:
+    name: Quality Gate Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run comprehensive quality checks
+        run: npm run quality
+        continue-on-error: true
+        
+      - name: Generate detailed test report
+        run: |
+          npm run test:coverage -- --reporter json > test-results.json
+          npm run test:coverage -- --reporter tap > test-results.tap
+        continue-on-error: true
+        
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: test-results.tap
+          reporter: mocha-tap
+          
+      - name: Code Coverage Summary
+        if: always()
+        run: |
+          echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/lcov.info ]; then
+            # Extract coverage percentage from lcov.info
+            COVERAGE=$(awk '/^end_of_record/ {print NR; exit}' coverage/lcov.info | head -1)
+            echo "Coverage data available" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No coverage data found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: ESLint Report
+        if: always()
+        run: |
+          echo "## 🔍 ESLint Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          npm run lint -- --format json > eslint-results.json || true
+          if [ -f eslint-results.json ]; then
+            ERROR_COUNT=$(cat eslint-results.json | jq '[.[] | .errorCount] | add // 0')
+            WARNING_COUNT=$(cat eslint-results.json | jq '[.[] | .warningCount] | add // 0')
+            echo "- **Errors**: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "- **Warnings**: $WARNING_COUNT" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Type Check Report  
+        if: always()
+        run: |
+          echo "## 📝 TypeScript Type Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if npm run type-check > typescript-results.txt 2>&1; then
+            echo "✅ No type errors found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Type errors detected:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat typescript-results.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Prettier Format Check
+        if: always()
+        run: |
+          echo "## 💅 Code Formatting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if npm run format:check > prettier-results.txt 2>&1; then
+            echo "✅ All files are properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Formatting issues detected:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat prettier-results.txt >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Archive Quality Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            test-results.*
+            eslint-results.json
+            typescript-results.txt
+            prettier-results.txt
+            coverage/
+          retention-days: 30

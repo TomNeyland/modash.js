@@ -1,0 +1,22 @@
+{
+  "reporter": ["text", "lcov", "html", "json"],
+  "exclude": [
+    "node_modules/**",
+    "tests/**",
+    "examples/**",
+    "coverage/**",
+    "dist/**",
+    "docs/**",
+    "scripts/**",
+    "gulp/**"
+  ],
+  "include": ["src/**/*.js"],
+  "check-coverage": true,
+  "lines": 80,
+  "functions": 80,
+  "branches": 70,
+  "statements": 80,
+  "all": true,
+  "cache": false,
+  "clean": true
+}
