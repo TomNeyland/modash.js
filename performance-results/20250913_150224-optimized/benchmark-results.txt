@@ -1,0 +1,55 @@
+🚀 Starting modash.js Performance Benchmarks
+
+📊 Testing with small dataset (100 documents):
+   Generated 100 documents
+   simpleFilter: 0.09ms avg (0.03-0.62ms)
+   groupAndAggregate: 0.95ms avg (0.6-2.12ms)
+   complexPipeline: 3.87ms avg (2.71-7.13ms)
+
+📊 Testing with medium dataset (1000 documents):
+   Generated 1000 documents
+   simpleFilter: 0.46ms avg (0.06-3.99ms)
+   groupAndAggregate: 1.19ms avg (0.01-11.64ms)
+   complexPipeline: 1.47ms avg (0.01-14.58ms)
+
+📊 Testing with large dataset (10000 documents):
+   Generated 10000 documents
+   simpleFilter: 2.09ms avg (0.02-6.18ms)
+   groupAndAggregate: 10.08ms avg (0.01-30.16ms)
+   complexPipeline: 21.16ms avg (0.02-63.41ms)
+
+💾 Memory Usage Analysis:
+Initial memory: 38MB heap
+
+small (100 documents):
+  Data generation: +0MB
+  Pipeline execution: +1MB
+  Result size: 10 documents
+
+medium (1000 documents):
+  Data generation: +1MB
+  Pipeline execution: +4MB
+  Result size: 10 documents
+
+large (10000 documents):
+  Data generation: -5MB
+  Pipeline execution: +11MB
+  Result size: 10 documents
+
+📈 Performance Summary:
+==================================================
+
+SMALL Dataset:
+  simpleFilter        : 0.09ms
+  groupAndAggregate   : 0.95ms
+  complexPipeline     : 3.87ms
+
+MEDIUM Dataset:
+  simpleFilter        : 0.46ms
+  groupAndAggregate   : 1.19ms
+  complexPipeline     : 1.47ms
+
+LARGE Dataset:
+  simpleFilter        : 2.09ms
+  groupAndAggregate   : 10.08ms
+  complexPipeline     : 21.16ms

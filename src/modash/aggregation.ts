@@ -1,5 +1,7 @@
 import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
 import { PerformanceOptimizedEngine } from './performance-optimized-engine.js';
+import { EnhancedAggregationEngine } from './enhanced-aggregation-engine.js';
+import { FastPropertyAccess } from './path-cache.js';
 
 import {
   $expressionObject,
@@ -22,8 +24,9 @@ import type {
   AddFieldsStage,
 } from '../index.js';
 
-// Create a singleton optimized engine instance
+// Create singleton engine instances
 const optimizedEngine = new PerformanceOptimizedEngine();
+const enhancedEngine = new EnhancedAggregationEngine();
 
 // Match-related type definitions
 // Comparison operators for $match
@@ -101,7 +104,8 @@ function $match<T extends Document = Document>(
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
-    const fieldValue = lodashGet(doc, field);
+    // Use optimized property access
+    const fieldValue = FastPropertyAccess.get(doc, field);
 
     // Handle logical operators
     if (field === '$and') {
@@ -429,7 +433,17 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
-  // Try optimized execution for larger collections with compatible stages
+  // Use enhanced engine for advanced optimizations on very large datasets
+  if (collection.length > 50000) {
+    try {
+      return enhancedEngine.aggregateSync(collection, stages);
+    } catch (error) {
+      console.warn('Enhanced execution failed, falling back to optimized:', error);
+      // Fall through to optimized engine
+    }
+  }
+
+  // Try optimized execution for medium collections with compatible stages
   const shouldOptimize = collection.length > 100 && isOptimizable(stages);
 
   if (shouldOptimize) {
