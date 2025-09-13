@@ -471,7 +471,7 @@ export class StreamingCollection<
         // Create deltas for the row changes
         const deltas: Delta[] = rowIds.map(rowId => ({
           rowId,
-          sign: operation === 'add' ? 1 : -1,
+          sign: _operation === 'add' ? 1 : -1,
         }));
 
         // Apply deltas through IVM engine
