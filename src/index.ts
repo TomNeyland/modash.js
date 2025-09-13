@@ -1,3 +1,6 @@
+// Import streaming types for interface
+import type { StreamingCollection } from './modash/streaming.js';
+
 /**
  * TypeScript type definitions for modash.js
  * Modern MongoDB-inspired aggregation library for TypeScript
@@ -252,12 +255,13 @@ export type Pipeline = PipelineStage[];
 export interface ModashStatic {
   /**
    * Performs aggregation operation using the aggregation pipeline.
-   * @param collection - Array of documents to process
+   * Now supports both regular arrays and streaming collections transparently.
+   * @param collection - Array of documents or StreamingCollection to process
    * @param pipeline - Array of pipeline stages
    * @returns Processed array of documents
    */
   aggregate<T extends Document = Document>(
-    collection: Collection<T>,
+    collection: Collection<T> | StreamingCollection<T>,
     pipeline: Pipeline
   ): Collection<T>;
 

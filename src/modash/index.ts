@@ -1,5 +1,5 @@
 import {
-  aggregate,
+  aggregate as originalAggregate,
   $project,
   $group,
   $match,
@@ -14,7 +14,7 @@ import {
 } from './aggregation.js';
 import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
-import { createStreamingCollection, aggregateStreaming } from './streaming.js';
+import { createStreamingCollection, aggregateStreaming, StreamingCollection } from './streaming.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -31,13 +31,27 @@ import type {
 } from '../index.js';
 
 /**
+ * Transparent aggregation function that automatically handles both
+ * regular arrays and streaming collections
+ */
+const transparentAggregate = <T extends Document = Document>(
+  collection: Collection<T> | StreamingCollection<T>,
+  pipeline: Pipeline
+): Collection<Document> => {
+  return aggregateStreaming(collection, pipeline);
+};
+
+/**
  * Modern MongoDB-inspired aggregation library for TypeScript.
  *
  * Provides a clean, elegant API for processing JavaScript arrays using
  * MongoDB aggregation pipeline syntax and operators.
+ * 
+ * Now includes transparent streaming support - all aggregations automatically
+ * work with both regular arrays and streaming collections.
  */
 const Modash: ModashStatic = {
-  aggregate,
+  aggregate: transparentAggregate,
   count,
   $expression,
   $group,
@@ -50,14 +64,16 @@ const Modash: ModashStatic = {
   $lookup,
   $addFields,
   $set,
-  // Streaming methods
+  // Streaming methods for advanced users
   createStreamingCollection,
   aggregateStreaming,
 };
 
 export default Modash;
 export {
-  aggregate,
+  // Export the original aggregate for backwards compatibility if needed
+  originalAggregate as aggregateOriginal,
+  transparentAggregate as aggregate,
   count,
   $expression,
   $group,
