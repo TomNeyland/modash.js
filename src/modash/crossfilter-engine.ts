@@ -120,6 +120,10 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           );
           break;
 
+        case '$topK':
+          operator = this.operatorFactory.createTopKOperator(stage.stageData);
+          break;
+
         default:
           throw new Error(`Unsupported stage type: ${stage.type}`);
       }
