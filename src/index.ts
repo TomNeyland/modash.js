@@ -19,6 +19,27 @@ export type {
   QueryExpression,
 } from './modash/aggregation.js';
 
+// Re-export error classes for better error handling
+export {
+  ModashError,
+  AggregationError,
+  ExpressionError,
+  OperatorError,
+  ValidationError,
+} from './modash/errors.js';
+
+// Re-export advanced type utilities
+export type {
+  BrandedFieldPath,
+  BrandedSystemVariable,
+  Prettify,
+  DeepReadonly,
+  KeysOfType,
+  MakeOptional,
+  MakeRequired,
+  NonEmptyArray,
+} from './modash/types.js';
+
 // Expression type - used in $project, $addFields, etc.
 export type Expression =
   | DocumentValue
@@ -30,6 +51,7 @@ export type Expression =
   | ComparisonExpression
   | BooleanExpression
   | ConditionalExpression
+  | LiteralExpression
   | DateExpression
   | AccumulatorExpression
   | { [key: string]: Expression };
@@ -114,6 +136,11 @@ export interface ConditionalExpression {
         else: Expression;
       };
   $ifNull?: [Expression, Expression];
+}
+
+// Literal expressions
+export interface LiteralExpression {
+  $literal?: DocumentValue;
 }
 
 // Date expressions

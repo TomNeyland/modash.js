@@ -12,20 +12,21 @@ import {
 import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
 
 // Basic value types that can appear in documents
+// Basic value types
 export type PrimitiveValue = string | number | boolean | Date | null;
 export type DocumentValue =
   | PrimitiveValue
   | Document
-  | PrimitiveValue[]
-  | Document[];
+  | readonly PrimitiveValue[]
+  | readonly Document[];
 
-// MongoDB document type
+// MongoDB document type - immutable by design
 export interface Document {
-  [key: string]: DocumentValue;
+  readonly [key: string]: DocumentValue;
 }
 
-// Collection type
-export type Collection<T = Document> = T[];
+// Collection type - readonly array for immutable operations
+export type Collection<T = Document> = readonly T[];
 
 // Expression types
 export type FieldPath = `$${string}`;
@@ -43,6 +44,17 @@ type ExpressionValue =
   | ExpressionOperatorObject
   | { [key: string]: Expression };
 
+/**
+ * Type guard to check if an expression represents a field path
+ * @param expression - The expression to check
+ * @returns `true` if the expression is a field path (starts with $ but not $$)
+ * @example
+ * ```typescript
+ * isFieldPath('$name') // true
+ * isFieldPath('$$ROOT') // false
+ * isFieldPath('value') // false
+ * ```
+ */
 function isFieldPath(expression: ExpressionValue): expression is FieldPath {
   return (
     typeof expression === 'string' &&
@@ -51,6 +63,17 @@ function isFieldPath(expression: ExpressionValue): expression is FieldPath {
   );
 }
 
+/**
+ * Type guard to check if an expression represents a system variable
+ * @param expression - The expression to check
+ * @returns `true` if the expression is a system variable (starts with $$)
+ * @example
+ * ```typescript
+ * isSystemVariable('$$ROOT') // true
+ * isSystemVariable('$name') // false
+ * isSystemVariable('value') // false
+ * ```
+ */
 function isSystemVariable(
   expression: ExpressionValue
 ): expression is SystemVariable {
@@ -282,9 +305,14 @@ function $systemVariable(
   }
 }
 
-function $literal(): DocumentValue {
-  // TODO: Implement literal expressions
-  return null;
+/**
+ * Returns a literal value without parsing or interpreting it
+ * Used to include literal values that contain special characters
+ * @param value - The literal value to return as-is
+ * @returns The literal value unchanged
+ */
+function $literal(value: DocumentValue): DocumentValue {
+  return value;
 }
 
 export {
