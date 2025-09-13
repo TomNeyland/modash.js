@@ -123,6 +123,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'group by date fields'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.deep.equal(expectedResult);
     });
@@ -147,6 +148,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'null grouping'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.deep.equal(expectedResult);
     });
@@ -174,6 +176,7 @@ describe('Modash Aggregation', () => {
         db.sales2.value(),
         pipeline,
         'distinct values'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.deep.equal(expectedResult);
     });
@@ -200,16 +203,14 @@ describe('Modash Aggregation', () => {
         db.books2.value(),
         pipeline,
         'books by author'
+      );
 
       // For this test, we'll compare sorted versions since $group order is not guaranteed
       const sortByAuthor = arr =>
         [...arr].sort((a, b) => a._id.localeCompare(b._id));
       expect(sortByAuthor(results.streaming)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      // expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
-        sortByAuthor(results.nonStreaming)
-      // expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
-        sortByAuthor(results.nonStreaming)
+      );
     });
 
     it('should use the $$ROOT system variable to group the documents by authors.', () => {
@@ -275,13 +276,14 @@ describe('Modash Aggregation', () => {
         db.books2.value(),
         pipeline,
         '$$ROOT grouping'
+      );
 
       // Sort by author ID for consistent comparison (since $group order is not guaranteed)
       const sortByAuthor = arr =>
         [...arr].sort((a, b) => a._id.localeCompare(b._id));
       expect(sortByAuthor(results.streaming)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
-      // expect(sortByAuthor(results.aggregateStreamingArray)).to.deep.equal(
+      );
         sortByAuthor(results.nonStreaming)
       // expect(sortByAuthor(results.aggregateStreamingCollection)).to.deep.equal(
         sortByAuthor(results.nonStreaming)
