@@ -1,6 +1,7 @@
 // Modern JavaScript - use our utility functions instead of lodash
-import { get as lodashGet } from './util.js';
+import { fastGet } from './util.js';
 import { PerformanceOptimizedEngine } from './performance-optimized-engine.js';
+import { globalQueryCache } from './query-cache.js';
 
 import {
   $expressionObject,
@@ -103,7 +104,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
     // Optimize for simple property access - use direct access when no dots in field name
-    const fieldValue = field.includes('.') ? lodashGet(doc, field) : doc[field];
+    const fieldValue = field.includes('.') ? fastGet(doc, field) : doc[field];
 
     // Handle logical operators
     if (field === '$and') {
@@ -270,8 +271,8 @@ function $sort<T extends Document = Document>(
     for (const key of sortKeys) {
       const direction = sortSpec[key]!; // 1 for asc, -1 for desc
       // Optimize for simple property access - use direct access when no dots in key
-      const valueA = key.includes('.') ? lodashGet(a, key) : a[key];
-      const valueB = key.includes('.') ? lodashGet(b, key) : b[key];
+      const valueA = key.includes('.') ? fastGet(a, key) : a[key];
+      const valueB = key.includes('.') ? fastGet(b, key) : b[key];
 
       // Handle null/undefined values (MongoDB behavior: null < any value)
       if (
@@ -314,7 +315,7 @@ function $unwind<T extends Document = Document>(
   for (const doc of collection) {
     // Optimize for simple property access - use direct access when no dots in path
     const arrayValue = cleanPath.includes('.')
-      ? lodashGet(doc, cleanPath)
+      ? fastGet(doc, cleanPath)
       : doc[cleanPath];
 
     if (!Array.isArray(arrayValue)) {
@@ -397,11 +398,11 @@ function $lookup<T extends Document = Document>(
   return collection.map(doc => {
     // Optimize for simple property access - use direct access when no dots in field
     const localValue = localField.includes('.')
-      ? lodashGet(doc, localField)
+      ? fastGet(doc, localField)
       : doc[localField];
     const matches = from.filter(foreignDoc => {
       const foreignValue = foreignField.includes('.')
-        ? lodashGet(foreignDoc, foreignField)
+        ? fastGet(foreignDoc, foreignField)
         : foreignDoc[foreignField];
       return foreignValue === localValue;
     });
@@ -456,23 +457,42 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
-  // Try optimized execution for larger collections with compatible stages
-  const shouldOptimize = collection.length > 100 && isOptimizable(stages);
+  // Check query cache first for repeated operations on collections > 25 documents
+  if (collection.length > 25) {
+    const cachedResult = globalQueryCache.get(collection, stages);
+    if (cachedResult) {
+      return cachedResult as Collection<T>;
+    }
+  }
+
+  // Try optimized execution for collections with optimizable stages
+  // Lower threshold to benefit smaller collections (was 100, now 50)
+  const shouldOptimize = collection.length > 50 && isOptimizable(stages);
+
+  let result: Collection<T>;
 
   if (shouldOptimize) {
     try {
-      return optimizedEngine.aggregate(collection, stages);
+      result = optimizedEngine.aggregate(collection, stages);
     } catch (error) {
       // Fallback to traditional execution if optimization fails
       console.warn(
         'Optimized execution failed, falling back to traditional:',
         error
       );
+      result = traditionalAggregate(collection, stages);
     }
+  } else {
+    // Traditional execution using native JavaScript
+    result = traditionalAggregate(collection, stages);
   }
 
-  // Traditional execution using native JavaScript
-  return traditionalAggregate(collection, stages);
+  // Cache the result for future use if collection is large enough
+  if (collection.length > 25 && result.length < 10000) {
+    globalQueryCache.set(collection, stages, result);
+  }
+
+  return result;
 }
 
 // Check if pipeline stages are optimizable

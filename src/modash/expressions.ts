@@ -1,5 +1,5 @@
 // Modern JavaScript - use our utility functions instead of lodash
-import { get, set, merge, isObject } from './util.js';
+import { fastGet, set, merge, isObject } from './util.js';
 
 import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
 
@@ -131,7 +131,7 @@ function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
   // slice the $ and use the regular get
   const cleanPath = path.slice(1);
   // Optimize for simple property access - use direct access when no dots in path
-  return cleanPath.includes('.') ? get(obj, cleanPath) : obj[cleanPath];
+  return cleanPath.includes('.') ? fastGet(obj, cleanPath) : obj[cleanPath];
 }
 
 function $expressionOperator(
@@ -178,7 +178,7 @@ function $expressionObject(
       const pathParts = path.split('.');
       const headPath = pathParts.shift()!;
       // Optimize for simple property access when headPath doesn't contain dots
-      const head = headPath.includes('.') ? get(obj, headPath) : obj[headPath];
+      const head = headPath.includes('.') ? fastGet(obj, headPath) : obj[headPath];
 
       if (Array.isArray(head)) {
         const setResult = set(
@@ -221,7 +221,7 @@ function $expressionObject(
       ) {
         // Check if this is a nested projection (field projection) or computed object (expression object)
         // Optimize for simple property access when path doesn't contain dots
-        const fieldValue = path.includes('.') ? get(obj, path) : obj[path];
+        const fieldValue = path.includes('.') ? fastGet(obj, path) : obj[path];
         const isFieldProjection = fieldValue && typeof fieldValue === 'object';
 
         if (isFieldProjection) {
