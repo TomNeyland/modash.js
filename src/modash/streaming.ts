@@ -383,6 +383,12 @@ export class StreamingCollection<
       // Compile pipeline with IVM engine
       const executionPlan = this.ivmEngine.compilePipeline(pipeline);
 
+      // Check if pipeline can be handled incrementally
+      if (!executionPlan.canFullyIncrement || !executionPlan.canFullyDecrement) {
+        console.warn('Pipeline contains unsupported operations for IVM, falling back to standard aggregation');
+        throw new Error('Pipeline not fully supported by IVM engine');
+      }
+
       // Initialize aggregation state with IVM backing
       const state: AggregationState = {
         lastResult: [],
@@ -402,7 +408,7 @@ export class StreamingCollection<
 
       return result;
     } catch (error) {
-      console.warn('IVM engine failed, falling back to standard aggregation:', error);
+      console.warn('IVM engine failed, falling back to standard aggregation:', error?.message || error);
       
       // Fallback to standard aggregation for now
       const result = aggregate(this.documents, pipeline);

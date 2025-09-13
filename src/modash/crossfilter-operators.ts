@@ -555,12 +555,85 @@ export class IVMOperatorFactoryImpl implements IVMOperatorFactory {
   }
 
   createUnwindOperator(path: string, options?: any): IVMOperator {
-    // Unwind is complex for IVM, would need special handling
-    throw new Error('$unwind operator not yet implemented for IVM');
+    // For now, return a stub that forces fallback to standard aggregation
+    return new UnwindOperator(path, options);
   }
 
   createLookupOperator(expr: any): IVMOperator {
-    // Lookup requires join logic, complex for IVM
-    throw new Error('$lookup operator not yet implemented for IVM');
+    // For now, return a stub that forces fallback to standard aggregation
+    return new LookupOperator(expr);
+  }
+}
+
+/**
+ * $unwind stub operator - forces fallback to standard aggregation for now
+ */
+export class UnwindOperator implements IVMOperator {
+  readonly type = '$unwind';
+  readonly canIncrement = false; // Force fallback
+  readonly canDecrement = false;
+
+  constructor(
+    private path: string,
+    private options?: any
+  ) {}
+
+  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+  }
+
+  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+  }
+
+  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
+    throw new Error('UnwindOperator is a stub - should use fallback aggregation');
+  }
+
+  estimateComplexity(): string {
+    return 'UNSUPPORTED';
+  }
+
+  getInputFields(): string[] {
+    return [this.path];
+  }
+
+  getOutputFields(): string[] {
+    return [];
+  }
+}
+
+/**
+ * $lookup stub operator - forces fallback to standard aggregation for now
+ */
+export class LookupOperator implements IVMOperator {
+  readonly type = '$lookup';
+  readonly canIncrement = false; // Force fallback
+  readonly canDecrement = false;
+
+  constructor(private expr: any) {}
+
+  onAdd(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+  }
+
+  onRemove(delta: Delta, store: CrossfilterStore, context: IVMContext): Delta[] {
+    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+  }
+
+  snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
+    throw new Error('LookupOperator is a stub - should use fallback aggregation');
+  }
+
+  estimateComplexity(): string {
+    return 'UNSUPPORTED';
+  }
+
+  getInputFields(): string[] {
+    return [];
+  }
+
+  getOutputFields(): string[] {
+    return [];
   }
 }
