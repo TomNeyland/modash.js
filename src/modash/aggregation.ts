@@ -340,6 +340,7 @@ function $unwind<T extends Document = Document>(
 /**
  * Groups input documents by a specified identifier expression and applies the
  * accumulator expression(s), if specified, to each group.
+ * Optimized version using Map for better performance
  */
 function $group<T extends Document = Document>(
   collection: Collection<T>,
@@ -347,29 +348,57 @@ function $group<T extends Document = Document>(
 ): Collection<T> {
   const _idSpec = specifications._id;
 
-  // Group by using native JavaScript
+  // Use Map for O(1) key lookups instead of object property access
   const groupsMap = new Map<string, Document[]>();
 
+  // Optimize for common grouping patterns
+  if (_idSpec === null) {
+    // Special case: group all documents into single group
+    const result: Document = {};
+    for (const [field, fieldSpec] of Object.entries(specifications)) {
+      if (field === '_id') {
+        result[field] = null;
+      } else {
+        result[field] = $accumulate(collection, fieldSpec as Expression);
+      }
+    }
+    return [result] as Collection<T>;
+  }
+
+  // Group documents efficiently
   for (const obj of collection) {
-    const key = _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null';
+    const keyValue = $expression(obj, _idSpec);
+    // Use JSON.stringify for complex keys, but optimize for simple types
+    const key = typeof keyValue === 'object' && keyValue !== null 
+      ? JSON.stringify(keyValue) 
+      : String(keyValue);
+    
     if (!groupsMap.has(key)) {
       groupsMap.set(key, []);
     }
     groupsMap.get(key)!.push(obj);
   }
 
-  // Process groups
-  const results: Document[] = [];
-  for (const members of groupsMap.values()) {
+  // Process groups with pre-allocated result array
+  const results: Document[] = new Array(groupsMap.size);
+  let resultIndex = 0;
+
+  for (const [key, members] of groupsMap) {
     const result: GroupResult = {};
+    
+    // Optimize _id field assignment
+    if ('_id' in specifications) {
+      result._id = _idSpec ? $expression(members[0]!, _idSpec) : null;
+    }
+
+    // Process other fields
     for (const [field, fieldSpec] of Object.entries(specifications)) {
-      if (field === '_id') {
-        result[field] = fieldSpec ? $expression(members[0]!, _idSpec) : null;
-      } else {
+      if (field !== '_id') {
         result[field] = $accumulate(members, fieldSpec as Expression);
       }
     }
-    results.push(result);
+    
+    results[resultIndex++] = result;
   }
 
   return results as Collection<T>;

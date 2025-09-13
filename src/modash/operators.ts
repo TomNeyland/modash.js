@@ -67,35 +67,69 @@ function $not(...values: EvaluatableValue[]): boolean {
   return !values.some(val => Boolean(evaluate(val)));
 }
 
-// Set Operators
+// Set Operators with optimized native implementations
 function $asSet(array: DocumentValue[]): DocumentValue[] {
   if (!Array.isArray(array)) return [];
-  return [...new Set(array.map(evaluate))].sort();
+  // Use Set for deduplication, then sort for consistency
+  const uniqueSet = new Set(array.map(evaluate));
+  return [...uniqueSet].sort();
 }
 
 function $setEquals(...arrays: EvaluatableValue[]): boolean {
-  const sets = arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[]));
+  if (arrays.length < 2) return true;
+  
+  const sets = arrays.map(evaluate).map(arr => {
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.map(evaluate));
+  });
+  
   const [firstSet] = sets;
-  return sets.every(set => isEqual(firstSet, set));
+  
+  // Check if all sets have the same size and elements
+  return sets.every(set => 
+    set.size === firstSet.size && 
+    [...firstSet].every(item => set.has(item))
+  );
 }
 
 function $setIntersection(...arrays: EvaluatableValue[]): DocumentValue[] {
-  return $asSet(
-    intersection(...arrays.map(arr => evaluate(arr) as DocumentValue[]))
-  );
+  if (arrays.length === 0) return [];
+  if (arrays.length === 1) return $asSet(evaluate(arrays[0]) as DocumentValue[]);
+  
+  const evaluatedArrays = arrays.map(arr => {
+    const val = evaluate(arr);
+    return Array.isArray(val) ? val : [];
+  });
+  
+  return $asSet(intersection(...evaluatedArrays));
 }
 
 function $setUnion(...arrays: EvaluatableValue[]): DocumentValue[] {
-  return union(
-    ...arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[]))
-  );
+  if (arrays.length === 0) return [];
+  
+  const evaluatedArrays = arrays.map(arr => {
+    const val = evaluate(arr);
+    return Array.isArray(val) ? val : [];
+  });
+  
+  return $asSet(union(...evaluatedArrays));
 }
 
 function $setDifference(...arrays: EvaluatableValue[]): DocumentValue[] {
-  const evaluatedArrays = arrays
-    .map(evaluate)
-    .map(arr => $asSet(arr as DocumentValue[]));
-  return difference(evaluatedArrays[0], ...evaluatedArrays.slice(1));
+  if (arrays.length === 0) return [];
+  if (arrays.length === 1) return $asSet(evaluate(arrays[0]) as DocumentValue[]);
+  
+  const evaluatedArrays = arrays.map(arr => {
+    const val = evaluate(arr);
+    return Array.isArray(val) ? val : [];
+  });
+  
+  let result = evaluatedArrays[0];
+  for (let i = 1; i < evaluatedArrays.length; i++) {
+    result = difference(result, evaluatedArrays[i]);
+  }
+  
+  return $asSet(result);
 }
 
 function $setIsSubset(
@@ -470,16 +504,32 @@ function $slice(
 }
 
 function $concatArrays(...arrays: EvaluatableValue[]): DocumentValue[] | null {
-  const evaluatedArrays = arrays.map(evaluate);
-
-  // Check all inputs are arrays
-  for (const arr of evaluatedArrays) {
-    if (!Array.isArray(arr)) return null;
+  if (arrays.length === 0) return [];
+  if (arrays.length === 1) {
+    const arr = evaluate(arrays[0]);
+    return Array.isArray(arr) ? [...arr] : null;
   }
 
-  return ([] as DocumentValue[]).concat(
-    ...(evaluatedArrays as DocumentValue[][])
-  );
+  const evaluatedArrays = arrays.map(evaluate);
+
+  // Check all inputs are arrays and estimate total length for efficiency
+  let totalLength = 0;
+  for (const arr of evaluatedArrays) {
+    if (!Array.isArray(arr)) return null;
+    totalLength += arr.length;
+  }
+
+  // Pre-allocate result array for better performance
+  const result: DocumentValue[] = new Array(totalLength);
+  let index = 0;
+
+  for (const arr of evaluatedArrays as DocumentValue[][]) {
+    for (const item of arr) {
+      result[index++] = item;
+    }
+  }
+
+  return result;
 }
 
 function $in(value: EvaluatableValue, array: EvaluatableValue): boolean {
@@ -487,6 +537,13 @@ function $in(value: EvaluatableValue, array: EvaluatableValue): boolean {
   const arr = evaluate(array) as DocumentValue[];
 
   if (!Array.isArray(arr)) return false;
+  
+  // Use Set for large arrays for O(1) lookup
+  if (arr.length > 20) {
+    const set = new Set(arr);
+    return set.has(val);
+  }
+  
   return arr.includes(val);
 }
 
@@ -503,7 +560,18 @@ function $indexOfArray(
 
   if (!Array.isArray(arr)) return null;
 
-  for (let i = startPos; i < Math.min(endPos, arr.length); i++) {
+  // Optimize for simple primitive value searches
+  if (typeof searchVal !== 'object' || searchVal === null) {
+    const searchRange = arr.slice(
+      Math.max(0, startPos), 
+      Math.min(endPos, arr.length)
+    );
+    const foundIndex = searchRange.indexOf(searchVal);
+    return foundIndex === -1 ? -1 : foundIndex + Math.max(0, startPos);
+  }
+
+  // Fall back to deep equality search for complex objects
+  for (let i = Math.max(0, startPos); i < Math.min(endPos, arr.length); i++) {
     if (isEqual(arr[i], searchVal)) {
       return i;
     }
