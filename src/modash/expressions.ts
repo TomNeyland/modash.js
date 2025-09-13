@@ -9,7 +9,7 @@ import {
   keys,
 } from 'lodash-es';
 
-import EXPRESSION_OPERATORS from './operators.js';
+import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
 import type {
   Document,
   Expression,
@@ -169,7 +169,8 @@ function $expressionObject(
         // Assume a pathspec, use root as the target
         target = root;
       } else if (typeof expression === 'object') {
-        target = get(obj, path) as Document;
+        // This is an expression object to evaluate against the current object
+        target = obj;
       }
 
       if (isArray(target)) {
@@ -178,9 +179,7 @@ function $expressionObject(
           set(
             {},
             path,
-            (target as Document[]).map(subtarget =>
-              $expression(subtarget, expression, root)
-            )
+            target.map(subtarget => $expression(subtarget, expression, root))
           )
         );
       } else {
@@ -224,6 +223,9 @@ export {
   isExpressionOperator,
   isExpressionObject,
 };
+
+// Initialize the circular dependency
+set$expression($expression);
 
 export default {
   $expression,

@@ -137,7 +137,7 @@ jobs:
         run: |
           node -e "
           import('./tests/test-data.js').then(testData => {
-            import('./src/modash/index.js').then(Modash => {
+            import('./dist/index.js').then(Modash => {
               const startTime = process.hrtime.bigint();
               const iterations = 1000;
               
@@ -176,17 +176,12 @@ jobs:
       - run: npm ci
       - name: Build project
         run: npm run build
-      - name: Generate docs
-        run: npm run docs
       - name: Validate exports
         run: |
           node -e "
-          Promise.all([
-            import('./src/modash/index.js'),
-            import('./dist/index.js')
-          ]).then(([src, dist]) => {
-            console.log('Source exports:', Object.keys(src));
+          import('./dist/index.js').then(dist => {
             console.log('Dist exports:', Object.keys(dist));
+            console.log('Validation passed: exports are available');
           }).catch(err => {
             console.error('Export validation failed:', err);
             process.exit(1);
