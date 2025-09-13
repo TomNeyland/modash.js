@@ -3,7 +3,7 @@
  * Provides automatic index creation and management for optimized queries
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
+import type { Collection, Document } from './expressions.js';
 
 interface IndexStatistics {
   hitCount: number;
@@ -29,14 +29,25 @@ export class IndexingSystem {
   /**
    * Auto-create indexes based on query patterns
    */
-  trackQuery(field: string, operator: string, collection: Collection<Document>) {
+  trackQuery(
+    field: string,
+    operator: string,
+    collection: Collection<Document>
+  ) {
     const pattern = `${field}:${operator}`;
     const currentCount = this.queryPatterns.get(pattern) || 0;
     this.queryPatterns.set(pattern, currentCount + 1);
 
     // Auto-create index if threshold met
-    if (currentCount + 1 >= this.autoIndexThreshold && !this.indexes.has(field)) {
-      this.createIndex(field, collection, operator === '$eq' ? 'equality' : 'range');
+    if (
+      currentCount + 1 >= this.autoIndexThreshold &&
+      !this.indexes.has(field)
+    ) {
+      this.createIndex(
+        field,
+        collection,
+        operator === '$eq' ? 'equality' : 'range'
+      );
     }
   }
 
@@ -44,8 +55,8 @@ export class IndexingSystem {
    * Create an index for a specific field
    */
   createIndex(
-    field: string, 
-    collection: Collection<Document>, 
+    field: string,
+    collection: Collection<Document>,
     type: 'equality' | 'range' | 'composite' = 'equality'
   ): boolean {
     if (this.indexes.has(field) || this.indexes.size >= this.maxIndexes) {
@@ -58,7 +69,7 @@ export class IndexingSystem {
     // Build index
     for (let i = 0; i < collection.length; i++) {
       const value = this.getNestedValue(collection[i], field);
-      
+
       if (value !== undefined && value !== null) {
         if (!indexData.has(value)) {
           indexData.set(value, new Set());
@@ -76,8 +87,8 @@ export class IndexingSystem {
         createTime: performance.now() - startTime,
         lastUsed: Date.now(),
         avgSelectivity: this.calculateSelectivity(indexData, collection.length),
-        totalQueries: 0
-      }
+        totalQueries: 0,
+      },
     };
 
     this.indexes.set(field, index);
@@ -112,7 +123,7 @@ export class IndexingSystem {
     }
 
     const results = new Set<number>();
-    
+
     // Update statistics
     index.stats.hitCount++;
     index.stats.lastUsed = Date.now();
@@ -120,10 +131,10 @@ export class IndexingSystem {
 
     for (const [indexValue, indices] of index.data) {
       let include = true;
-      
+
       if (min !== undefined && indexValue < min) include = false;
       if (max !== undefined && indexValue > max) include = false;
-      
+
       if (include) {
         indices.forEach(idx => results.add(idx));
       }
@@ -144,7 +155,7 @@ export class IndexingSystem {
    */
   getIndexStats(): Record<string, any> {
     const stats: Record<string, any> = {};
-    
+
     for (const [field, index] of this.indexes) {
       stats[field] = {
         type: index.type,
@@ -153,11 +164,16 @@ export class IndexingSystem {
         createTime: index.stats.createTime,
         avgSelectivity: index.stats.avgSelectivity,
         totalQueries: index.stats.totalQueries,
-        hitRate: index.stats.totalQueries > 0 ? 
-          (index.stats.hitCount / index.stats.totalQueries * 100).toFixed(1) + '%' : '0%'
+        hitRate:
+          index.stats.totalQueries > 0
+            ? `${(
+                (index.stats.hitCount / index.stats.totalQueries) *
+                100
+              ).toFixed(1)}%`
+            : '0%',
       };
     }
-    
+
     return stats;
   }
 
@@ -167,7 +183,7 @@ export class IndexingSystem {
   cleanupIndexes(): void {
     const now = Date.now();
     const maxAge = 5 * 60 * 1000; // 5 minutes
-    
+
     for (const [field, index] of this.indexes) {
       if (now - index.stats.lastUsed > maxAge && index.stats.hitCount < 5) {
         this.indexes.delete(field);
@@ -192,17 +208,19 @@ export class IndexingSystem {
    */
   getSuggestedIndexes(): string[] {
     const suggestions: string[] = [];
-    
+
     for (const [pattern, count] of this.queryPatterns) {
       const field = pattern.split(':')[0];
-      
-      if (count >= Math.floor(this.autoIndexThreshold / 2) && 
-          !this.indexes.has(field) && 
-          suggestions.length < 10) {
+
+      if (
+        count >= Math.floor(this.autoIndexThreshold / 2) &&
+        !this.indexes.has(field) &&
+        suggestions.length < 10
+      ) {
         suggestions.push(field);
       }
     }
-    
+
     return suggestions;
   }
 
@@ -210,10 +228,13 @@ export class IndexingSystem {
     return path.split('.').reduce((current, key) => current?.[key], obj);
   }
 
-  private calculateSelectivity(indexData: Map<any, Set<number>>, totalDocs: number): number {
+  private calculateSelectivity(
+    indexData: Map<any, Set<number>>,
+    totalDocs: number
+  ): number {
     if (totalDocs === 0) return 1;
-    
-    let totalUniqueValues = indexData.size;
+
+    const totalUniqueValues = indexData.size;
     return totalUniqueValues / totalDocs;
   }
 }

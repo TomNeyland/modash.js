@@ -25,12 +25,12 @@ export interface ExecutionPlan {
 
 export class QueryOptimizer {
   private planCache: Map<string, ExecutionPlan> = new Map();
-  
+
   /**
    * Create an optimized execution plan for a pipeline
    */
   createExecutionPlan<T extends Document>(
-    collection: Collection<T>, 
+    collection: Collection<T>,
     pipeline: Pipeline
   ): ExecutionPlan {
     // Check cache first
@@ -47,9 +47,13 @@ export class QueryOptimizer {
     const optimizations: string[] = [];
 
     // Reorder stages for optimal execution
-    const reorderedPipeline = this.reorderPipelineForOptimization([...pipeline]);
-    if (reorderedPipeline.length !== pipeline.length || 
-        !reorderedPipeline.every((stage, i) => stage === pipeline[i])) {
+    const reorderedPipeline = this.reorderPipelineForOptimization([
+      ...pipeline,
+    ]);
+    if (
+      reorderedPipeline.length !== pipeline.length ||
+      !reorderedPipeline.every((stage, i) => stage === pipeline[i])
+    ) {
       optimizations.push('Pipeline stage reordering');
     }
 
@@ -61,17 +65,23 @@ export class QueryOptimizer {
       const optimizedStage: OptimizedStage = {
         type: stageType,
         operation,
-        canMergeWithNext: this.canMergeWithNext(stage, reorderedPipeline[i + 1]),
+        canMergeWithNext: this.canMergeWithNext(
+          stage,
+          reorderedPipeline[i + 1]
+        ),
         estimatedCost: this.estimateStageCost(stage, collection.length),
-        estimatedSelectivity: this.estimateSelectivity(stage, collection.length),
-        optimizations: []
+        estimatedSelectivity: this.estimateSelectivity(
+          stage,
+          collection.length
+        ),
+        optimizations: [],
       };
 
       // Detect optimization opportunities
       if (stageType === '$match') {
         const matchOptimizations = this.analyzeMatchStage(operation as any);
         optimizedStage.optimizations.push(...matchOptimizations);
-        
+
         // Check for potential index usage
         const fields = this.extractQueryFields(operation as any);
         fields.forEach(field => {
@@ -83,14 +93,17 @@ export class QueryOptimizer {
       // Check if single-pass is still possible
       if (stageType === '$lookup' || stageType === '$unwind') {
         canUseSinglePass = false;
-        optimizations.push('Multi-pass execution required for complex operations');
+        optimizations.push(
+          'Multi-pass execution required for complex operations'
+        );
       } else if (stageType === '$sort' && i < reorderedPipeline.length - 1) {
         canUseSinglePass = false;
         optimizations.push('Sort not at end requires multi-pass execution');
       }
 
       stages.push(optimizedStage);
-      estimatedCost += optimizedStage.estimatedCost * optimizedStage.estimatedSelectivity;
+      estimatedCost +=
+        optimizedStage.estimatedCost * optimizedStage.estimatedSelectivity;
     }
 
     // Additional optimizations based on stage combinations
@@ -107,7 +120,7 @@ export class QueryOptimizer {
       estimatedCost,
       stages,
       indexUsage,
-      optimizations
+      optimizations,
     };
 
     // Cache the plan
@@ -119,14 +132,20 @@ export class QueryOptimizer {
   /**
    * Reorder pipeline stages for optimal execution
    */
-  private reorderPipelineForOptimization(pipeline: PipelineStage[]): PipelineStage[] {
+  private reorderPipelineForOptimization(
+    pipeline: PipelineStage[]
+  ): PipelineStage[] {
     const reordered: PipelineStage[] = [];
     const remaining = [...pipeline];
 
     // First, move all $match stages to the beginning (most selective first)
-    const matchStages = remaining.filter(stage => '$match' in stage)
-      .sort((a, b) => this.estimateSelectivity(a, 1000) - this.estimateSelectivity(b, 1000));
-    
+    const matchStages = remaining
+      .filter(stage => '$match' in stage)
+      .sort(
+        (a, b) =>
+          this.estimateSelectivity(a, 1000) - this.estimateSelectivity(b, 1000)
+      );
+
     matchStages.forEach(stage => {
       reordered.push(stage);
       const index = remaining.indexOf(stage);
@@ -134,10 +153,11 @@ export class QueryOptimizer {
     });
 
     // Then add projection stages that reduce data size
-    const earlyProjections = remaining.filter(stage => 
-      '$project' in stage && this.isProjectionReducing(stage.$project as any)
+    const earlyProjections = remaining.filter(
+      stage =>
+        '$project' in stage && this.isProjectionReducing(stage.$project as any)
     );
-    
+
     earlyProjections.forEach(stage => {
       reordered.push(stage);
       const index = remaining.indexOf(stage);
@@ -157,19 +177,26 @@ export class QueryOptimizer {
     const optimizations: string[] = [];
 
     // Check for simple equality matches (most efficient)
-    const simpleFields = Object.keys(matchSpec).filter(field => 
-      !field.startsWith('$') && typeof matchSpec[field] !== 'object'
+    const simpleFields = Object.keys(matchSpec).filter(
+      field => !field.startsWith('$') && typeof matchSpec[field] !== 'object'
     );
-    
+
     if (simpleFields.length > 0) {
-      optimizations.push(`Simple equality matches on: ${simpleFields.join(', ')}`);
+      optimizations.push(
+        `Simple equality matches on: ${simpleFields.join(', ')}`
+      );
     }
 
     // Check for range queries that could benefit from indexes
     const rangeFields = Object.keys(matchSpec).filter(field => {
       const condition = matchSpec[field];
-      return typeof condition === 'object' && condition !== null &&
-        Object.keys(condition).some(op => ['$gt', '$gte', '$lt', '$lte'].includes(op));
+      return (
+        typeof condition === 'object' &&
+        condition !== null &&
+        Object.keys(condition).some(op =>
+          ['$gt', '$gte', '$lt', '$lte'].includes(op)
+        )
+      );
     });
 
     if (rangeFields.length > 0) {
@@ -179,8 +206,13 @@ export class QueryOptimizer {
     // Check for $in queries with small arrays (efficient)
     const inFields = Object.keys(matchSpec).filter(field => {
       const condition = matchSpec[field];
-      return typeof condition === 'object' && condition !== null &&
-        condition.$in && Array.isArray(condition.$in) && condition.$in.length <= 10;
+      return (
+        typeof condition === 'object' &&
+        condition !== null &&
+        condition.$in &&
+        Array.isArray(condition.$in) &&
+        condition.$in.length <= 10
+      );
     });
 
     if (inFields.length > 0) {
@@ -196,7 +228,7 @@ export class QueryOptimizer {
   private extractQueryFields(matchSpec: any): string[] {
     const fields: string[] = [];
 
-    for (const [field, condition] of Object.entries(matchSpec)) {
+    for (const [field, _condition] of Object.entries(matchSpec)) {
       if (!field.startsWith('$')) {
         fields.push(field);
       }
@@ -221,19 +253,27 @@ export class QueryOptimizer {
    * Check if pipeline has early projection opportunities
    */
   private hasProjectionOptimization(stages: OptimizedStage[]): boolean {
-    const firstProjection = stages.findIndex(stage => stage.type === '$project');
+    const firstProjection = stages.findIndex(
+      stage => stage.type === '$project'
+    );
     const firstGroup = stages.findIndex(stage => stage.type === '$group');
-    
-    return firstProjection >= 0 && firstGroup >= 0 && firstProjection < firstGroup;
+
+    return (
+      firstProjection >= 0 && firstGroup >= 0 && firstProjection < firstGroup
+    );
   }
 
   /**
    * Check if projection reduces data size
    */
   private isProjectionReducing(projectionSpec: any): boolean {
-    const includeFields = Object.values(projectionSpec).filter(v => v === 1).length;
-    const excludeFields = Object.values(projectionSpec).filter(v => v === 0).length;
-    
+    const includeFields = Object.values(projectionSpec).filter(
+      v => v === 1
+    ).length;
+    const _excludeFields = Object.values(projectionSpec).filter(
+      v => v === 0
+    ).length;
+
     // Assume reducing if explicitly including only a few fields
     return includeFields > 0 && includeFields < 5;
   }
@@ -241,9 +281,12 @@ export class QueryOptimizer {
   /**
    * Estimate stage execution cost
    */
-  private estimateStageCost(stage: PipelineStage, collectionSize: number): number {
+  private estimateStageCost(
+    stage: PipelineStage,
+    collectionSize: number
+  ): number {
     const stageType = Object.keys(stage)[0];
-    
+
     switch (stageType) {
       case '$match':
         return collectionSize * 0.1; // Fast comparison operations
@@ -265,9 +308,12 @@ export class QueryOptimizer {
   /**
    * Estimate selectivity (fraction of documents that pass the stage)
    */
-  private estimateSelectivity(stage: PipelineStage, collectionSize: number): number {
+  private estimateSelectivity(
+    stage: PipelineStage,
+    collectionSize: number
+  ): number {
     const stageType = Object.keys(stage)[0];
-    
+
     switch (stageType) {
       case '$match':
         return 0.3; // Assume filters are reasonably selective
@@ -291,12 +337,15 @@ export class QueryOptimizer {
   /**
    * Check if stages can be merged for single-pass execution
    */
-  private canMergeWithNext(stage: PipelineStage, nextStage?: PipelineStage): boolean {
+  private canMergeWithNext(
+    stage: PipelineStage,
+    nextStage?: PipelineStage
+  ): boolean {
     if (!nextStage) return false;
-    
+
     const stageType = Object.keys(stage)[0];
     const nextType = Object.keys(nextStage)[0];
-    
+
     // Compatible combinations for single-pass execution
     const compatibleCombinations = [
       ['$match', '$project'],
@@ -305,21 +354,28 @@ export class QueryOptimizer {
       ['$match', '$limit'],
       ['$match', '$skip'],
       ['$project', '$limit'],
-      ['$project', '$skip']
+      ['$project', '$skip'],
     ];
-    
-    return compatibleCombinations.some(([first, second]) => 
-      stageType === first && nextType === second
+
+    return compatibleCombinations.some(
+      ([first, second]) => stageType === first && nextType === second
     );
   }
 
   /**
    * Create cache key for execution plan
    */
-  private createPlanCacheKey(pipeline: Pipeline, collectionSize: number): string {
+  private createPlanCacheKey(
+    pipeline: Pipeline,
+    collectionSize: number
+  ): string {
     const pipelineStr = JSON.stringify(pipeline);
-    const sizeCategory = collectionSize < 100 ? 'small' : 
-                        collectionSize < 1000 ? 'medium' : 'large';
+    const sizeCategory =
+      collectionSize < 100
+        ? 'small'
+        : collectionSize < 1000
+          ? 'medium'
+          : 'large';
     return `${sizeCategory}:${this.simpleHash(pipelineStr)}`;
   }
 
@@ -330,7 +386,7 @@ export class QueryOptimizer {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(16);
@@ -346,8 +402,8 @@ export class QueryOptimizer {
         canUseSinglePass: plan.canUseSinglePass,
         estimatedCost: plan.estimatedCost,
         optimizations: plan.optimizations,
-        stageCount: plan.stages.length
-      }))
+        stageCount: plan.stages.length,
+      })),
     };
   }
 
