@@ -164,7 +164,7 @@ export class GroupOperator implements IVMOperator {
     const groupKeyStr = JSON.stringify(groupKey);
 
     // Ensure dimension exists
-    this.ensureDimension(store);
+    this.ensureDimension(_store);
 
     // Update dimension
     const dimension = _store.dimensions.get(this.dimensionKey)!;
@@ -307,7 +307,7 @@ export class GroupOperator implements IVMOperator {
   }
 
   private ensureDimension(_store: CrossfilterStore): void {
-    if (!store.dimensions.has(this.dimensionKey)) {
+    if (!_store.dimensions.has(this.dimensionKey)) {
       _store.dimensions.set(
         this.dimensionKey,
         new DimensionImpl(this.dimensionKey)
@@ -703,7 +703,7 @@ export class UnwindOperator implements IVMOperator {
 
     // Remove all child documents
     childIds.forEach(childId => {
-      if (store.liveSet.isSet(childId)) {
+      if (_store.liveSet.isSet(childId)) {
         _store.liveSet.unset(childId);
         delete _store.documents[childId];
         this.childToParent.delete(childId);
