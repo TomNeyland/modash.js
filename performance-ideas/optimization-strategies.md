@@ -1,18 +1,8 @@
-# Performance Optimization Guide for modash.js
+# Performance Optimization Strategies for modash.js
 
 This document outlines performance optimization strategies for modash.js, a MongoDB-inspired aggregation library for JavaScript. All optimizations preserve the existing API while delivering measurable performance improvements.
 
-## Performance Baseline (10,000 Documents)
-
-**Current Performance After Optimizations:**
-- Simple Match: 0.7ms (2.0x improvement)
-- Complex Match: 1.8ms (1.5x improvement) 
-- Project Fields: 35.4ms
-- Complex Project: 72.8ms (1.04x improvement)
-- Simple Group: 4.2ms (1.5x improvement)
-- Multi-Stage Pipeline: 37.6ms (1.16x improvement)
-
-## Implemented Optimizations
+## Implemented Optimizations (Tested & Validated)
 
 ### 1. Fast Path Property Access
 **Problem**: Lodash `get()` has overhead for simple property access patterns.
@@ -35,7 +25,7 @@ This document outlines performance optimization strategies for modash.js, a Mong
 
 **Performance Impact**: Reduces overhead in expressions evaluation.
 
-## Browser-Specific Optimizations
+## Browser-Specific Optimization Ideas
 
 ### IndexedDB Caching for Large Datasets
 For datasets > 50,000 documents, implement client-side caching:
@@ -100,7 +90,7 @@ function aggregateWithWorker(data, pipeline) {
 
 **Expected Impact**: Prevents UI blocking for datasets > 100,000 documents.
 
-## Node.js-Specific Optimizations
+## Node.js-Specific Optimization Ideas
 
 ### Stream Processing for Large Datasets
 For memory-efficient processing of large collections:
