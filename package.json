@@ -26,9 +26,9 @@
     "pipeline",
     "javascript",
     "typescript",
-    "lodash",
     "functional",
-    "data-processing"
+    "data-processing",
+    "modern-javascript"
   ],
   "files": [
     "src/",
@@ -40,7 +40,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "mocha --import=tsx/esm --recursive tests/",
+    "test": "npm run test:units && npm run test:performance",
+    "test:units": "mocha --import=tsx/esm --recursive tests/",
+    "test:performance": "node --import=tsx/esm benchmarks/performance-measurement.js",
     "test:watch": "mocha --import=tsx/esm --recursive tests/ --watch",
     "test:coverage": "c8 --reporter=lcov --reporter=text mocha --import=tsx/esm --recursive tests/",
     "lint": "eslint src/ tests/ examples/",
@@ -55,7 +57,7 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "validate": "npm run quality",
     "precommit": "npm run validate",
-    "ci": "npm run validate && npm run test:coverage"
+    "ci": "npm run validate && npm run test:coverage && npm run test:performance"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
@@ -73,8 +75,5 @@
     "tsx": "^4.19.2",
     "typescript": "^5.9.2"
   },
-  "dependencies": {
-    "@types/lodash-es": "^4.17.12",
-    "lodash-es": "^4.17.21"
-  }
+  "dependencies": {}
 }

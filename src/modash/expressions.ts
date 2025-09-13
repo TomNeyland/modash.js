@@ -1,13 +1,5 @@
-import {
-  isArray,
-  isObject,
-  isDate,
-  get,
-  set,
-  merge,
-  size,
-  keys,
-} from 'lodash-es';
+// Modern JavaScript - use our utility functions instead of lodash
+import { get, set, merge, isObject } from './util.js';
 
 import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
 
@@ -86,18 +78,19 @@ function isExpressionObject(
   return (
     isObject(expression) &&
     !isExpressionOperator(expression) &&
-    !isArray(expression) &&
-    !isDate(expression)
+    !Array.isArray(expression) &&
+    !(expression instanceof Date)
   );
 }
 
 function isExpressionOperator(
   expression: ExpressionValue
 ): expression is ExpressionOperatorObject {
+  if (!isObject(expression)) return false;
+
+  const expressionKeys = Object.keys(expression as Record<string, any>);
   return (
-    isObject(expression) &&
-    size(expression) === 1 &&
-    keys(expression)[0]! in EXPRESSION_OPERATORS
+    expressionKeys.length === 1 && expressionKeys[0]! in EXPRESSION_OPERATORS
   );
 }
 
@@ -137,7 +130,8 @@ function $expression(
 function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
   // slice the $ and use the regular get
   const cleanPath = path.slice(1);
-  return get(obj, cleanPath) as DocumentValue;
+  // Optimize for simple property access - use direct access when no dots in path
+  return cleanPath.includes('.') ? get(obj, cleanPath) : obj[cleanPath];
 }
 
 function $expressionOperator(
@@ -145,7 +139,7 @@ function $expressionOperator(
   operatorExpression: ExpressionOperatorObject,
   root: Document
 ): DocumentValue {
-  const [operator] = keys(operatorExpression);
+  const [operator] = Object.keys(operatorExpression);
   let args = operatorExpression[operator!];
   const operatorFunction = EXPRESSION_OPERATORS[operator!];
 
@@ -153,7 +147,7 @@ function $expressionOperator(
     throw new Error(`Unknown operator: ${operator}`);
   }
 
-  if (!isArray(args)) {
+  if (!Array.isArray(args)) {
     args = [args];
   }
 
@@ -183,18 +177,20 @@ function $expressionObject(
     if (path.indexOf('.') !== -1) {
       const pathParts = path.split('.');
       const headPath = pathParts.shift()!;
-      const head = get(obj, headPath);
+      // Optimize for simple property access when headPath doesn't contain dots
+      const head = headPath.includes('.') ? get(obj, headPath) : obj[headPath];
 
-      if (isArray(head)) {
-        set(
+      if (Array.isArray(head)) {
+        const setResult = set(
           result,
           headPath,
           (head as Document[]).map(subtarget =>
             $expression(subtarget, { [pathParts.join('.')]: expression }, root)
           )
         );
+        Object.assign(result, setResult);
       } else {
-        merge(
+        const mergeResult = merge(
           result,
           set(
             {},
@@ -206,6 +202,7 @@ function $expressionObject(
             )
           )
         );
+        Object.assign(result, mergeResult);
       }
     } else {
       if (expression === true || expression === 1) {
@@ -223,14 +220,15 @@ function $expressionObject(
         !isExpressionOperator(expression)
       ) {
         // Check if this is a nested projection (field projection) or computed object (expression object)
-        const fieldValue = get(obj, path);
+        // Optimize for simple property access when path doesn't contain dots
+        const fieldValue = path.includes('.') ? get(obj, path) : obj[path];
         const isFieldProjection = fieldValue && typeof fieldValue === 'object';
 
         if (isFieldProjection) {
           // This is a nested projection object - apply to the field's value
-          if (isArray(fieldValue)) {
+          if (Array.isArray(fieldValue)) {
             // Apply projection to each element in the array
-            merge(
+            const mergeResult = merge(
               result,
               set(
                 {},
@@ -244,9 +242,10 @@ function $expressionObject(
                 )
               )
             );
+            Object.assign(result, mergeResult);
           } else {
             // Apply projection to the object
-            merge(
+            const mergeResult = merge(
               result,
               set(
                 {},
@@ -258,6 +257,7 @@ function $expressionObject(
                 )
               )
             );
+            Object.assign(result, mergeResult);
           }
         } else {
           // This is a computed object - each property is an expression
@@ -269,8 +269,8 @@ function $expressionObject(
         }
       }
 
-      if (isArray(target)) {
-        merge(
+      if (Array.isArray(target)) {
+        const mergeResult = merge(
           result,
           set(
             {},
@@ -278,11 +278,13 @@ function $expressionObject(
             target.map(subtarget => $expression(subtarget, expression, root))
           )
         );
+        Object.assign(result, mergeResult);
       } else {
-        merge(
+        const mergeResult = merge(
           result,
           set({}, path, $expression(target as Document, expression, root))
         );
+        Object.assign(result, mergeResult);
       }
     }
   }

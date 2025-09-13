@@ -975,6 +975,9 @@ npm run test:watch
 # Run tests with coverage
 npm run test:coverage
 
+# Run performance measurement standalone
+npm run test:performance
+
 # Lint code (ESLint with TypeScript support)
 npm run lint
 
@@ -1000,6 +1003,30 @@ npm run build  # Just echoes "No build step needed"
 2. **Type-Safe Development**: Full TypeScript checking in your IDE
 3. **Test-Driven Development**: Comprehensive test suite with 80+ tests
 4. **Modern Tooling**: ESLint + Prettier for code quality
+
+### 📊 Performance Tracking
+
+The test suite includes automatic performance measurement and tracking:
+
+- **Automatic Measurement**: `npm test` runs both unit tests and performance benchmarks
+- **Historical Comparison**: Performance results are compared against first run and previous runs
+- **Multiple Iterations**: Each benchmark runs multiple times and reports averages with standard deviation
+- **CI-Safe**: In CI environments, performance is measured but not persisted to files
+
+Performance results are saved in `performance-results/` as timestamped JSON files:
+
+- `performance-{timestamp}.json` - Contains detailed benchmark data
+- Includes comparisons showing percentage changes vs baseline and previous runs
+- Memory usage tracking and scaling efficiency analysis
+
+Example performance output:
+
+```bash
+📊 Measuring dataset size: 1,000 documents
+  simpleFilter         :    120μs     ±0.2ms | 8,333,333 docs/sec
+  vs First: -0.07ms (-36.84%) 📉
+  vs Previous: -0.08ms (-40%) 📉
+```
 
 ## 🔄 Migration from v0.7.x
 

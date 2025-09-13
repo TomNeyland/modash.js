@@ -1,7 +1,5 @@
+// Modern JavaScript - no lodash needed
 import {
-  every,
-  some,
-  isArray,
   isEqual,
   intersection,
   union,
@@ -10,11 +8,7 @@ import {
   gte,
   lt,
   lte,
-  uniq,
-  isDate,
-  size,
-  isFunction,
-} from 'lodash-es';
+} from './util.js';
 
 // Import basic types from expressions module
 import type { Document, DocumentValue, PrimitiveValue } from './expressions.js';
@@ -57,7 +51,7 @@ interface MapInput {
 }
 
 function evaluate(val: EvaluatableValue): DocumentValue {
-  return isFunction(val) ? (val as () => DocumentValue)() : val;
+  return typeof val === 'function' ? (val as () => DocumentValue)() : val;
 }
 
 // Boolean Operators
@@ -70,19 +64,19 @@ function $or(...values: EvaluatableValue[]): boolean {
 }
 
 function $not(...values: EvaluatableValue[]): boolean {
-  return !some(values, evaluate);
+  return !values.some(val => Boolean(evaluate(val)));
 }
 
 // Set Operators
 function $asSet(array: DocumentValue[]): DocumentValue[] {
   if (!Array.isArray(array)) return [];
-  return uniq(array.map(evaluate)).sort();
+  return [...new Set(array.map(evaluate))].sort();
 }
 
 function $setEquals(...arrays: EvaluatableValue[]): boolean {
   const sets = arrays.map(evaluate).map(arr => $asSet(arr as DocumentValue[]));
   const [firstSet] = sets;
-  return every(sets, set => isEqual(firstSet, set));
+  return sets.every(set => isEqual(firstSet, set));
 }
 
 function $setIntersection(...arrays: EvaluatableValue[]): DocumentValue[] {
@@ -115,7 +109,7 @@ function $setIsSubset(
 
 function $anyElementTrue(values: EvaluatableValue): boolean {
   const vals = evaluate(values);
-  if (!isArray(vals)) {
+  if (!Array.isArray(vals)) {
     return false; // Return false instead of throwing for undefined
   }
   return $or(...(vals as DocumentValue[]));
@@ -123,7 +117,7 @@ function $anyElementTrue(values: EvaluatableValue): boolean {
 
 function $allElementsTrue(values: EvaluatableValue): boolean {
   const vals = evaluate(values);
-  if (!isArray(vals)) {
+  if (!Array.isArray(vals)) {
     return false; // Return false instead of throwing for undefined
   }
   return $and(...(vals as DocumentValue[]));
@@ -134,7 +128,7 @@ function $cmp(value1: EvaluatableValue, value2: EvaluatableValue): number {
   const val1 = evaluate(value1);
   const val2 = evaluate(value2);
 
-  if (isArray(val1) && isArray(val2)) {
+  if (Array.isArray(val1) && Array.isArray(val2)) {
     return 0;
   }
 
@@ -161,8 +155,8 @@ function $gt(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
   const val1 = evaluate(value1);
   const val2 = evaluate(value2);
 
-  if (isArray(val2) && !isArray(val1)) return false;
-  if (isArray(val1) && !isArray(val2)) return true;
+  if (Array.isArray(val2) && !Array.isArray(val1)) return false;
+  if (Array.isArray(val1) && !Array.isArray(val2)) return true;
 
   // Both values are comparable (non-array) values
   return gt(val1 as ComparableValue, val2 as ComparableValue);
@@ -172,8 +166,8 @@ function $gte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
   const val1 = evaluate(value1);
   const val2 = evaluate(value2);
 
-  if (isArray(val2) && !isArray(val1)) return false;
-  if (isArray(val1) && !isArray(val2)) return true;
+  if (Array.isArray(val2) && !Array.isArray(val1)) return false;
+  if (Array.isArray(val1) && !Array.isArray(val2)) return true;
 
   // Both values are comparable (non-array) values
   return gte(val1 as ComparableValue, val2 as ComparableValue);
@@ -183,8 +177,8 @@ function $lt(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
   const val1 = evaluate(value1);
   const val2 = evaluate(value2);
 
-  if (isArray(val2) && !isArray(val1)) return true;
-  if (isArray(val1) && !isArray(val2)) return false;
+  if (Array.isArray(val2) && !Array.isArray(val1)) return true;
+  if (Array.isArray(val1) && !Array.isArray(val2)) return false;
 
   // Both values are comparable (non-array) values
   return lt(val1 as ComparableValue, val2 as ComparableValue);
@@ -194,8 +188,8 @@ function $lte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
   const val1 = evaluate(value1);
   const val2 = evaluate(value2);
 
-  if (isArray(val2) && !isArray(val1)) return true;
-  if (isArray(val1) && !isArray(val2)) return false;
+  if (Array.isArray(val2) && !Array.isArray(val1)) return true;
+  if (Array.isArray(val1) && !Array.isArray(val2)) return false;
 
   // Both values are comparable (non-array) values
   return lte(val1 as ComparableValue, val2 as ComparableValue);
@@ -211,14 +205,14 @@ function $add(...values: EvaluatableValue[]): number | Date {
   let result = evaluatedValues.shift() as number | Date;
   let resultAsDate = false;
 
-  if (isDate(result)) {
+  if (result instanceof Date) {
     resultAsDate = true;
     result = (result as Date).getTime();
   }
 
   for (let i = evaluatedValues.length - 1; i >= 0; i--) {
     let value = evaluatedValues[i] as number | Date;
-    if (isDate(value)) {
+    if (value instanceof Date) {
       resultAsDate = true;
       value = (value as Date).getTime();
     }
@@ -235,11 +229,11 @@ function $subtract(
   const val1 = evaluate(value1) as number | Date;
   const val2 = evaluate(value2) as number | Date;
 
-  if (isDate(val1) && isDate(val2)) {
+  if (val1 instanceof Date && val2 instanceof Date) {
     return (val1 as Date).getTime() - (val2 as Date).getTime();
-  } else if (isDate(val1) && !isDate(val2)) {
+  } else if (val1 instanceof Date && !(val2 instanceof Date)) {
     return new Date((val1 as Date).getTime() - (val2 as number));
-  } else if (!isDate(val1) && isDate(val2)) {
+  } else if (!(val1 instanceof Date) && val2 instanceof Date) {
     return new Date((val1 as number) - (val2 as Date).getTime());
   }
   return (val1 as number) - (val2 as number);
@@ -379,7 +373,7 @@ function $rtrim(string: EvaluatableValue, chars?: EvaluatableValue): string {
 function $size(collection: EvaluatableValue): number {
   const val = evaluate(collection);
   if (typeof val === 'string' || Array.isArray(val)) {
-    return size(val);
+    return val.length;
   }
   return 0;
 }

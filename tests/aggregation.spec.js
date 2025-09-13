@@ -1,4 +1,12 @@
-import { mapValues } from 'lodash-es';
+// Native implementation of mapValues
+const mapValues = (obj, mapFn) => {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = mapFn(value, key);
+  }
+  return result;
+};
+
 import Modash from '../src/index.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';

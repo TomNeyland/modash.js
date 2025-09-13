@@ -1,4 +1,4 @@
-import { size, keys, map, first, last, uniq } from 'lodash-es';
+// No lodash imports needed - using native JavaScript
 import {
   $expression,
   type Collection,
@@ -32,11 +32,12 @@ const ACCUMULATORS: Record<string, AccumulatorFunction> = {
 function isAccumulatorExpression(
   expression: AccumulatorOperatorObject
 ): expression is AccumulatorExpression {
+  const expressionKeys = Object.keys(expression);
   return (
     typeof expression === 'object' &&
     expression !== null &&
-    size(expression) === 1 &&
-    keys(expression)[0]! in ACCUMULATORS
+    expressionKeys.length === 1 &&
+    expressionKeys[0]! in ACCUMULATORS
   );
 }
 
@@ -49,7 +50,7 @@ function $accumulate(
   operatorExpression: Expression
 ): DocumentValue {
   if (isAccumulatorExpression(operatorExpression)) {
-    const [operator] = keys(operatorExpression);
+    const [operator] = Object.keys(operatorExpression);
     const args = operatorExpression[operator as keyof AccumulatorExpression];
     const accumulatorFunction = ACCUMULATORS[operator!];
 
@@ -65,7 +66,7 @@ function $accumulate(
 
 function $sum(collection: Collection, spec: Expression): number {
   if (spec === 1) {
-    return size(collection);
+    return collection.length;
   }
 
   // Calculate sum manually to handle expressions properly
@@ -81,17 +82,17 @@ function $sum(collection: Collection, spec: Expression): number {
 
 function $avg(collection: Collection, spec: Expression): number {
   const totalSum = $sum(collection, spec);
-  const count = size(collection);
+  const count = collection.length;
   return count > 0 ? totalSum / count : 0;
 }
 
 function $first(collection: Collection, spec: Expression): DocumentValue {
-  const firstDoc = first(collection);
+  const firstDoc = collection[0];
   return firstDoc ? $expression(firstDoc, spec) : null;
 }
 
 function $last(collection: Collection, spec: Expression): DocumentValue {
-  const lastDoc = last(collection);
+  const lastDoc = collection[collection.length - 1];
   return lastDoc ? $expression(lastDoc, spec) : null;
 }
 
@@ -118,12 +119,12 @@ function $min(collection: Collection, spec: Expression): number | null {
 }
 
 function $push(collection: Collection, spec: Expression): DocumentValue[] {
-  return map(collection, obj => $expression(obj, spec));
+  return collection.map(obj => $expression(obj, spec));
 }
 
 function $addToSet(collection: Collection, spec: Expression): DocumentValue[] {
   const values = $push(collection, spec);
-  return uniq(values.map(obj => JSON.stringify(obj))).map(str =>
+  return [...new Set(values.map(obj => JSON.stringify(obj)))].map(str =>
     JSON.parse(str)
   );
 }
