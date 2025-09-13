@@ -427,19 +427,23 @@ function $slice(
   if (!Array.isArray(arr)) return null;
 
   if (n === undefined) {
-    // $slice: [array, n] format
-    n = position;
-    pos =
-      (evaluate(n) as number) >= 0 ? 0 : arr.length + (evaluate(n) as number);
+    // $slice: [array, n] format - take n elements from start or end
+    const count = pos;
+    if (count >= 0) {
+      // Take first 'count' elements
+      return arr.slice(0, count);
+    } else {
+      // Take last 'count' elements
+      return arr.slice(count);
+    }
   } else {
-    n = evaluate(n) as number;
+    // $slice: [array, start, count] format
+    const count = evaluate(n) as number;
+    if (pos < 0) {
+      pos = Math.max(0, arr.length + pos);
+    }
+    return arr.slice(pos, pos + count);
   }
-
-  if (pos < 0) {
-    pos = Math.max(0, arr.length + pos);
-  }
-
-  return arr.slice(pos, pos + (n as number));
 }
 
 function $concatArrays(...arrays: EvaluatableValue[]): DocumentValue[] | null {

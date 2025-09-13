@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../dist/index.js';
+import Modash from '../src/index.ts';
 
 describe('Enhanced MongoDB Operators', () => {
   const testData = [
