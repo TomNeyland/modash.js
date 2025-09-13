@@ -47,6 +47,21 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     // Create execution plan
     const plan = this.performance.optimizePipeline(pipeline);
     
+    // Check if pipeline contains unsupported operations
+    let hasUnsupportedOperations = false;
+    for (const stage of plan.stages) {
+      if (stage.type === '$lookup' || stage.type === '$unwind') {
+        hasUnsupportedOperations = true;
+        break;
+      }
+    }
+    
+    // If unsupported operations exist, mark plan as non-incremental
+    if (hasUnsupportedOperations) {
+      plan.canFullyIncrement = false;
+      plan.canFullyDecrement = false;
+    }
+    
     // Compile operators
     const operators: IVMOperator[] = [];
     
@@ -83,6 +98,14 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           operator = this.operatorFactory.createProjectOperator(stage.stageData);
           break;
         
+        case '$lookup':
+          operator = this.operatorFactory.createLookupOperator(stage.stageData);
+          break;
+        
+        case '$unwind':
+          operator = this.operatorFactory.createUnwindOperator(stage.stageData);
+          break;
+        
         default:
           throw new Error(`Unsupported stage type: ${stage.type}`);
       }
@@ -96,9 +119,11 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     // Ensure required dimensions exist
     this.ensureDimensions(plan.primaryDimensions);
 
-    // CRITICAL: Process existing documents through new operators
+    // CRITICAL: Process existing documents through new operators (only if fully supported)
     // This initializes operator state (like groups) for documents already in the store
-    this.initializeOperatorsWithExistingData(operators, plan);
+    if (!hasUnsupportedOperations) {
+      this.initializeOperatorsWithExistingData(operators, plan);
+    }
 
     return plan;
   }

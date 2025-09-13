@@ -414,6 +414,27 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         }
         return 'true';
       
+      case '$regex':
+        // Handle regex patterns
+        if (typeof value === 'string') {
+          return `new RegExp(${JSON.stringify(value)}).test(${fieldAccess})`;
+        } else if (value && typeof value === 'object' && value.$regex) {
+          const pattern = JSON.stringify(value.$regex);
+          const flags = value.$options || '';
+          return `new RegExp(${pattern}, ${JSON.stringify(flags)}).test(${fieldAccess})`;
+        }
+        return 'false';
+      
+      case '$all':
+        if (Array.isArray(value)) {
+          const checks = value.map(v => `(${fieldAccess} && Array.isArray(${fieldAccess}) && ${fieldAccess}.includes(${JSON.stringify(v)}))`);
+          return checks.join(' && ');
+        }
+        return 'false';
+      
+      case '$size':
+        return `(Array.isArray(${fieldAccess}) && ${fieldAccess}.length === ${JSON.stringify(value)})`;
+      
       case '$exists':
         return value 
           ? `${fieldAccess} !== undefined`
