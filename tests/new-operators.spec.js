@@ -37,6 +37,7 @@ describe('New Aggregation Operators', () => {
         testData.inventory,
         pipeline,
         '$match with $gte'
+      );
       expect(results.streaming).to.deep.equal(results.nonStreaming);
       expect(results.streaming).to.have.lengthOf(3);
       expect(results.streaming.every(item => item.qty >= 250)).to.be.true;
