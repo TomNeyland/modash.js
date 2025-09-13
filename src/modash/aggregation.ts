@@ -497,35 +497,26 @@ function traditionalAggregate<T extends Document = Document>(
 
     if ('$match' in stage) {
       result = $match(result, stage.$match);
-    }
-    if ('$project' in stage) {
+    } else if ('$project' in stage) {
       result = $project(result, stage.$project);
-    }
-    if ('$group' in stage) {
+    } else if ('$group' in stage) {
       result = $group(result, stage.$group);
-    }
-    if ('$sort' in stage) {
+    } else if ('$sort' in stage) {
       result = $sort(result, stage.$sort);
-    }
-    if ('$skip' in stage) {
+    } else if ('$skip' in stage) {
       result = $skip(result, stage.$skip);
-    }
-    if ('$limit' in stage) {
+    } else if ('$limit' in stage) {
       result = $limit(result, stage.$limit);
-    }
-    if ('$unwind' in stage) {
+    } else if ('$unwind' in stage) {
       const unwindSpec = stage.$unwind;
       const fieldPath =
         typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
       result = $unwind(result, fieldPath);
-    }
-    if ('$lookup' in stage) {
+    } else if ('$lookup' in stage) {
       result = $lookup(result, stage.$lookup);
-    }
-    if ('$addFields' in stage) {
+    } else if ('$addFields' in stage) {
       result = $addFields(result, stage.$addFields);
-    }
-    if ('$set' in stage) {
+    } else if ('$set' in stage) {
       result = $addFields(result, stage.$set);
     }
   }
