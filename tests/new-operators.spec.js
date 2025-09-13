@@ -1,4 +1,4 @@
-import Modash from '../dist/index.js';
+import Modash from '../src/index.ts';
 import testData from './test-data.js';
 import { expect } from 'chai';
 

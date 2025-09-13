@@ -1,4 +1,4 @@
-import { count } from '../dist/modash/count.js';
+import { count } from '../src/modash/count.ts';
 import { expect } from 'chai';
 
 describe('Modash Count', () => {

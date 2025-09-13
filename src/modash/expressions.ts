@@ -169,8 +169,29 @@ function $expressionObject(
         // Assume a pathspec, use root as the target
         target = root;
       } else if (typeof expression === 'object') {
-        // This is an expression object to evaluate against the current object
-        target = obj;
+        // This is a nested projection object - apply to the field's value
+        const fieldValue = get(obj, path);
+        if (isArray(fieldValue)) {
+          // Apply projection to each element in the array
+          merge(
+            result,
+            set(
+              {},
+              path,
+              fieldValue.map(item => $expressionObject(item, expression as { [key: string]: Expression }, root))
+            )
+          );
+        } else if (fieldValue && typeof fieldValue === 'object') {
+          // Apply projection to the object
+          merge(
+            result,
+            set({}, path, $expressionObject(fieldValue as Document, expression as { [key: string]: Expression }, root))
+          );
+        } else {
+          // Field doesn't exist or isn't an object
+          merge(result, set({}, path, null));
+        }
+        continue;
       }
 
       if (isArray(target)) {

@@ -1,8 +1,8 @@
 import { mapValues } from 'lodash-es';
 import { expect } from 'chai';
-import Modash from '../dist/index.js';
+import Modash from '../src/index.ts';
 import testData from './test-data.js';
-import { $project } from '../dist/modash/aggregation.js';
+import { $project } from '../src/modash/aggregation.ts';
 
 let _db;
 
