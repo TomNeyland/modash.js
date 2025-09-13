@@ -149,35 +149,22 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       return () => false;
     }
 
-    // Generate optimized function code
+    // For complex logical expressions, use fallback evaluation
+    const hasLogicalOps = Object.keys(expr).some(key => 
+      key === '$and' || key === '$or' || key === '$not'
+    );
+    
+    if (hasLogicalOps) {
+      return (doc: Document, rowId: RowId) => {
+        return this.evaluateMatchExpression(expr, doc);
+      };
+    }
+
+    // Generate optimized function code for simple expressions
     const conditions: string[] = [];
 
     for (const [field, condition] of Object.entries(expr)) {
-      if (field.startsWith('$')) {
-        // Logical operators
-        switch (field) {
-          case '$and':
-            const andConditions = (condition as any[]).map((cond, i) => {
-              const subFn = this.buildMatchFunction(cond);
-              return `subFn${i}(doc, rowId)`;
-            });
-            conditions.push(`(${andConditions.join(' && ')})`);
-            break;
-
-          case '$or':
-            const orConditions = (condition as any[]).map((cond, i) => {
-              const subFn = this.buildMatchFunction(cond);
-              return `subFn${i}(doc, rowId)`;
-            });
-            conditions.push(`(${orConditions.join(' || ')})`);
-            break;
-
-          case '$not':
-            const notFn = this.buildMatchFunction(condition);
-            conditions.push(`!(subFn(doc, rowId))`);
-            break;
-        }
-      } else {
+      if (!field.startsWith('$')) {
         // Field conditions
         const fieldAccess = this.generateFieldAccess(field);
 
@@ -245,9 +232,15 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // Exclude field (handled by not including it)
         continue;
       } else if (typeof projection === 'object' && projection !== null) {
-        // Computed field with expression
-        const exprCode = this.generateExpressionCode(projection);
-        projections.push(`result.${field} = ${exprCode};`);
+        // Handle nested object projection like {title: 1, author: 1}
+        if (this.isNestedProjection(projection)) {
+          const nestedCode = this.generateNestedProjectionCode(field, projection);
+          projections.push(nestedCode);
+        } else {
+          // Computed field with expression
+          const exprCode = this.generateExpressionCode(projection);
+          projections.push(`result.${field} = ${exprCode};`);
+        }
       } else if (typeof projection === 'string' && projection.startsWith('$')) {
         // Field reference
         const exprCode = this.generateExpressionCode(projection);
@@ -381,7 +374,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         if (typeof expr === 'string' && expr.startsWith('$')) {
           return getField(doc, expr.substring(1));
         } else if (typeof expr === 'object' && expr !== null) {
-          // For complex expressions, we'll implement basic operators
+          // Date operators
           if (expr.$year) {
             const dateField = expr.$year;
             const dateValue = getField(doc, dateField.substring(1));
@@ -406,12 +399,54 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             }
             return null;
           }
+          
+          // Math operators
           if (expr.$multiply && Array.isArray(expr.$multiply)) {
             const [left, right] = expr.$multiply;
             const leftVal = evalExpr(left, doc);
             const rightVal = evalExpr(right, doc);
             return (leftVal || 0) * (rightVal || 0);
           }
+          if (expr.$add && Array.isArray(expr.$add)) {
+            const values = expr.$add.map(v => Number(evalExpr(v, doc)) || 0);
+            return values.reduce((sum, val) => sum + val, 0);
+          }
+          if (expr.$subtract && Array.isArray(expr.$subtract) && expr.$subtract.length === 2) {
+            const [left, right] = expr.$subtract;
+            const leftVal = Number(evalExpr(left, doc)) || 0;
+            const rightVal = Number(evalExpr(right, doc)) || 0;
+            return leftVal - rightVal;
+          }
+          if (expr.$divide && Array.isArray(expr.$divide) && expr.$divide.length === 2) {
+            const [left, right] = expr.$divide;
+            const leftVal = Number(evalExpr(left, doc)) || 0;
+            const rightVal = Number(evalExpr(right, doc)) || 1; // Avoid division by zero
+            return rightVal !== 0 ? leftVal / rightVal : null;
+          }
+          if (expr.$abs) {
+            const val = Number(evalExpr(expr.$abs, doc)) || 0;
+            return Math.abs(val);
+          }
+          if (expr.$ceil) {
+            const val = Number(evalExpr(expr.$ceil, doc)) || 0;
+            return Math.ceil(val);
+          }
+          if (expr.$floor) {
+            const val = Number(evalExpr(expr.$floor, doc)) || 0;
+            return Math.floor(val);
+          }
+          if (expr.$sqrt) {
+            const val = Number(evalExpr(expr.$sqrt, doc)) || 0;
+            return Math.sqrt(val);
+          }
+          if (expr.$pow && Array.isArray(expr.$pow) && expr.$pow.length === 2) {
+            const [base, exp] = expr.$pow;
+            const baseVal = Number(evalExpr(base, doc)) || 0;
+            const expVal = Number(evalExpr(exp, doc)) || 0;
+            return Math.pow(baseVal, expVal);
+          }
+          
+          // String operators
           if (expr.$substr && Array.isArray(expr.$substr) && expr.$substr.length === 3) {
             const [strExpr, startExpr, lengthExpr] = expr.$substr;
             const str = String(evalExpr(strExpr, doc) || '');
@@ -419,6 +454,82 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             const length = Number(evalExpr(lengthExpr, doc) || 0);
             return str.substring(start, start + length);
           }
+          if (expr.$concat && Array.isArray(expr.$concat)) {
+            const parts = expr.$concat.map(part => String(evalExpr(part, doc) || ''));
+            return parts.join('');
+          }
+          if (expr.$toLower) {
+            const str = String(evalExpr(expr.$toLower, doc) || '');
+            return str.toLowerCase();
+          }
+          if (expr.$toUpper) {
+            const str = String(evalExpr(expr.$toUpper, doc) || '');
+            return str.toUpperCase();
+          }
+          if (expr.$split && Array.isArray(expr.$split) && expr.$split.length === 2) {
+            const [strExpr, delimiterExpr] = expr.$split;
+            const str = String(evalExpr(strExpr, doc) || '');
+            const delimiter = String(evalExpr(delimiterExpr, doc) || '');
+            return str.split(delimiter);
+          }
+          if (expr.$strLen) {
+            const str = String(evalExpr(expr.$strLen, doc) || '');
+            return str.length;
+          }
+          if (expr.$trim) {
+            const str = String(evalExpr(expr.$trim, doc) || '');
+            return str.trim();
+          }
+          
+          // Array operators
+          if (expr.$arrayElemAt && Array.isArray(expr.$arrayElemAt) && expr.$arrayElemAt.length === 2) {
+            const [arrayExpr, indexExpr] = expr.$arrayElemAt;
+            const arr = evalExpr(arrayExpr, doc);
+            const index = Number(evalExpr(indexExpr, doc)) || 0;
+            if (Array.isArray(arr)) {
+              return index >= 0 ? arr[index] : arr[arr.length + index];
+            }
+            return null;
+          }
+          if (expr.$slice && Array.isArray(expr.$slice)) {
+            const [arrayExpr, ...params] = expr.$slice;
+            const arr = evalExpr(arrayExpr, doc);
+            if (Array.isArray(arr)) {
+              if (params.length === 1) {
+                const count = Number(evalExpr(params[0], doc)) || 0;
+                return count >= 0 ? arr.slice(0, count) : arr.slice(count);
+              } else if (params.length === 2) {
+                const start = Number(evalExpr(params[0], doc)) || 0;
+                const count = Number(evalExpr(params[1], doc)) || 0;
+                return arr.slice(start, start + count);
+              }
+            }
+            return [];
+          }
+          if (expr.$concatArrays && Array.isArray(expr.$concatArrays)) {
+            const arrays = expr.$concatArrays.map(arrExpr => {
+              const result = evalExpr(arrExpr, doc);
+              return Array.isArray(result) ? result : [];
+            });
+            return arrays.flat();
+          }
+          if (expr.$size) {
+            const arr = evalExpr(expr.$size, doc);
+            return Array.isArray(arr) ? arr.length : null;
+          }
+          
+          // Conditional operators
+          if (expr.$cond && Array.isArray(expr.$cond) && expr.$cond.length === 3) {
+            const [condition, trueValue, falseValue] = expr.$cond;
+            const condResult = evalExpr(condition, doc);
+            return condResult ? evalExpr(trueValue, doc) : evalExpr(falseValue, doc);
+          }
+          if (expr.$ifNull && Array.isArray(expr.$ifNull) && expr.$ifNull.length === 2) {
+            const [value, defaultValue] = expr.$ifNull;
+            const result = evalExpr(value, doc);
+            return result != null ? result : evalExpr(defaultValue, doc);
+          }
+          
           // Add other operators as needed
           return expr;
         } else {
@@ -540,6 +651,45 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return true;
   }
 
+  private isNestedProjection(obj: any): boolean {
+    // Check if this is a nested projection like {title: 1, author: 1}
+    if (typeof obj !== 'object' || obj === null) return false;
+    
+    for (const value of Object.values(obj)) {
+      if (value === 1 || value === true || value === 0 || value === false) {
+        return true; // Has projection flags, this is nested projection
+      }
+    }
+    return false;
+  }
+
+  private generateNestedProjectionCode(parentField: string, projection: any): string {
+    const nestedFields: string[] = [];
+    const projectionEntries = Object.entries(projection).filter(([_, include]) => include === 1 || include === true);
+    
+    if (projectionEntries.length === 0) return '';
+    
+    // Generate code that handles both object and array cases
+    const fieldAccess = this.generateFieldAccess(parentField);
+    const projectionLogic = projectionEntries.map(([nestedField, _]) => {
+      return `"${nestedField}": item.${nestedField}`;
+    }).join(', ');
+    
+    nestedFields.push(`
+      if (${fieldAccess} !== undefined) {
+        if (Array.isArray(${fieldAccess})) {
+          result.${parentField} = ${fieldAccess}.map(item => item && typeof item === 'object' ? {${projectionLogic}} : item);
+        } else if (${fieldAccess} && typeof ${fieldAccess} === 'object') {
+          result.${parentField} = {${projectionLogic.replace(/item\./g, `${fieldAccess}.`)}};
+        } else {
+          result.${parentField} = ${fieldAccess};
+        }
+      }
+    `);
+    
+    return nestedFields.join('\n      ');
+  }
+
   // Fallback evaluation methods for when JIT compilation fails
   private evaluateMatchExpression(expr: any, doc: Document): boolean {
     if (typeof expr !== 'object' || expr === null) {
@@ -576,13 +726,58 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private evaluateProjectExpression(expr: any, doc: Document): Document {
     const result: Document = {};
 
+    // Handle _id inclusion by default
+    const excludeId = expr._id === 0 || expr._id === false;
+    if (!excludeId && doc._id !== undefined) {
+      result._id = doc._id;
+    }
+
     for (const [field, projection] of Object.entries(expr)) {
-      if (projection === 1 || projection === true) {
-        result[field] = this.getFieldValue(doc, field);
+      if (field === '_id' && (projection === 0 || projection === false)) {
+        // Skip _id exclusion, already handled above
+        continue;
+      } else if (projection === 1 || projection === true) {
+        const value = this.getFieldValue(doc, field);
+        if (value !== undefined) {
+          result[field] = value;
+        }
       } else if (projection === 0 || projection === false) {
         // Skip field
       } else if (typeof projection === 'object' && projection !== null) {
-        result[field] = this.evaluateExpression(projection, doc);
+        if (this.isNestedProjection(projection)) {
+          // Handle nested projection
+          const sourceValue = this.getFieldValue(doc, field);
+          if (sourceValue !== undefined) {
+            if (Array.isArray(sourceValue)) {
+              // Project each array element
+              result[field] = sourceValue.map(item => {
+                if (item && typeof item === 'object') {
+                  const projected: any = {};
+                  for (const [nestedField, include] of Object.entries(projection)) {
+                    if (include === 1 || include === true && item[nestedField] !== undefined) {
+                      projected[nestedField] = item[nestedField];
+                    }
+                  }
+                  return projected;
+                }
+                return item;
+              });
+            } else if (sourceValue && typeof sourceValue === 'object') {
+              // Project object fields
+              const projected: any = {};
+              for (const [nestedField, include] of Object.entries(projection)) {
+                if (include === 1 || include === true && sourceValue[nestedField] !== undefined) {
+                  projected[nestedField] = sourceValue[nestedField];
+                }
+              }
+              result[field] = projected;
+            } else {
+              result[field] = sourceValue;
+            }
+          }
+        } else {
+          result[field] = this.evaluateExpression(projection, doc);
+        }
       } else {
         result[field] = projection;
       }

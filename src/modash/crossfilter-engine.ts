@@ -53,7 +53,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     // Check if pipeline contains unsupported operations
     let hasUnsupportedOperations = false;
     for (const stage of plan.stages) {
-      if (stage.type === '$lookup' || stage.type === '$unwind') {
+      if (stage.type === '$lookup') {
         hasUnsupportedOperations = true;
         break;
       }
@@ -110,7 +110,10 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           break;
 
         case '$unwind':
-          operator = this.operatorFactory.createUnwindOperator(stage.stageData);
+          operator = this.operatorFactory.createUnwindOperator(
+            stage.stageData,
+            undefined
+          );
           break;
 
         default:
