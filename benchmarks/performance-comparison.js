@@ -3,7 +3,7 @@
  * This benchmark demonstrates the performance improvements achieved
  */
 
-import Modash from '../src/modash/index.js';
+import Modash from '../src/modash/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES } from './setup.js';
 
 // Test data sizes
