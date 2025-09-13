@@ -102,7 +102,8 @@ function $match<T extends Document = Document>(
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
-    const fieldValue = lodashGet(doc, field);
+    // Optimize for simple property access - use direct access when no dots in field name
+    const fieldValue = field.includes('.') ? lodashGet(doc, field) : doc[field];
 
     // Handle logical operators
     if (field === '$and') {
@@ -268,8 +269,9 @@ function $sort<T extends Document = Document>(
   return [...collection].sort((a, b) => {
     for (const key of sortKeys) {
       const direction = sortSpec[key]!; // 1 for asc, -1 for desc
-      const valueA = lodashGet(a, key);
-      const valueB = lodashGet(b, key);
+      // Optimize for simple property access - use direct access when no dots in key
+      const valueA = key.includes('.') ? lodashGet(a, key) : a[key];
+      const valueB = key.includes('.') ? lodashGet(b, key) : b[key];
 
       // Handle null/undefined values (MongoDB behavior: null < any value)
       if (
@@ -310,7 +312,10 @@ function $unwind<T extends Document = Document>(
   const result: Document[] = [];
 
   for (const doc of collection) {
-    const arrayValue = lodashGet(doc, cleanPath);
+    // Optimize for simple property access - use direct access when no dots in path
+    const arrayValue = cleanPath.includes('.')
+      ? lodashGet(doc, cleanPath)
+      : doc[cleanPath];
 
     if (!Array.isArray(arrayValue)) {
       result.push(doc); // Return original document if field is not an array
@@ -390,10 +395,16 @@ function $lookup<T extends Document = Document>(
   }
 
   return collection.map(doc => {
-    const localValue = lodashGet(doc, localField);
-    const matches = from.filter(
-      foreignDoc => lodashGet(foreignDoc, foreignField) === localValue
-    );
+    // Optimize for simple property access - use direct access when no dots in field
+    const localValue = localField.includes('.')
+      ? lodashGet(doc, localField)
+      : doc[localField];
+    const matches = from.filter(foreignDoc => {
+      const foreignValue = foreignField.includes('.')
+        ? lodashGet(foreignDoc, foreignField)
+        : foreignDoc[foreignField];
+      return foreignValue === localValue;
+    });
 
     return {
       ...doc,
