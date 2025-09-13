@@ -7,10 +7,16 @@ import type {
   AccumulatorExpression,
 } from '../index.js';
 
-const ACCUMULATORS: Record<
-  string,
-  (collection: Collection, spec: Expression) => any
-> = {
+// Local type definitions for accumulator functions
+type AccumulatorFunction = (
+  collection: Collection,
+  spec: Expression
+) => DocumentValue;
+type AccumulatorOperatorObject =
+  | AccumulatorExpression
+  | { [key: string]: Expression };
+
+const ACCUMULATORS: Record<string, AccumulatorFunction> = {
   $accumulate,
   $sum,
   $avg,
@@ -23,7 +29,7 @@ const ACCUMULATORS: Record<
 };
 
 function isAccumulatorExpression(
-  expression: unknown
+  expression: AccumulatorOperatorObject
 ): expression is AccumulatorExpression {
   return (
     typeof expression === 'object' &&
@@ -43,7 +49,7 @@ function $accumulate(
 ): DocumentValue {
   if (isAccumulatorExpression(operatorExpression)) {
     const [operator] = keys(operatorExpression);
-    const args = (operatorExpression as any)[operator!];
+    const args = operatorExpression[operator as keyof AccumulatorExpression];
     const accumulatorFunction = ACCUMULATORS[operator!];
 
     if (!accumulatorFunction) {

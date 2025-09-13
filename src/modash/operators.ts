@@ -16,13 +16,38 @@ import {
   isFunction,
 } from 'lodash-es';
 
-import type { DocumentValue } from '../index.js';
+import type { Document, DocumentValue, Expression } from '../index.js';
 
 /**
  * Modern MongoDB Expression Operators for TypeScript
  */
 
 type EvaluatableValue = (() => DocumentValue) | DocumentValue;
+
+// Type for the expression evaluation function to avoid circular dependencies
+type ExpressionEvaluator = (
+  obj: Document,
+  expression: Expression,
+  root?: Document
+) => DocumentValue;
+
+// Type for operator functions
+type OperatorFunction = (
+  ...args: EvaluatableValue[]
+) => DocumentValue | boolean | number;
+
+// Types for array operators with special input formats
+interface FilterInput {
+  input: EvaluatableValue;
+  cond: Expression;
+  as?: string;
+}
+
+interface MapInput {
+  input: EvaluatableValue;
+  in: Expression;
+  as?: string;
+}
 
 function evaluate(val: EvaluatableValue): DocumentValue {
   return isFunction(val) ? (val as () => DocumentValue)() : val;
@@ -362,27 +387,20 @@ function $arrayElemAt(
 
 // We need to handle $expression import to avoid circular dependency
 // This will be set by the expressions module when it's loaded
-let _$expression: ((obj: any, expression: any, root?: any) => any) | null =
-  null;
+let _$expression: ExpressionEvaluator | null = null;
 
-export function set$expression(
-  fn: (obj: any, expression: any, root?: any) => any
-) {
+export function set$expression(fn: ExpressionEvaluator) {
   _$expression = fn;
 }
 
-function getExpressionFunction() {
+function getExpressionFunction(): ExpressionEvaluator {
   if (!_$expression) {
     throw new Error('$expression function not initialized');
   }
   return _$expression;
 }
 
-function $filter(input: {
-  input: EvaluatableValue;
-  cond: any;
-  as?: string;
-}): DocumentValue[] | null {
+function $filter(input: FilterInput): DocumentValue[] | null {
   const { input: array, cond, as = 'this' } = input;
   const evaluatedArray = evaluate(array);
 
@@ -393,15 +411,11 @@ function $filter(input: {
   return evaluatedArray.filter(item => {
     // Create temporary context with the array element
     const tempDoc = { [as]: item };
-    return $expression(tempDoc, cond);
+    return Boolean($expression(tempDoc, cond));
   });
 }
 
-function $map(input: {
-  input: EvaluatableValue;
-  in: any;
-  as?: string;
-}): DocumentValue[] | null {
+function $map(input: MapInput): DocumentValue[] | null {
   const { input: array, in: expression, as = 'this' } = input;
   const evaluatedArray = evaluate(array);
 
@@ -615,7 +629,7 @@ function $ifNull(
   return val !== null ? val : evaluate(defaultValue);
 }
 
-const EXPRESSION_OPERATORS: Record<string, (...args: any[]) => any> = {
+const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   // Boolean
   $and,
   $or,
