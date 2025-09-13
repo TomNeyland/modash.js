@@ -1,23 +1,55 @@
 import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
 
-import { $expressionObject, $expression } from './expressions.js';
+import {
+  $expressionObject,
+  $expression,
+  type Collection,
+  type Document,
+  type DocumentValue,
+} from './expressions.js';
 import { $accumulate } from './accumulators.js';
+
+// Import complex types from main index for now
 import type {
-  Collection,
-  Document,
   Pipeline,
   PipelineStage,
   Expression,
-  DocumentValue,
-  QueryExpression,
   GroupStage,
   ProjectStage,
   SortStage,
   LookupStage,
   AddFieldsStage,
-  ComparisonOperators,
-  QueryOperators,
 } from '../index.js';
+
+// Match-related type definitions
+// Comparison operators for $match
+export interface ComparisonOperators<T = DocumentValue> {
+  $eq?: T;
+  $ne?: T;
+  $gt?: T;
+  $gte?: T;
+  $lt?: T;
+  $lte?: T;
+  $in?: T[];
+  $nin?: T[];
+}
+
+// Query operators for $match
+export interface QueryOperators {
+  $and?: QueryExpression[];
+  $or?: QueryExpression[];
+  $nor?: QueryExpression[];
+  $regex?: string;
+  $options?: string;
+  $exists?: boolean;
+  $all?: DocumentValue[];
+  $elemMatch?: QueryExpression;
+  $size?: number;
+}
+
+export type QueryExpression = {
+  [K in string]?: DocumentValue | (ComparisonOperators & QueryOperators);
+};
 
 // Local type definitions for better type safety
 type FieldCondition = DocumentValue | (ComparisonOperators & QueryOperators);

@@ -1,5 +1,7 @@
 import { size } from 'lodash-es';
-import type { Collection, Document } from '../index.js';
+
+// Import basic types from expressions module
+import type { Collection, Document } from './expressions.js';
 
 /**
  * Returns the count of documents in the collection.
