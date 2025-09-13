@@ -17,7 +17,7 @@ import {
 } from 'lodash-es';
 
 // Import basic types from expressions module
-import type { Document, DocumentValue } from './expressions.js';
+import type { Document, DocumentValue, PrimitiveValue } from './expressions.js';
 
 // Import complex types from main index for now
 import type { Expression } from '../index.js';
@@ -27,6 +27,9 @@ import type { Expression } from '../index.js';
  */
 
 type EvaluatableValue = (() => DocumentValue) | DocumentValue;
+
+// Type for values that can be compared (excluding arrays for comparison operations)
+type ComparableValue = Exclude<PrimitiveValue, null> | Date;
 
 // Type for the expression evaluation function to avoid circular dependencies
 type ExpressionEvaluator = (
@@ -160,7 +163,9 @@ function $gt(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
 
   if (isArray(val2) && !isArray(val1)) return false;
   if (isArray(val1) && !isArray(val2)) return true;
-  return gt(val1 as any, val2 as any);
+
+  // Both values are comparable (non-array) values
+  return gt(val1 as ComparableValue, val2 as ComparableValue);
 }
 
 function $gte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
@@ -169,7 +174,9 @@ function $gte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
 
   if (isArray(val2) && !isArray(val1)) return false;
   if (isArray(val1) && !isArray(val2)) return true;
-  return gte(val1 as any, val2 as any);
+
+  // Both values are comparable (non-array) values
+  return gte(val1 as ComparableValue, val2 as ComparableValue);
 }
 
 function $lt(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
@@ -178,7 +185,9 @@ function $lt(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
 
   if (isArray(val2) && !isArray(val1)) return true;
   if (isArray(val1) && !isArray(val2)) return false;
-  return lt(val1 as any, val2 as any);
+
+  // Both values are comparable (non-array) values
+  return lt(val1 as ComparableValue, val2 as ComparableValue);
 }
 
 function $lte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
@@ -187,7 +196,9 @@ function $lte(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
 
   if (isArray(val2) && !isArray(val1)) return true;
   if (isArray(val1) && !isArray(val2)) return false;
-  return lte(val1 as any, val2 as any);
+
+  // Both values are comparable (non-array) values
+  return lte(val1 as ComparableValue, val2 as ComparableValue);
 }
 
 function $ne(value1: EvaluatableValue, value2: EvaluatableValue): boolean {
