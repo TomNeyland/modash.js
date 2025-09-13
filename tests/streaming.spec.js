@@ -3,7 +3,6 @@ import { EventEmitter } from 'events';
 import {
   StreamingCollection,
   createStreamingCollection,
-  aggregateStreaming,
 } from '../src/modash/streaming.js';
 
 describe('Streaming Collection', () => {
@@ -817,15 +816,18 @@ describe('Streaming Collection', () => {
     });
   });
 
-  describe('aggregateStreaming Function', () => {
-    it('should work with regular collections', () => {
+  describe('Transparent Streaming Aggregation', () => {
+    it('should work with regular collections (transparently streaming)', () => {
       const regularCollection = [
         { id: 1, name: 'Alice', value: 10 },
         { id: 2, name: 'Bob', value: 20 },
       ];
 
       const pipeline = [{ $match: { value: { $gte: 15 } } }];
-      const result = aggregateStreaming(regularCollection, pipeline);
+      // Now using transparent streaming via createStreamingCollection
+      const streaming = createStreamingCollection(regularCollection);
+      const result = streaming.stream(pipeline);
+      streaming.destroy();
 
       expect(result).to.have.length(1);
       expect(result[0].name).to.equal('Bob');
@@ -833,7 +835,7 @@ describe('Streaming Collection', () => {
 
     it('should work with streaming collections', () => {
       const pipeline = [{ $match: { age: { $gte: 30 } } }];
-      const result = aggregateStreaming(streamingCollection, pipeline);
+      const result = streamingCollection.stream(pipeline);
 
       expect(result).to.have.length(2);
       expect(result.map(d => d.name)).to.include.members(['Alice', 'Charlie']);

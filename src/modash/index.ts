@@ -35,14 +35,19 @@ import type {
 } from '../index.js';
 
 /**
- * Transparent aggregation function that automatically handles both
- * regular arrays and streaming collections
+ * Fully transparent aggregation function that creates streaming collections
+ * for all operations, providing unified incremental capabilities
  */
 const transparentAggregate = <T extends Document = Document>(
   collection: Collection<T> | StreamingCollection<T>,
   pipeline: Pipeline
 ): Collection<Document> => {
-  return aggregateStreaming(collection, pipeline);
+  // Always use streaming collections - create one if needed
+  if (!(collection instanceof StreamingCollection)) {
+    const streamingCollection = createStreamingCollection(collection);
+    return streamingCollection.stream(pipeline);
+  }
+  return collection.stream(pipeline);
 };
 
 /**
@@ -70,7 +75,6 @@ const Modash: ModashStatic = {
   $set,
   // Streaming methods for advanced users
   createStreamingCollection,
-  aggregateStreaming,
 };
 
 export default Modash;
@@ -99,7 +103,6 @@ export type { Collection, Document, QueryExpression };
 export {
   StreamingCollection,
   createStreamingCollection,
-  aggregateStreaming,
 } from './streaming.js';
 
 // Re-export streaming types

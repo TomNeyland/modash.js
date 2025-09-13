@@ -2,7 +2,6 @@ import { expect } from 'chai';
 import Modash from '../src/index.ts';
 import {
   createStreamingCollection,
-  aggregateStreaming,
 } from '../src/modash/streaming.ts';
 import testData from './test-data.js';
 
@@ -205,7 +204,6 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         testData.sales2,
         complexPipeline,
         'complex sales analysis'
-      );
     });
 
     it('should produce identical results for inventory analysis with mathematical operations', () => {
@@ -228,7 +226,6 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         testData.inventory,
         mathPipeline,
         'inventory with math operations'
-      );
     });
 
     it('should produce identical results for text processing pipeline', () => {
@@ -258,7 +255,6 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         testData.inventory,
         textPipeline,
         'text processing'
-      );
     });
   });
 
@@ -366,7 +362,6 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
       const nonStreamingResult = Modash.aggregate(
         largeDataset,
         complexPipeline
-      );
       const endNonStreaming = performance.now();
 
       const streamingCollection = createStreamingCollection(largeDataset);
@@ -383,17 +378,14 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         [...arr].sort((a, b) => a._id.localeCompare(b._id));
       expect(sortByCategory(streamingResult)).to.deep.equal(
         sortByCategory(nonStreamingResult)
-      );
 
       // Performance should be reasonable (streaming shouldn't be dramatically slower)
       expect(streamingTime).to.be.lessThan(
         nonStreamingTime * 3,
         `Streaming took ${streamingTime}ms vs non-streaming ${nonStreamingTime}ms`
-      );
 
       console.log(
         `      Performance: Non-streaming: ${nonStreamingTime.toFixed(2)}ms, Streaming: ${streamingTime.toFixed(2)}ms`
-      );
     });
   });
 
@@ -436,7 +428,6 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         [...arr].sort((a, b) => (b.totalQty || 0) - (a.totalQty || 0));
       expect(sortByTotalQty(streamingResult)).to.deep.equal(
         sortByTotalQty(completeResult)
-      );
     });
   });
 });
