@@ -442,12 +442,18 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       if (operator.type === '$group') {
         currentResult = operator.snapshot(this.store, _context);
       } else if (operator.type === '$match') {
-        currentResult = operator.snapshot(this.store, _context);
+        // If this is the first stage, start with entire store, otherwise filter currentResult
+        if (i === 0) {
+          currentResult = operator.snapshot(this.store, _context);
+        } else {
+          currentResult = this.applyMatching(currentResult, stage.stageData);
+        }
       } else if (operator.type === '$project') {
         // Apply projection to current result
         currentResult = this.applyProjection(currentResult, stage.stageData);
       } else if (operator.type === '$sort') {
-        currentResult = operator.snapshot(this.store, _context);
+        // Sort the current pipeline result, not the entire store
+        currentResult = this.applySorting(currentResult, stage.stageData);
       } else if (operator.type === '$limit') {
         currentResult = currentResult.slice(0, stage.stageData);
       } else if (operator.type === '$skip') {
@@ -492,6 +498,58 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     }
 
     return size;
+  }
+
+  private applySorting(
+    documents: Collection<Document>,
+    sortExpr: any
+  ): Collection<Document> {
+    if (!documents || documents.length === 0) return documents;
+
+    // Create sort comparator from MongoDB sort expression
+    const sortFields = Object.entries(sortExpr);
+
+    return [...documents].sort((a, b) => {
+      for (const [field, direction] of sortFields) {
+        const aVal = this.getFieldValue(a, field);
+        const bVal = this.getFieldValue(b, field);
+
+        let comparison = 0;
+        if (aVal < bVal) comparison = -1;
+        else if (aVal > bVal) comparison = 1;
+
+        if (comparison !== 0) {
+          return direction === 1 ? comparison : -comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
+  private applyMatching(
+    documents: Collection<Document>,
+    matchExpr: any
+  ): Collection<Document> {
+    if (!documents || documents.length === 0) return documents;
+
+    // Use the crossfilter compiler to build match function
+    const compiler = new ExpressionCompilerImpl();
+    const matchFunction = compiler.compileMatchExpr(matchExpr);
+
+    return documents.filter((doc, index) => matchFunction(doc, index as RowId));
+  }
+
+  private getFieldValue(doc: Document, field: string): any {
+    if (field.includes('.')) {
+      const parts = field.split('.');
+      let value: any = doc;
+      for (const part of parts) {
+        if (value === null || value === undefined) return undefined;
+        value = value[part];
+      }
+      return value;
+    }
+    return doc[field];
   }
 }
 
