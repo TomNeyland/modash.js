@@ -25,16 +25,16 @@ import type { DocumentValue } from '../index.js';
 type EvaluatableValue = (() => DocumentValue) | DocumentValue;
 
 function evaluate(val: EvaluatableValue): DocumentValue {
-  return isFunction(val) ? val() : val;
+  return isFunction(val) ? (val as () => DocumentValue)() : val;
 }
 
 // Boolean Operators
 function $and(...values: EvaluatableValue[]): boolean {
-  return every(values.map(evaluate));
+  return values.every(val => Boolean(evaluate(val)));
 }
 
 function $or(...values: EvaluatableValue[]): boolean {
-  return some(values, evaluate);
+  return values.some(val => Boolean(evaluate(val)));
 }
 
 function $not(...values: EvaluatableValue[]): boolean {
@@ -173,14 +173,14 @@ function $add(...values: EvaluatableValue[]): number | Date {
 
   if (isDate(result)) {
     resultAsDate = true;
-    result = result.getTime();
+    result = (result as Date).getTime();
   }
 
   for (let i = evaluatedValues.length - 1; i >= 0; i--) {
     let value = evaluatedValues[i] as number | Date;
     if (isDate(value)) {
       resultAsDate = true;
-      value = value.getTime();
+      value = (value as Date).getTime();
     }
     (result as number) += value as number;
   }
@@ -196,11 +196,11 @@ function $subtract(
   const val2 = evaluate(value2) as number | Date;
 
   if (isDate(val1) && isDate(val2)) {
-    return val1.getTime() - val2.getTime();
+    return (val1 as Date).getTime() - (val2 as Date).getTime();
   } else if (isDate(val1) && !isDate(val2)) {
-    return new Date(val1.getTime() - (val2 as number));
+    return new Date((val1 as Date).getTime() - (val2 as number));
   } else if (!isDate(val1) && isDate(val2)) {
-    return new Date((val1 as number) - val2.getTime());
+    return new Date((val1 as number) - (val2 as Date).getTime());
   }
   return (val1 as number) - (val2 as number);
 }
@@ -282,11 +282,14 @@ function $split(
 }
 
 function $strLen(string: EvaluatableValue): number {
-  return (evaluate(string) as string).length;
+  const str = evaluate(string);
+  return str != null ? (str as string).length : 0;
 }
 
 function $trim(string: EvaluatableValue, chars?: EvaluatableValue): string {
   const str = evaluate(string) as string;
+  if (!str) return '';
+  
   const c = chars !== undefined ? (evaluate(chars) as string) : ' ';
 
   if (c === ' ') {
@@ -357,10 +360,22 @@ function $arrayElemAt(
   return idx >= 0 && idx < arr.length ? arr[idx]! : null;
 }
 
-// Import $expression at runtime to avoid circular dependency
+// We need to handle $expression import to avoid circular dependency
+// This will be set by the expressions module when it's loaded
+let _$expression: ((obj: any, expression: any, root?: any) => any) | null =
+  null;
+
+export function set$expression(
+  fn: (obj: any, expression: any, root?: any) => any
+) {
+  _$expression = fn;
+}
+
 function getExpressionFunction() {
-  // Use dynamic import to avoid circular dependency
-  return require('./expressions.js').$expression;
+  if (!_$expression) {
+    throw new Error('$expression function not initialized');
+  }
+  return _$expression;
 }
 
 function $filter(input: {

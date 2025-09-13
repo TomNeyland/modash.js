@@ -370,7 +370,7 @@ const $set = $addFields;
  */
 function aggregate<T extends Document = Document>(
   collection: Collection<T>,
-  pipeline: Pipeline
+  pipeline: Pipeline | PipelineStage
 ): Collection<T> {
   let stages: PipelineStage[];
   if (!isArray(pipeline)) {
