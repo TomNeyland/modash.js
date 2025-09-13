@@ -1,4 +1,5 @@
 import { chain, isArray, drop, flatMap, get as lodashGet } from 'lodash-es';
+import { PerformanceOptimizedEngine } from './performance-optimized-engine.js';
 
 import {
   $expressionObject,
@@ -20,6 +21,9 @@ import type {
   LookupStage,
   AddFieldsStage,
 } from '../index.js';
+
+// Create a singleton optimized engine instance
+const optimizedEngine = new PerformanceOptimizedEngine();
 
 // Match-related type definitions
 // Comparison operators for $match
@@ -413,6 +417,11 @@ function aggregate<T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline | PipelineStage
 ): Collection<T> {
+  // Handle null/undefined collections
+  if (!collection || !Array.isArray(collection)) {
+    return [] as Collection<T>;
+  }
+
   let stages: PipelineStage[];
   if (!isArray(pipeline)) {
     stages = [pipeline as PipelineStage];
@@ -420,6 +429,37 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
+  // Try optimized execution for larger collections with compatible stages
+  const shouldOptimize = collection.length > 100 && isOptimizable(stages);
+  
+  if (shouldOptimize) {
+    try {
+      return optimizedEngine.aggregate(collection, stages);
+    } catch (error) {
+      // Fallback to traditional execution if optimization fails
+      console.warn('Optimized execution failed, falling back to traditional:', error);
+    }
+  }
+
+  // Traditional execution using lodash chains
+  return traditionalAggregate(collection, stages);
+}
+
+// Check if pipeline stages are optimizable
+function isOptimizable(stages: PipelineStage[]): boolean {
+  for (const stage of stages) {
+    // Skip optimization for complex stages that need special handling
+    if ('$lookup' in stage || '$unwind' in stage) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function traditionalAggregate<T extends Document = Document>(
+  collection: Collection<T>,
+  stages: PipelineStage[]
+): Collection<T> {
   let result = chain(collection);
 
   for (let i = 0; i < stages.length; i++) {
