@@ -336,3 +336,16 @@ export {
   $set,
   default,
 } from './modash/index.js';
+
+// Re-export performance utilities for advanced users
+export {
+  PerformanceUtils,
+  getPerformanceInfo,
+  clearPerformanceCaches,
+  getCacheDebugInfo,
+  processLargeCollection,
+  performGarbageCollection,
+  getPerformanceRecommendations,
+} from './modash/performance-utils.js';
+
+export type { PerformanceInfo } from './modash/performance-utils.js';
