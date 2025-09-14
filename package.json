@@ -70,6 +70,8 @@
     "ci:regression-gates": "node --import=tsx/esm ci-regression-gates.mjs",
     "phase3:validate": "npm run ci:regression-gates",
     "parity": "node --import=tsx/esm scripts/parity-runner.mjs",
+    "test:hotpath:on": "HOT_PATH_STREAMING=1 npm run test:all",
+    "test:hotpath:off": "DISABLE_HOT_PATH_STREAMING=1 npm run test:all",
     "test:debug:ivm": "DEBUG_IVM=1 npm run test:all",
     "test:debug:parity": "DEBUG_IVM_MISMATCH=1 npm run test:all",
     "test:debug:groupkeys": "DEBUG_GROUP_KEYS=1 npm run test:all",
