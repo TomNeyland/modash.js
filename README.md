@@ -15,6 +15,9 @@ A clean, elegant API for processing JavaScript arrays using MongoDB aggregation 
 - **Array Manipulation**: Comprehensive array operators like `$arrayElemAt`, `$filter`, `$map`, `$slice`, `$concatArrays`
 - **🔄 Streaming/Incremental Updates**: Live data processing with `StreamingCollection` for real-time analytics
 - **Event-Driven Architecture**: Real-time notifications when data changes with automatic result updates
+- **🚀 Phase 6: CLI & Ecosystem**: Command-line tool, RxJS integration, enhanced developer experience
+- **🛠️ Developer Experience**: `explain()` for pipeline analysis, `benchmark()` for performance, user-friendly error messages
+- **📦 Modular Architecture**: pnpm workspaces, optional packages (@modash/rxjs), zero-dependency core
 - **TypeScript-Native**: Direct TypeScript execution with zero build steps - no compilation needed
 - **Complete Type Safety**: Full TypeScript definitions with generics and IntelliSense support
 - **Modern ES2022+**: Native modules, latest JavaScript features, works directly with tsx/esm
@@ -28,6 +31,74 @@ npm install modash
 ```
 
 > **TypeScript Native**: This library runs TypeScript directly without compilation. Use with `tsx`, `ts-node`, or any modern TypeScript runtime.
+
+## 🛠️ CLI Tool (Phase 6)
+
+Process JSON data from the command line with the full power of MongoDB aggregation:
+
+```bash
+# Install globally for CLI usage
+npm install -g modash
+
+# Process data from stdin
+cat data.jsonl | modash '[{"$match": {"score": {"$gte": 80}}}]'
+
+# Process data from file with analysis
+modash '[{"$group": {"_id": "$category", "avg": {"$avg": "$value"}}}]' --file data.jsonl --explain --stats
+
+# Pretty print output
+echo '{"name": "Alice", "age": 30}' | modash '[{"$project": {"name": 1}}]' --pretty
+```
+
+### CLI Options
+
+- `--file <path>`: Read data from file instead of stdin
+- `--explain`: Show pipeline analysis and optimization details  
+- `--stats`: Display performance metrics and timing
+- `--pretty`: Pretty-print JSON output (default: JSONL)
+- `--watch`: Watch mode for streaming data (coming soon)
+- `--help`: Show usage information
+
+### CLI Examples
+
+```bash
+# E-commerce analytics
+cat sales.jsonl | modash '[
+  {"$match": {"date": {"$gte": "2023-01-01"}}},
+  {"$group": {"_id": "$product", "revenue": {"$sum": {"$multiply": ["$price", "$quantity"]}}}},
+  {"$sort": {"revenue": -1}},
+  {"$limit": 10}
+]' --stats
+
+# Log analysis with explanation
+modash '[{"$match": {"level": "error"}}, {"$project": {"timestamp": 1, "message": 1}}]' \
+  --file app.log.jsonl --explain --pretty
+```
+
+## 📦 RxJS Integration (@modash/rxjs)
+
+For reactive applications, install the optional RxJS adapter:
+
+```bash
+npm install modash @modash/rxjs rxjs
+```
+
+```typescript
+import { from } from 'rxjs';
+import { aggregate, streamingAggregate } from '@modash/rxjs';
+
+// Transform Observable streams through modash pipelines
+const events$ = from(eventStream);
+const analytics$ = aggregate(events$, [
+  { $match: { type: 'user_action' } },
+  { $group: { _id: '$userId', actions: { $sum: 1 } } }
+]);
+
+// Streaming aggregation for real-time dashboards
+const metrics$ = streamingAggregate(sensorData$, [
+  { $group: { _id: null, avgTemp: { $avg: '$temperature' } } }
+]);
+```
 
 ## 📖 Usage
 
@@ -100,6 +171,72 @@ const revenueByDate = Modash.aggregate(sales, [
     },
   },
 ]);
+```
+
+## 🔬 Enhanced Developer Experience (Phase 6)
+
+### Pipeline Analysis with `explain()`
+
+Understand your aggregation pipelines with detailed analysis:
+
+```typescript
+import { explain } from 'modash';
+
+const analysis = explain([
+  { $match: { status: 'active' } },
+  { $sort: { createdAt: -1 } },
+  { $limit: 10 }
+]);
+
+console.log('Hot path eligible:', analysis.hotPathEligible);
+console.log('Estimated complexity:', analysis.estimatedComplexity);
+console.log('Optimizations:', analysis.optimizations);
+// Optimization detected: $sort + $limit can be fused into $topK operation
+```
+
+### Performance Benchmarking with `benchmark()`
+
+Measure and optimize your pipeline performance:
+
+```typescript
+import { benchmark } from 'modash';
+
+const metrics = await benchmark(largeDataset, [
+  { $match: { category: 'electronics' } },
+  { $group: { _id: '$brand', avgPrice: { $avg: '$price' } } }
+], { iterations: 5 });
+
+console.log(`Throughput: ${metrics.throughput.documentsPerSecond.toLocaleString()} docs/sec`);
+console.log(`Memory efficiency: ${metrics.memory.efficiency}%`);
+console.log(`Execution time: ${metrics.duration.total}ms`);
+```
+
+### Stream Processing with `fromJSONL()`
+
+Process large JSONL files efficiently:
+
+```typescript
+import { fromJSONL } from 'modash';
+import { createReadStream } from 'fs';
+
+const stream = createReadStream('large-dataset.jsonl');
+const documents = [];
+
+for await (const doc of fromJSONL(stream, { batchSize: 1000 })) {
+  documents.push(doc);
+}
+
+const results = Modash.aggregate(documents, pipeline);
+```
+
+### User-Friendly Error Messages
+
+Get helpful hints when things go wrong:
+
+```bash
+$ modash '[{"$match": {"complex_regex": {"$regex": "(?=.*complex)(?=.*pattern)"}}}]'
+❌ Error: Regex processing failed
+💡 Hint: Regex too complex → fell back to standard mode
 ```
 
 ## 🔄 Streaming/Incremental Updates

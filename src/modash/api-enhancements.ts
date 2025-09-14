@@ -134,8 +134,11 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
     stages.push(stageExplanation);
     
     // Update global flags based on stage analysis
-    if (!stageExplanation.canUseIndexes) {
+    // Only certain stages break hot path eligibility (like complex operations)
+    if (stageName === '$group' && stageExplanation.memoryImpact === 'high') {
       hotPathEligible = false;
+    } else if (stageName === '$unwind') {
+      hotPathEligible = false; // Array operations are complex
     }
     
     // Check for optimization opportunities
