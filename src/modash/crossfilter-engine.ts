@@ -21,11 +21,11 @@ import {
   wrapOperatorSnapshot,
   logPipelineExecution,
 } from './debug.js';
-import {
+import { 
   ExpressionCompilerImpl,
-  PerformanceEngineImpl,
+  PerformanceEngineImpl 
 } from './crossfilter-compiler.js';
-import { IVMOperatorFactoryImpl } from './crossfilter-operators.js';
+import { OptimizedIVMOperatorFactory } from './crossfilter-operators.js';
 
 /**
  * Main crossfilter-inspired IVM engine
@@ -34,7 +34,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   readonly _store: CrossfilterStore;
   readonly compiler: ExpressionCompilerImpl;
   readonly performance: PerformanceEngineImpl;
-  readonly operatorFactory: IVMOperatorFactoryImpl;
+  readonly operatorFactory: OptimizedIVMOperatorFactory;
 
   private executionPlans = new Map<string, ExecutionPlan>();
   private compiledOperators = new Map<string, IVMOperator[]>();
@@ -43,7 +43,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     this._store = this.createStore();
     this.compiler = new ExpressionCompilerImpl();
     this.performance = new PerformanceEngineImpl();
-    this.operatorFactory = new IVMOperatorFactoryImpl(this.compiler);
+    this.operatorFactory = new OptimizedIVMOperatorFactory(this.compiler);
   }
 
   get store(): CrossfilterStore {
@@ -75,10 +75,48 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       plan.canDecrement = false;
     }
 
-    // Compile operators
+    // Compile operators with fusion optimization
     const operators: IVMOperator[] = [];
+    
+    // Process stages with fusion detection
+    for (let i = 0; i < plan.stages.length; i++) {
+      const stage = plan.stages[i];
+      const nextStage = i < plan.stages.length - 1 ? plan.stages[i + 1] : null;
+      
+      // Check for operator fusion opportunities
+      if (nextStage && this.operatorFactory.canFuseStages(stage, nextStage)) {
+        if (DEBUG) {
+          console.log(`🔗 Fusing stages: ${stage.type} + ${nextStage.type}`);
+        }
+        
+        // Create fused operator
+        if (stage.type === '$match' && nextStage.type === '$project') {
+          const operator = this.operatorFactory.createFusedMatchProjectOperator(
+            stage.stageData,
+            nextStage.stageData
+          );
+          operators.push(operator);
+          i++; // Skip next stage as it's been fused
+          continue;
+        }
+      }
+      
+      // Check for $sort + $limit fusion (Top-K optimization)
+      if (stage.type === '$sort' && nextStage?.type === '$limit') {
+        if (DEBUG) {
+          console.log(`🔗 Fusing $sort + $limit for Top-K optimization`);
+        }
+        
+        const operator = this.operatorFactory.createSortOperator(
+          stage.stageData, 
+          nextStage.stageData // Pass limit to sort operator
+        );
+        operators.push(operator);
+        i++; // Skip limit stage as it's been fused
+        continue;
+      }
 
-    for (const stage of plan.stages) {
+      // Create individual operator
       let operator: IVMOperator;
 
       switch (stage.type) {
