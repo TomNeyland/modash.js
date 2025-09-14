@@ -255,7 +255,8 @@ export async function runPipelineBenchmarks() {
   };
   
   try {
-    await tracker.saveResults(fullResults, resultsFile);
+    const fs = await import('fs/promises');
+    await fs.writeFile(resultsFile, JSON.stringify(fullResults, null, 2));
     console.log(`\n💾 Detailed results saved to: ${resultsFile}`);
   } catch (error) {
     console.log(`\n❌ Failed to save results: ${error.message}`);

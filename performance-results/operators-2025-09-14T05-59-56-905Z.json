@@ -1,0 +1,1009 @@
+{
+  "1000": {
+    "$match": {
+      "name": "$match - Simple field equality (1000)",
+      "avg": 3.65,
+      "min": 1.53,
+      "max": 5.41,
+      "median": 3.37,
+      "stdDev": 1.36,
+      "iterations": 5,
+      "memoryDelta": 2.05,
+      "rawTimes": [
+        5.411184,
+        4.806295,
+        3.37215,
+        3.131572,
+        1.530545
+      ],
+      "docsPerSec": 273972.602739726,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$match_complex": {
+      "name": "$match - Complex conditions (1000)",
+      "avg": 5.55,
+      "min": 4.39,
+      "max": 7.14,
+      "median": 4.76,
+      "stdDev": 1.17,
+      "iterations": 5,
+      "memoryDelta": 2.63,
+      "rawTimes": [
+        4.762704,
+        4.651838,
+        4.393876,
+        7.138857,
+        6.791689
+      ],
+      "docsPerSec": 180180.18018018018,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project": {
+      "name": "$project - Field selection (1000)",
+      "avg": 4.5,
+      "min": 3.91,
+      "max": 5.37,
+      "median": 4.42,
+      "stdDev": 0.48,
+      "iterations": 5,
+      "memoryDelta": 5.79,
+      "rawTimes": [
+        5.372158,
+        4.422209,
+        3.905265,
+        4.504202,
+        4.293592
+      ],
+      "docsPerSec": 222222.22222222225,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project_computed": {
+      "name": "$project - Computed fields (1000)",
+      "avg": 3.49,
+      "min": 2.95,
+      "max": 5.12,
+      "median": 3.06,
+      "stdDev": 0.83,
+      "iterations": 5,
+      "memoryDelta": 11.24,
+      "rawTimes": [
+        5.115673,
+        3.386157,
+        3.055279,
+        2.946496,
+        2.950103
+      ],
+      "docsPerSec": 286532.9512893983,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_sum": {
+      "name": "$group - Sum aggregation (1000)",
+      "avg": 5.35,
+      "min": 3.43,
+      "max": 6.76,
+      "median": 5.39,
+      "stdDev": 1.15,
+      "iterations": 5,
+      "memoryDelta": -5.18,
+      "rawTimes": [
+        6.757716,
+        4.917292,
+        6.231624,
+        3.429207,
+        5.389684
+      ],
+      "docsPerSec": 186915.8878504673,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_avg": {
+      "name": "$group - Average aggregation (1000)",
+      "avg": 6.5,
+      "min": 5.66,
+      "max": 7.13,
+      "median": 7.01,
+      "stdDev": 0.68,
+      "iterations": 5,
+      "memoryDelta": -1.03,
+      "rawTimes": [
+        7.00699,
+        5.665187,
+        7.130941,
+        5.658324,
+        7.030434
+      ],
+      "docsPerSec": 153846.15384615384,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_min_max": {
+      "name": "$group - Min/Max aggregation (1000)",
+      "avg": 7.63,
+      "min": 6.73,
+      "max": 8.25,
+      "median": 8.17,
+      "stdDev": 0.7,
+      "iterations": 5,
+      "memoryDelta": 3.12,
+      "rawTimes": [
+        6.734192,
+        8.167459,
+        6.817286,
+        8.246933,
+        8.18567
+      ],
+      "docsPerSec": 131061.59895150721,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort": {
+      "name": "$sort - Single field (1000)",
+      "avg": 8.12,
+      "min": 7.29,
+      "max": 8.72,
+      "median": 8.47,
+      "stdDev": 0.57,
+      "iterations": 5,
+      "memoryDelta": 15.25,
+      "rawTimes": [
+        8.532766,
+        8.716195,
+        7.597552,
+        8.466553,
+        7.292052
+      ],
+      "docsPerSec": 123152.70935960593,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort_multi": {
+      "name": "$sort - Multiple fields (1000)",
+      "avg": 10.08,
+      "min": 9.25,
+      "max": 10.76,
+      "median": 10.47,
+      "stdDev": 0.64,
+      "iterations": 5,
+      "memoryDelta": 7.61,
+      "rawTimes": [
+        9.360501,
+        10.578693,
+        10.758418,
+        9.252699,
+        10.467037
+      ],
+      "docsPerSec": 99206.3492063492,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$topK": {
+      "name": "$sort + $limit - Top K (heap) (1000)",
+      "avg": 11.47,
+      "min": 8.55,
+      "max": 15.77,
+      "median": 10.75,
+      "stdDev": 2.41,
+      "iterations": 5,
+      "memoryDelta": -43.51,
+      "rawTimes": [
+        8.55055,
+        10.385185,
+        11.902773,
+        10.749211,
+        15.773323
+      ],
+      "docsPerSec": 87183.95815170008,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$unwind": {
+      "name": "$unwind - Array expansion (1000)",
+      "avg": 8.59,
+      "min": 5.67,
+      "max": 11.69,
+      "median": 9.36,
+      "stdDev": 2.49,
+      "iterations": 5,
+      "memoryDelta": 12.44,
+      "rawTimes": [
+        11.685558,
+        9.356092,
+        5.688802,
+        5.665678,
+        10.575214
+      ],
+      "docsPerSec": 116414.43538998836,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    }
+  },
+  "5000": {
+    "$match": {
+      "name": "$match - Simple field equality (5000)",
+      "avg": 11.62,
+      "min": 8.76,
+      "max": 17.86,
+      "median": 10.69,
+      "stdDev": 3.28,
+      "iterations": 5,
+      "memoryDelta": -20.42,
+      "rawTimes": [
+        8.764208,
+        11.604483,
+        17.8556,
+        9.165216,
+        10.692394
+      ],
+      "docsPerSec": 430292.5989672978,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$match_complex": {
+      "name": "$match - Complex conditions (5000)",
+      "avg": 71.71,
+      "min": 70.68,
+      "max": 72.93,
+      "median": 71.5,
+      "stdDev": 0.74,
+      "iterations": 5,
+      "memoryDelta": 36.03,
+      "rawTimes": [
+        71.427458,
+        70.684772,
+        72.932866,
+        72.029361,
+        71.495711
+      ],
+      "docsPerSec": 69725.28238739367,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project": {
+      "name": "$project - Field selection (5000)",
+      "avg": 18.03,
+      "min": 15.26,
+      "max": 19.39,
+      "median": 18.49,
+      "stdDev": 1.44,
+      "iterations": 5,
+      "memoryDelta": 17.11,
+      "rawTimes": [
+        19.388006,
+        18.485161,
+        18.80635,
+        18.203666,
+        15.263222
+      ],
+      "docsPerSec": 277315.58513588464,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project_computed": {
+      "name": "$project - Computed fields (5000)",
+      "avg": 18.69,
+      "min": 15.7,
+      "max": 19.79,
+      "median": 19.19,
+      "stdDev": 1.52,
+      "iterations": 5,
+      "memoryDelta": 18.99,
+      "rawTimes": [
+        19.188566,
+        15.700567,
+        19.076715,
+        19.684188,
+        19.793342
+      ],
+      "docsPerSec": 267522.7394328518,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_sum": {
+      "name": "$group - Sum aggregation (5000)",
+      "avg": 18.68,
+      "min": 18.23,
+      "max": 19.81,
+      "median": 18.47,
+      "stdDev": 0.59,
+      "iterations": 5,
+      "memoryDelta": 17.29,
+      "rawTimes": [
+        18.228322,
+        19.809732,
+        18.636203,
+        18.465895,
+        18.245925
+      ],
+      "docsPerSec": 267665.95289079234,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_avg": {
+      "name": "$group - Average aggregation (5000)",
+      "avg": 79.32,
+      "min": 75.2,
+      "max": 85.42,
+      "median": 77.99,
+      "stdDev": 3.42,
+      "iterations": 5,
+      "memoryDelta": -13.8,
+      "rawTimes": [
+        77.987424,
+        85.415199,
+        77.881387,
+        80.135649,
+        75.198682
+      ],
+      "docsPerSec": 63035.80433686335,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_min_max": {
+      "name": "$group - Min/Max aggregation (5000)",
+      "avg": 87.17,
+      "min": 84.78,
+      "max": 90.76,
+      "median": 87.19,
+      "stdDev": 2.15,
+      "iterations": 5,
+      "memoryDelta": -25.91,
+      "rawTimes": [
+        87.943628,
+        84.780364,
+        90.764991,
+        85.176699,
+        87.187892
+      ],
+      "docsPerSec": 57359.18320523116,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort": {
+      "name": "$sort - Single field (5000)",
+      "avg": 94.49,
+      "min": 91.19,
+      "max": 106.6,
+      "median": 91.43,
+      "stdDev": 6.06,
+      "iterations": 5,
+      "memoryDelta": -17.89,
+      "rawTimes": [
+        91.256378,
+        91.186132,
+        91.983699,
+        106.601705,
+        91.425966
+      ],
+      "docsPerSec": 52915.65244999471,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort_multi": {
+      "name": "$sort - Multiple fields (5000)",
+      "avg": 106.43,
+      "min": 101.64,
+      "max": 116.54,
+      "median": 104.36,
+      "stdDev": 5.21,
+      "iterations": 5,
+      "memoryDelta": -18.93,
+      "rawTimes": [
+        105.44725,
+        101.644122,
+        104.168661,
+        116.542901,
+        104.359748
+      ],
+      "docsPerSec": 46979.2351780513,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$topK": {
+      "name": "$sort + $limit - Top K (heap) (5000)",
+      "avg": 17.83,
+      "min": 16.3,
+      "max": 18.31,
+      "median": 18.15,
+      "stdDev": 0.77,
+      "iterations": 5,
+      "memoryDelta": 21.01,
+      "rawTimes": [
+        16.304343,
+        18.263849,
+        18.152191,
+        18.309493,
+        18.108338
+      ],
+      "docsPerSec": 280426.24789680314,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$unwind": {
+      "name": "$unwind - Array expansion (5000)",
+      "avg": 36.29,
+      "min": 33.52,
+      "max": 43.14,
+      "median": 33.95,
+      "stdDev": 3.64,
+      "iterations": 5,
+      "memoryDelta": -0.47,
+      "rawTimes": [
+        33.950144,
+        33.52191,
+        33.879617,
+        36.976752,
+        43.142306
+      ],
+      "docsPerSec": 137779.00248002206,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    }
+  },
+  "10000": {
+    "$match": {
+      "name": "$match - Simple field equality (10000)",
+      "avg": 21.41,
+      "min": 19.38,
+      "max": 23.42,
+      "median": 21.42,
+      "stdDev": 1.65,
+      "iterations": 3,
+      "memoryDelta": 21.89,
+      "rawTimes": [
+        19.382924,
+        23.418173,
+        21.42055
+      ],
+      "docsPerSec": 467071.46193367586,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$match_complex": {
+      "name": "$match - Complex conditions (10000)",
+      "avg": 274.67,
+      "min": 269.87,
+      "max": 282.25,
+      "median": 271.89,
+      "stdDev": 5.43,
+      "iterations": 3,
+      "memoryDelta": 36.56,
+      "rawTimes": [
+        282.252522,
+        269.865969,
+        271.888018
+      ],
+      "docsPerSec": 36407.325153820944,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project": {
+      "name": "$project - Field selection (10000)",
+      "avg": 35.82,
+      "min": 34.9,
+      "max": 37.53,
+      "median": 35.02,
+      "stdDev": 1.21,
+      "iterations": 3,
+      "memoryDelta": 32.25,
+      "rawTimes": [
+        35.023391,
+        37.528584,
+        34.896554
+      ],
+      "docsPerSec": 279173.6460078169,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$project_computed": {
+      "name": "$project - Computed fields (10000)",
+      "avg": 38.58,
+      "min": 35.94,
+      "max": 40.07,
+      "median": 39.73,
+      "stdDev": 1.87,
+      "iterations": 3,
+      "memoryDelta": 23.07,
+      "rawTimes": [
+        39.729366,
+        40.068432,
+        35.943828
+      ],
+      "docsPerSec": 259201.65889061693,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_sum": {
+      "name": "$group - Sum aggregation (10000)",
+      "avg": 40.69,
+      "min": 37.17,
+      "max": 45.97,
+      "median": 38.93,
+      "stdDev": 3.8,
+      "iterations": 3,
+      "memoryDelta": -45.62,
+      "rawTimes": [
+        45.97376,
+        37.167601,
+        38.927704
+      ],
+      "docsPerSec": 245760.62914721062,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_avg": {
+      "name": "$group - Average aggregation (10000)",
+      "avg": 295.92,
+      "min": 286.38,
+      "max": 302.32,
+      "median": 299.05,
+      "stdDev": 6.87,
+      "iterations": 3,
+      "memoryDelta": -37.76,
+      "rawTimes": [
+        286.380823,
+        302.316318,
+        299.05434
+      ],
+      "docsPerSec": 33792.91700459584,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$group_min_max": {
+      "name": "$group - Min/Max aggregation (10000)",
+      "avg": 314.17,
+      "min": 300.67,
+      "max": 324.14,
+      "median": 317.71,
+      "stdDev": 9.9,
+      "iterations": 3,
+      "memoryDelta": -21.61,
+      "rawTimes": [
+        317.710114,
+        324.1365,
+        300.668341
+      ],
+      "docsPerSec": 31829.901009007863,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort": {
+      "name": "$sort - Single field (10000)",
+      "avg": 324.39,
+      "min": 320.16,
+      "max": 330.49,
+      "median": 322.53,
+      "stdDev": 4.42,
+      "iterations": 3,
+      "memoryDelta": 38.12,
+      "rawTimes": [
+        330.492977,
+        320.157007,
+        322.529835
+      ],
+      "docsPerSec": 30827.090847436728,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$sort_multi": {
+      "name": "$sort - Multiple fields (10000)",
+      "avg": 346.21,
+      "min": 340.74,
+      "max": 354.32,
+      "median": 343.58,
+      "stdDev": 5.85,
+      "iterations": 3,
+      "memoryDelta": 38.81,
+      "rawTimes": [
+        354.32359,
+        340.735942,
+        343.576092
+      ],
+      "docsPerSec": 28884.203229253922,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$topK": {
+      "name": "$sort + $limit - Top K (heap) (10000)",
+      "avg": 25.62,
+      "min": 24.6,
+      "max": 27.27,
+      "median": 24.99,
+      "stdDev": 1.18,
+      "iterations": 3,
+      "memoryDelta": 24.57,
+      "rawTimes": [
+        24.987611,
+        24.60109,
+        27.273794
+      ],
+      "docsPerSec": 390320.06245121,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    },
+    "$unwind": {
+      "name": "$unwind - Array expansion (10000)",
+      "avg": 75.58,
+      "min": 70.59,
+      "max": 84.13,
+      "median": 72.03,
+      "stdDev": 6.07,
+      "iterations": 3,
+      "memoryDelta": -5.08,
+      "rawTimes": [
+        72.03087,
+        84.130512,
+        70.585879
+      ],
+      "docsPerSec": 132310.13495633766,
+      "counters": {
+        "adds": 0,
+        "removes": 0,
+        "drops": 0,
+        "allocations": 0,
+        "bytesAllocated": 0,
+        "allocsPerRow": 0,
+        "bytesPerRow": 0,
+        "cacheHitRatio": 0,
+        "fallbacks": 0,
+        "hashTableLoadFactor": 0,
+        "averageProbeLength": 0
+      }
+    }
+  }
+}

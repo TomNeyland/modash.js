@@ -239,7 +239,8 @@ export async function runDeltaBenchmarks() {
   const resultsFile = `performance-results/delta-batching-${timestamp}.json`;
   
   try {
-    await tracker.saveResults(results, resultsFile);
+    const fs = await import('fs/promises');
+    await fs.writeFile(resultsFile, JSON.stringify(results, null, 2));
     console.log(`\n💾 Detailed results saved to: ${resultsFile}`);
   } catch (error) {
     console.log(`\n❌ Failed to save results: ${error.message}`);

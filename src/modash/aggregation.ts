@@ -10,6 +10,12 @@ import {
 } from './expressions.js';
 import { $accumulate } from './accumulators.js';
 
+// Import performance optimizations
+import { 
+  smartAggregate,
+  canUsePerformanceAggregation 
+} from './performance-aggregation.js';
+
 // Import complex types from main index for now
 import type {
   Pipeline,
@@ -466,7 +472,14 @@ function aggregate<T extends Document = Document>(
     stages = pipeline;
   }
 
-  // Execute using native JavaScript pipeline processing
+  // Try performance-optimized path first for multi-stage pipelines
+  if (stages.length > 1 && canUsePerformanceAggregation(stages)) {
+    return smartAggregate(collection, stages, (coll, pipe) => {
+      return traditionalAggregate(coll, pipe);
+    }) as Collection<T>;
+  }
+
+  // Execute using traditional pipeline processing
   return traditionalAggregate(collection, stages);
 }
 
