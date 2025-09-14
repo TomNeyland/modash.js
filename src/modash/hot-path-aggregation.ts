@@ -102,6 +102,12 @@ export function resetOptimizerRejections(): void {
  * Determine if pipeline can use hot path (zero-alloc engine)
  */
 function canUseHotPath(pipeline: Pipeline): boolean {
+  // D) Pipeline Input Validation - Double-check pipeline is an array
+  if (!Array.isArray(pipeline)) {
+    recordOptimizerRejection(pipeline as any, `Pipeline is not an array: ${typeof pipeline}`);
+    return false;
+  }
+
   // Phase 3 hot path criteria:
   // 1. Extended pipeline length support for complex combinations (≤ 6 stages)
   // 2. Enhanced $group + $project + $sort pipeline support
@@ -316,18 +322,17 @@ function isSimpleGroup(groupSpec: any): boolean {
 
   // Support string field references
   if (typeof _id === 'string' && _id.startsWith('$')) {
-    return true;
-  }
-
-  // Support object-based grouping (compound keys)
-  if (typeof _id === 'object' && _id !== null) {
+    // Continue to accumulator validation
+  } else if (typeof _id === 'object' && _id !== null) {
+    // Support object-based grouping (compound keys)
     // Ensure all grouping fields are simple field references
     for (const [key, value] of Object.entries(_id)) {
       if (typeof value !== 'string' || !value.startsWith('$')) {
         return false; // Complex grouping expressions not supported
       }
     }
-    return true;
+  } else {
+    return false;
   }
 
   // Check accumulators - Phase 3: support vectorized operations
@@ -340,6 +345,7 @@ function isSimpleGroup(groupSpec: any): boolean {
     if (ops.length !== 1) return false;
 
     const [op, value] = ops[0];
+    
     // Phase 3: Enhanced accumulator support including vectorized $addToSet and $push
     const supportedOps = [
       '$sum',
@@ -365,6 +371,11 @@ function isSimpleGroup(groupSpec: any): boolean {
  * Check if accumulator expression is simple enough for vectorized processing
  */
 function isSimpleAccumulatorExpression(expr: any): boolean {
+  // C) $$ROOT rejection: System variables not supported in hot path accumulators
+  if (typeof expr === 'string' && expr.startsWith('$$')) {
+    return false; // Force $$ROOT and other system variables through traditional path
+  }
+
   // Simple field references
   if (typeof expr === 'string' && expr.startsWith('$')) {
     return true;
@@ -514,6 +525,16 @@ export function hotPathAggregate<T extends Document = Document>(
   // Handle null/undefined collections gracefully
   if (!collection || !Array.isArray(collection)) {
     return [];
+  }
+
+  // D) Pipeline Input Validation - Ensure pipeline is an array
+  if (!Array.isArray(pipeline)) {
+    recordOptimizerRejection(
+      pipeline as any,
+      `Pipeline is not an array: ${typeof pipeline}`
+    );
+    counters.fallbacks++;
+    return originalAggregate(collection, pipeline);
   }
 
   const startTime = Date.now();

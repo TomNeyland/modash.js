@@ -299,6 +299,10 @@ function $systemVariable(
 ): Document {
   switch (variableName) {
     case '$$ROOT':
+      // C) $$ROOT resolution: Ensure we always return the root document
+      if (root === undefined || root === null) {
+        return obj;
+      }
       return root;
     case '$$CURRENT':
       return obj;

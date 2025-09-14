@@ -72,7 +72,8 @@ function $sum(collection: Collection, spec: Expression): number {
   // Calculate sum manually to handle expressions properly
   let total = 0;
   for (const obj of collection) {
-    const value = $expression(obj, spec);
+    // C) $$ROOT resolution: Pass obj as both current document and root
+    const value = $expression(obj, spec, obj);
     if (typeof value === 'number' && !isNaN(value)) {
       total += value;
     }
@@ -88,18 +89,21 @@ function $avg(collection: Collection, spec: Expression): number {
 
 function $first(collection: Collection, spec: Expression): DocumentValue {
   const firstDoc = collection[0];
-  return firstDoc ? $expression(firstDoc, spec) : null;
+  // C) $$ROOT resolution: Pass firstDoc as both current document and root
+  return firstDoc ? $expression(firstDoc, spec, firstDoc) : null;
 }
 
 function $last(collection: Collection, spec: Expression): DocumentValue {
   const lastDoc = collection[collection.length - 1];
-  return lastDoc ? $expression(lastDoc, spec) : null;
+  // C) $$ROOT resolution: Pass lastDoc as both current document and root
+  return lastDoc ? $expression(lastDoc, spec, lastDoc) : null;
 }
 
 function $max(collection: Collection, spec: Expression): number | null {
   let maxValue = -Infinity;
   for (const obj of collection) {
-    const value = $expression(obj, spec);
+    // C) $$ROOT resolution: Pass obj as both current document and root
+    const value = $expression(obj, spec, obj);
     if (typeof value === 'number' && value > maxValue) {
       maxValue = value;
     }
@@ -110,7 +114,8 @@ function $max(collection: Collection, spec: Expression): number | null {
 function $min(collection: Collection, spec: Expression): number | null {
   let minValue = Infinity;
   for (const obj of collection) {
-    const value = $expression(obj, spec);
+    // C) $$ROOT resolution: Pass obj as both current document and root
+    const value = $expression(obj, spec, obj);
     if (typeof value === 'number' && value < minValue) {
       minValue = value;
     }
@@ -119,7 +124,8 @@ function $min(collection: Collection, spec: Expression): number | null {
 }
 
 function $push(collection: Collection, spec: Expression): DocumentValue[] {
-  return collection.map(obj => $expression(obj, spec));
+  // C) $$ROOT resolution: Pass each obj as both current document and root
+  return collection.map(obj => $expression(obj, spec, obj));
 }
 
 function $addToSet(collection: Collection, spec: Expression): DocumentValue[] {

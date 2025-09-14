@@ -38,6 +38,12 @@ const optimizedAggregate = <T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline
 ): Collection<Document> => {
+  // D) Pipeline Input Validation - Check pipeline before routing to hot path
+  if (!Array.isArray(pipeline)) {
+    // Let the underlying aggregate handle single stages and invalid inputs
+    return originalAggregate(collection, pipeline as any);
+  }
+
   // Route to hot path for maximum performance
   return hotPathAggregate(collection, pipeline);
 };
