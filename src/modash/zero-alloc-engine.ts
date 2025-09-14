@@ -8,8 +8,11 @@
  * - Vectorized operations where possible
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import { $expressionObject } from './expressions.js';
+import {
+  $expressionObject,
+  type Collection,
+  type Document,
+} from './expressions.js';
 import type { Pipeline } from '../index.js';
 import {
   highPerformanceGroup,
@@ -51,9 +54,12 @@ export class ZeroAllocEngine {
   execute(documents: Collection, pipeline: Pipeline): Collection {
     // Generate unique run ID to prevent cross-run contamination
     const runId = ++ZeroAllocEngine.globalRunId;
-    
+
     if (process.env.DEBUG_IVM) {
-      console.log(`[IVM DEBUG] Starting run ${runId} with pipeline:`, JSON.stringify(pipeline));
+      console.log(
+        `[IVM DEBUG] Starting run ${runId} with pipeline:`,
+        JSON.stringify(pipeline)
+      );
     }
 
     // Deep clone pipeline to prevent mutation of cached plans
@@ -81,7 +87,7 @@ export class ZeroAllocEngine {
         activeCount: context.activeCount,
         hasGroupResults: !!(context as any)._groupResults,
         hasVirtualRows: !!(context as any)._virtualRows,
-        hasProjectionSpec: !!(context as any)._projectionSpec
+        hasProjectionSpec: !!(context as any)._projectionSpec,
       });
     }
 
@@ -95,7 +101,7 @@ export class ZeroAllocEngine {
         // Check for buffer growth needs before stage execution
         const metadata = this.stageMetadata.get(stage);
         const stageName = metadata?.name || `stage_${i}`;
-        
+
         if (stageName.includes('$unwind')) {
           // Estimate potential expansion for $unwind operations
           const potentialSize = context.activeCount * 4; // Conservative estimate
@@ -107,7 +113,7 @@ export class ZeroAllocEngine {
 
         // Add DEBUG_IVM invariant checks
         this.checkBufferBounds(context, stageName);
-        
+
         // Verify run ID consistency in DEBUG mode
         if (process.env.DEBUG_IVM && context.runId !== runId) {
           throw new Error(
@@ -137,7 +143,10 @@ export class ZeroAllocEngine {
   /**
    * Materialize final result ensuring deterministic source selection
    */
-  private materializeFinalResult(context: HotPathContext, runId: number): Collection {
+  private materializeFinalResult(
+    context: HotPathContext,
+    runId: number
+  ): Collection {
     if (process.env.DEBUG_IVM) {
       console.log(`[IVM DEBUG] Materializing final result for run ${runId}:`, {
         activeCount: context.activeCount,
@@ -145,24 +154,32 @@ export class ZeroAllocEngine {
         groupResultsRunId: (context as any)._groupResultsRunId,
         hasVirtualRows: !!(context as any)._virtualRows,
         hasProjectionSpec: !!(context as any)._projectionSpec,
-        materializationSource: (context as any)._groupResults && (context as any)._groupResultsRunId === runId ? 'groupResults' : 'lastOperatorView'
+        materializationSource:
+          (context as any)._groupResults &&
+          (context as any)._groupResultsRunId === runId
+            ? 'groupResults'
+            : 'lastOperatorView',
       });
     }
 
     // Check if we have group results stored in context AND they belong to this run
     const groupResults = (context as any)._groupResults;
     const groupResultsRunId = (context as any)._groupResultsRunId;
-    
+
     if (groupResults && groupResultsRunId === runId) {
       // Return group results directly - but only if they're from this run
       if (process.env.DEBUG_IVM) {
-        console.log(`[IVM DEBUG] Returning ${groupResults.length} group results for run ${runId}`);
+        console.log(
+          `[IVM DEBUG] Returning ${groupResults.length} group results for run ${runId}`
+        );
       }
       return groupResults as Collection;
     } else if (groupResults && groupResultsRunId !== runId) {
       // This is the exact bug we're fixing!
       if (process.env.DEBUG_IVM) {
-        console.error(`[IVM ERROR] Found stale group results from run ${groupResultsRunId} in run ${runId}! Using row IDs instead.`);
+        console.error(
+          `[IVM ERROR] Found stale group results from run ${groupResultsRunId} in run ${runId}! Using row IDs instead.`
+        );
       }
     }
 
@@ -182,7 +199,9 @@ export class ZeroAllocEngine {
     }
 
     if (process.env.DEBUG_IVM) {
-      console.log(`[IVM DEBUG] Materialized ${result.length} documents from row IDs for run ${runId}`);
+      console.log(
+        `[IVM DEBUG] Materialized ${result.length} documents from row IDs for run ${runId}`
+      );
     }
 
     return result as Collection;
@@ -501,7 +520,7 @@ export class ZeroAllocEngine {
           const arrayValue = this.getFieldValue(doc, fieldName);
           if (Array.isArray(arrayValue)) {
             totalExpansion += arrayValue.length;
-          } else if (arrayValue != null) {
+          } else if (arrayValue !== null && arrayValue !== undefined) {
             totalExpansion += 1;
           }
           // null/undefined values are skipped in $unwind
@@ -580,7 +599,7 @@ export class ZeroAllocEngine {
     const initialSize = documents.length;
     context.activeCount = initialSize;
     context.scratchCount = 0;
-    
+
     // Zero out any residual data in buffers
     for (let i = 0; i < initialSize; i++) {
       context.activeRowIds[i] = i;
@@ -604,15 +623,19 @@ export class ZeroAllocEngine {
     delete (context as any)._projectionSpec;
     delete (context as any).tempState;
     delete (context as any)._projectedDocs;
-    
+
     // Clear any stage-specific state that might exist
     const keys = Object.keys(context);
     for (const key of keys) {
-      if (key.startsWith('active_rowids_stage_') || key.startsWith('_temp_') || key.startsWith('_stage_')) {
+      if (
+        key.startsWith('active_rowids_stage_') ||
+        key.startsWith('_temp_') ||
+        key.startsWith('_stage_')
+      ) {
         delete (context as any)[key];
       }
     }
-    
+
     // Reset counters
     context.activeCount = 0;
     context.scratchCount = 0;
@@ -625,16 +648,16 @@ export class ZeroAllocEngine {
   private returnContext(context: HotPathContext): void {
     // Thorough cleanup before returning to pool
     this.resetContextState(context);
-    
+
     // Return buffers to their respective pools
     this.returnActiveRowIds(context.activeRowIds);
     this.returnScratchBuffer(context.scratchBuffer);
-    
+
     // Reset buffer references to prevent accidental reuse
     (context as any).activeRowIds = new Uint32Array(0);
     (context as any).scratchBuffer = new Uint32Array(0);
     (context as any).documents = [];
-    
+
     // Return to pool only if pool isn't too large (prevent memory leaks)
     if (this.contextPool.length < 10) {
       this.contextPool.push(context);
@@ -844,8 +867,8 @@ export class ZeroAllocEngine {
    */
   private compareValues(a: any, b: any): number {
     if (a === b) return 0;
-    if (a == null) return -1;
-    if (b == null) return 1;
+    if (a === null || a === undefined) return -1;
+    if (b === null || b === undefined) return 1;
 
     if (typeof a === 'number' && typeof b === 'number') {
       return a - b;
@@ -930,7 +953,7 @@ export class ZeroAllocEngine {
         const arrayValue = this.getFieldValue(doc, fieldName);
         if (Array.isArray(arrayValue)) {
           estimatedExpansion += arrayValue.length;
-        } else if (arrayValue != null) {
+        } else if (arrayValue !== null && arrayValue !== undefined) {
           estimatedExpansion += 1;
         }
       }
@@ -977,7 +1000,7 @@ export class ZeroAllocEngine {
             }
           }
           // Empty arrays are skipped (MongoDB behavior)
-        } else if (arrayValue != null) {
+        } else if (arrayValue !== null && arrayValue !== undefined) {
           // Non-array value, keep original row ID
           if (count < context.scratchBuffer.length) {
             context.scratchBuffer[count++] = rowId;
@@ -1036,12 +1059,12 @@ export class ZeroAllocEngine {
       if (virtualInfo.fieldName.includes('.')) {
         const parts = virtualInfo.fieldName.split('.');
         let current = doc;
-        
+
         // Navigate to the parent object
         for (let i = 0; i < parts.length - 1; i++) {
           current = current[parts[i]];
         }
-        
+
         // Set the final field value
         current[parts[parts.length - 1]] = virtualInfo.arrayValue;
       } else {
@@ -1080,7 +1103,7 @@ export class ZeroAllocEngine {
             const unwoundDoc = { ...doc, [fieldName]: element };
             this.processGroupDocument(unwoundDoc, groupSpec, groupMap);
           }
-        } else if (arrayValue != null) {
+        } else if (arrayValue !== null && arrayValue !== undefined) {
           this.processGroupDocument(doc, groupSpec, groupMap);
         }
       }
@@ -1218,12 +1241,12 @@ export class ZeroAllocEngine {
           }
           break;
         case '$min':
-          if (value != null && value < group[field]) {
+          if (value !== null && value !== undefined && value < group[field]) {
             group[field] = value;
           }
           break;
         case '$max':
-          if (value != null && value > group[field]) {
+          if (value !== null && value !== undefined && value > group[field]) {
             group[field] = value;
           }
           break;
@@ -1239,7 +1262,7 @@ export class ZeroAllocEngine {
           group[field].push(value);
           break;
         case '$addToSet':
-          if (value != null) {
+          if (value !== null && value !== undefined) {
             if (!group[field].has(value)) {
               group[field].add(value);
             }

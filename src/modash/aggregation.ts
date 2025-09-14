@@ -401,18 +401,21 @@ function $sort<T extends Document = Document>(
  */
 function $unwind<T extends Document = Document>(
   collection: Collection<T>,
-  unwindSpec: string | {
-    path: string;
-    includeArrayIndex?: string;
-    preserveNullAndEmptyArrays?: boolean;
-  }
+  unwindSpec:
+    | string
+    | {
+        path: string;
+        includeArrayIndex?: string;
+        preserveNullAndEmptyArrays?: boolean;
+      }
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
   }
 
   // Parse unwind specification
-  const fieldPath = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+  const fieldPath =
+    typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
   const options = typeof unwindSpec === 'object' ? unwindSpec : {};
 
   // Remove $ prefix if present
@@ -481,12 +484,12 @@ function $unwind<T extends Document = Document>(
     arrayValue.forEach((item, index) => {
       // Deep clone the document to avoid mutations
       const newDoc = JSON.parse(JSON.stringify(doc));
-      
+
       // Set the unwound field value - preserve nested structure
       if (cleanPath.includes('.')) {
         const parts = cleanPath.split('.');
         let current = newDoc;
-        
+
         // Navigate to the parent object
         for (let i = 0; i < parts.length - 1; i++) {
           if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
@@ -494,7 +497,7 @@ function $unwind<T extends Document = Document>(
           }
           current = current[parts[i]];
         }
-        
+
         // Set the final field value
         current[parts[parts.length - 1]] = item;
       } else {
@@ -666,7 +669,10 @@ function traditionalAggregate<T extends Document = Document>(
     }
     if ('$unwind' in stage) {
       if (process.env.DEBUG_UNWIND) {
-        console.log('[DEBUG] Processing $unwind stage with spec:', stage.$unwind);
+        console.log(
+          '[DEBUG] Processing $unwind stage with spec:',
+          stage.$unwind
+        );
         console.log('[DEBUG] Input collection length:', result.length);
       }
       result = $unwind(result, stage.$unwind);
