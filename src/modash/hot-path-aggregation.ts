@@ -132,15 +132,14 @@ function canUseHotPath(pipeline: Pipeline): boolean {
   const hasGroup = pipeline.some(stage => '$group' in stage);
   const hasUnwind = pipeline.some(stage => '$unwind' in stage);
 
-  // Phase 3: Support $unwind + $group patterns with optimization
+  // Phase 5: Temporarily disable $unwind + $group optimization due to bugs
+  // This forces these patterns through traditional aggregation path
   if (hasUnwind && hasGroup) {
-    if (!canOptimizeUnwindGroup(pipeline)) {
-      recordOptimizerRejection(
-        pipeline,
-        '$unwind + $group pattern not optimizable'
-      );
-      return false;
-    }
+    recordOptimizerRejection(
+      pipeline,
+      'Temporary: $unwind + $group patterns disabled in hot path for Phase 5 fixes'
+    );
+    return false;
   }
 
   for (let i = 0; i < pipeline.length; i++) {
