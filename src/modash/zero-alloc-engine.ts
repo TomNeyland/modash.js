@@ -877,16 +877,16 @@ export class ZeroAllocEngine {
             for (const [op, value] of Object.entries(condition)) {
               switch (op) {
                 case '$gt':
-                  if (!(docValue > value)) return false;
+                  if (docValue === null || !(docValue > value)) return false;
                   break;
                 case '$gte':
-                  if (!(docValue >= value)) return false;
+                  if (docValue === null || !(docValue >= value)) return false;
                   break;
                 case '$lt':
-                  if (!(docValue < value)) return false;
+                  if (docValue === null || !(docValue < value)) return false;
                   break;
                 case '$lte':
-                  if (!(docValue <= value)) return false;
+                  if (docValue === null || !(docValue <= value)) return false;
                   break;
                 case '$ne':
                   if (docValue === value) return false;
@@ -1064,18 +1064,6 @@ export class ZeroAllocEngine {
     return compiledStage;
   }
 
-  /**
-   * Hash virtual row ID to number for efficient storage
-   */
-  private hashVirtualRowId(virtualRowId: string): number {
-    let hash = 0;
-    for (let i = 0; i < virtualRowId.length; i++) {
-      const char = virtualRowId.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash);
-  }
 
   /**
    * Apply projection specification to document

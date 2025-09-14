@@ -375,7 +375,7 @@ export class StreamingCollection<
       removed.push(this.documents[i]);
     }
 
-    return this.remove((doc, index) => index < toRemove);
+    return this.remove((_doc, index) => index < toRemove);
   }
 
   /**
@@ -385,7 +385,7 @@ export class StreamingCollection<
     const toRemove = Math.min(count, this.documents.length);
     const startIndex = this.documents.length - toRemove;
 
-    return this.remove((doc, index) => index >= startIndex);
+    return this.remove((_doc, index) => index >= startIndex);
   }
 
   /**

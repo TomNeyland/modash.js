@@ -5,7 +5,7 @@
  * Target: 5x speedup with 90%+ candidate reduction and <1% false positive rate
  */
 
-import type { Collection, Document, DocumentValue } from './expressions';
+import type { Collection, Document } from './expressions';
 import { TextSearchBloomFilter, extractTokens } from './bloom-filter';
 import { DEBUG } from './debug';
 
@@ -235,7 +235,7 @@ function extractTextFromDocument(doc: Document): string {
 function performFullTextSearch<T extends Document>(
   collection: Collection<T>,
   queryTokens: string[],
-  config: TextSearchConfig
+  _config: TextSearchConfig
 ): Collection<T> {
   if (queryTokens.length === 0) return [];
 
@@ -276,8 +276,8 @@ export function getTextSearchStats(): TextSearchStats {
 
   // Calculate derived metrics
   if (stats.candidatesBeforeFilter > 0) {
-    const reductionRate =
-      1 - stats.candidatesAfterFilter / stats.candidatesBeforeFilter;
+    // Reduction rate calculation (not used currently but useful for debugging)
+    // const reductionRate = 1 - stats.candidatesAfterFilter / stats.candidatesBeforeFilter;
     stats.falsePositiveRate =
       stats.candidatesAfterFilter > stats.actualMatches
         ? (stats.candidatesAfterFilter - stats.actualMatches) /
