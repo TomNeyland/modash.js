@@ -221,11 +221,18 @@ export interface IVMOperator {
     _context: IVMContext
   ): Delta[];
 
-  // Result materialization
+  // Result materialization - returns active rowIds after this stage
   snapshot(
     _store: CrossfilterStore,
     _context: IVMContext
-  ): Collection<Document>;
+  ): RowId[];
+
+  // Optional: Get the effective document for a rowId after this stage's transformations
+  getEffectiveDocument?(
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null;
 
   // Optimization
   estimateComplexity(): string;
@@ -242,8 +249,14 @@ export interface IVMContext {
   readonly compiledStage: CompiledStage;
   readonly executionPlan: ExecutionPlan;
 
+  // Upstream active rowIds - the engine owns this
+  readonly upstreamActiveIds?: RowId[];
+
   // Temporary state
   readonly tempState: Map<string, any>;
+
+  // Helper to get effective document from upstream stage
+  getEffectiveUpstreamDocument?(rowId: RowId): Document | null;
 }
 
 /**
