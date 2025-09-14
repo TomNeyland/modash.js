@@ -34,6 +34,7 @@ export interface RegexSearchConfig {
   bloomFilterSizeBytes: number;
   minLiteralLength: number;
   maxPatternComplexity: number;
+  minCollectionSize: number;
 }
 
 /**
@@ -61,21 +62,25 @@ const defaultConfig: RegexSearchConfig = {
   bloomFilterSizeBytes: 256,
   minLiteralLength: 3,
   maxPatternComplexity: 100,
+  minCollectionSize: 1000, // Only use Bloom filter for collections larger than this
 };
 
 /**
- * Global Bloom filter for regex search
+ * Collection-based Bloom filters for regex search
  */
-let globalRegexSearchFilter: RegexSearchBloomFilter | null = null;
+const collectionRegexIndexes = new WeakMap<Collection<any>, RegexSearchBloomFilter>();
 
 /**
- * Initialize or get the global regex search filter
+ * Initialize or get regex filter for a collection
  */
-function getGlobalRegexFilter(): RegexSearchBloomFilter {
-  if (!globalRegexSearchFilter) {
-    globalRegexSearchFilter = new RegexSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
+function getRegexFilterForCollection<T extends Document>(collection: Collection<T>, field: string): RegexSearchBloomFilter {
+  let filter = collectionRegexIndexes.get(collection);
+  if (!filter) {
+    filter = new RegexSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
+    buildRegexDocumentIndex(collection, field, filter);
+    collectionRegexIndexes.set(collection, filter);
   }
-  return globalRegexSearchFilter;
+  return filter;
 }
 
 /**
@@ -104,9 +109,15 @@ export function enhancedRegexMatch<T extends Document = Document>(
   const literals = extractLiteralsFromRegex(pattern);
   const hasUsefulLiterals = literals.some(lit => lit.length >= mergedConfig.minLiteralLength);
   
-  if (!mergedConfig.enableBloomFilter || !hasUsefulLiterals || pattern.length > mergedConfig.maxPatternComplexity) {
+  if (!mergedConfig.enableBloomFilter || 
+      !hasUsefulLiterals || 
+      pattern.length > mergedConfig.maxPatternComplexity ||
+      collection.length < mergedConfig.minCollectionSize) {
     if (DEBUG) {
-      const reason = !hasUsefulLiterals ? 'insufficient literals' : 'pattern too complex';
+      const reason = !mergedConfig.enableBloomFilter ? 'disabled' :
+                    !hasUsefulLiterals ? 'insufficient literals' : 
+                    pattern.length > mergedConfig.maxPatternComplexity ? 'pattern too complex' :
+                    `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
       console.log(`🔍 $regex: Skipping Bloom prefilter - ${reason}`);
     }
     
@@ -117,11 +128,8 @@ export function enhancedRegexMatch<T extends Document = Document>(
   }
 
   // Try Bloom filter prefiltering
-  const filter = getGlobalRegexFilter();
+  const filter = getRegexFilterForCollection(collection, field);
   const prefilterStartTime = performance.now();
-  
-  // Build document index if not already built
-  buildRegexDocumentIndex(collection, field, filter);
   
   const { candidates, shouldUsePrefilter, falsePositiveRate } = filter.testRegexPattern(pattern);
   const prefilterEndTime = performance.now();
@@ -305,22 +313,12 @@ export function getRegexSearchStats(): RegexSearchStats {
  */
 export function configureRegexSearch(config: Partial<RegexSearchConfig>): void {
   Object.assign(defaultConfig, config);
-  
-  // Reset filter if configuration changed significantly
-  if (globalRegexSearchFilter && (
-    config.bloomFilterSizeBytes !== undefined ||
-    config.enableBloomFilter === false
-  )) {
-    globalRegexSearchFilter = null;
-  }
+  // Note: Existing indexes will use old configuration until they're rebuilt
 }
 
 /**
  * Clear regex search index (useful for testing or memory management)
  */
 export function clearRegexSearchIndex(): void {
-  if (globalRegexSearchFilter) {
-    globalRegexSearchFilter.clear();
-  }
-  globalRegexSearchFilter = null;
+  // WeakMap will automatically clean up when collections are garbage collected
 }

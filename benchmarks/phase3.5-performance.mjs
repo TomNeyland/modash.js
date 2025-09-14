@@ -49,7 +49,7 @@ async function benchmarkTextSearch() {
   console.log('\n🔍 Phase 3.5: Text Search Benchmarks');
   console.log('═══════════════════════════════════════');
 
-  const sizes = [100, 500, 1000, 5000, 10000];
+  const sizes = [1000, 5000, 10000, 25000, 50000];
   const queries = [
     'javascript programming',
     'machine learning data',
@@ -68,14 +68,14 @@ async function benchmarkTextSearch() {
       
       // Benchmark with Bloom filter enabled
       const startTime = process.hrtime.bigint();
-      configureTextSearch({ enableBloomFilter: true });
+      configureTextSearch({ enableBloomFilter: true, minCollectionSize: 500 });
       const resultsBloom = $text(data, query);
       const endTime = process.hrtime.bigint();
       const bloomTime = Number(endTime - startTime) / 1e6; // Convert to milliseconds
       
       // Benchmark without Bloom filter
       const startTime2 = process.hrtime.bigint();
-      configureTextSearch({ enableBloomFilter: false });
+      configureTextSearch({ enableBloomFilter: false, minCollectionSize: 500 });
       const resultsStandard = $text(data, query);
       const endTime2 = process.hrtime.bigint();
       const standardTime = Number(endTime2 - startTime2) / 1e6;
@@ -100,7 +100,7 @@ async function benchmarkRegexSearch() {
   console.log('\n🔍 Phase 3.5: Regex Search Benchmarks');
   console.log('═══════════════════════════════════════');
 
-  const sizes = [100, 500, 1000, 5000, 10000];
+  const sizes = [1000, 5000, 10000, 25000, 50000];
   const patterns = [
     'javascript.*programming',
     'modern.*guide',
@@ -119,13 +119,13 @@ async function benchmarkRegexSearch() {
       
       // Benchmark with Bloom filter enabled
       const startTime = process.hrtime.bigint();
-      const resultsBloom = enhancedRegexMatch(data, 'content', pattern, '', { enableBloomFilter: true });
+      const resultsBloom = enhancedRegexMatch(data, 'content', pattern, '', { enableBloomFilter: true, minCollectionSize: 500 });
       const endTime = process.hrtime.bigint();
       const bloomTime = Number(endTime - startTime) / 1e6;
       
       // Benchmark without Bloom filter
       const startTime2 = process.hrtime.bigint();
-      const resultsStandard = enhancedRegexMatch(data, 'content', pattern, '', { enableBloomFilter: false });
+      const resultsStandard = enhancedRegexMatch(data, 'content', pattern, '', { enableBloomFilter: false, minCollectionSize: 500 });
       const endTime2 = process.hrtime.bigint();
       const standardTime = Number(endTime2 - startTime2) / 1e6;
       

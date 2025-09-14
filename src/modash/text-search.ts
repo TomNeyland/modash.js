@@ -32,6 +32,7 @@ export interface TextSearchConfig {
   bloomFilterSizeBytes: number;
   minQueryTokens: number;
   caseSensitive: boolean;
+  minCollectionSize: number;
 }
 
 /**
@@ -57,22 +58,25 @@ const defaultConfig: TextSearchConfig = {
   bloomFilterSizeBytes: 256,
   minQueryTokens: 2,
   caseSensitive: false,
+  minCollectionSize: 1000, // Only use Bloom filter for collections larger than this
 };
 
 /**
- * Global Bloom filter for text search - in a real implementation this might be
- * managed by the collection or document store
+ * Global Bloom filter for text search - managed per collection
  */
-let globalTextSearchFilter: TextSearchBloomFilter | null = null;
+const collectionIndexes = new WeakMap<Collection<any>, TextSearchBloomFilter>();
 
 /**
- * Initialize or get the global text search filter
+ * Initialize or get the text search filter for a collection
  */
-function getGlobalTextFilter(): TextSearchBloomFilter {
-  if (!globalTextSearchFilter) {
-    globalTextSearchFilter = new TextSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
+function getTextFilterForCollection<T extends Document>(collection: Collection<T>): TextSearchBloomFilter {
+  let filter = collectionIndexes.get(collection);
+  if (!filter) {
+    filter = new TextSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
+    buildDocumentIndex(collection, filter);
+    collectionIndexes.set(collection, filter);
   }
-  return globalTextSearchFilter;
+  return filter;
 }
 
 /**
@@ -98,19 +102,21 @@ export function $text<T extends Document = Document>(
   const queryTokens = extractTokens(query);
   
   // Check if we should use prefiltering
-  if (!mergedConfig.enableBloomFilter || queryTokens.length < mergedConfig.minQueryTokens) {
+  if (!mergedConfig.enableBloomFilter || 
+      queryTokens.length < mergedConfig.minQueryTokens ||
+      collection.length < mergedConfig.minCollectionSize) {
     if (DEBUG) {
-      console.log(`🔍 $text: Skipping Bloom prefilter - tokens: ${queryTokens.length}, min required: ${mergedConfig.minQueryTokens}`);
+      const reason = !mergedConfig.enableBloomFilter ? 'disabled' :
+                    queryTokens.length < mergedConfig.minQueryTokens ? `insufficient tokens (${queryTokens.length} < ${mergedConfig.minQueryTokens})` :
+                    `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
+      console.log(`🔍 $text: Skipping Bloom prefilter - ${reason}`);
     }
     return performFullTextSearch(collection, queryTokens, mergedConfig);
   }
 
   // Try Bloom filter prefiltering
-  const filter = getGlobalTextFilter();
+  const filter = getTextFilterForCollection(collection);
   const prefilterStartTime = performance.now();
-  
-  // Build document index if not already built (in practice this would be maintained)
-  buildDocumentIndex(collection, filter);
   
   const { candidates, falsePositiveRate } = filter.testQuery(query);
   const prefilterEndTime = performance.now();
@@ -261,22 +267,13 @@ export function getTextSearchStats(): TextSearchStats {
  */
 export function configureTextSearch(config: Partial<TextSearchConfig>): void {
   Object.assign(defaultConfig, config);
-  
-  // Reset filter if configuration changed significantly
-  if (globalTextSearchFilter && (
-    config.bloomFilterSizeBytes !== undefined ||
-    config.enableBloomFilter === false
-  )) {
-    globalTextSearchFilter = null;
-  }
+  // Note: Existing indexes will use old configuration until they're rebuilt
 }
 
 /**
  * Clear text search index (useful for testing or memory management)
  */
 export function clearTextSearchIndex(): void {
-  if (globalTextSearchFilter) {
-    globalTextSearchFilter.clear();
-  }
-  globalTextSearchFilter = null;
+  // WeakMap will automatically clean up when collections are garbage collected
+  // For manual clearing, we'd need to track collections differently
 }
