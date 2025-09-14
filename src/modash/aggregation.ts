@@ -79,9 +79,14 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return collection.map(obj =>
-    $expressionObject(obj, specs, obj)
-  ) as Collection<T>;
+  return collection.map(obj => {
+    const projected = $expressionObject(obj, specs, obj) as any;
+    // Align behavior with compiled project: omit _id when it's undefined
+    if (projected && projected._id === undefined) {
+      delete projected._id;
+    }
+    return projected as T;
+  }) as Collection<T>;
 }
 
 /**

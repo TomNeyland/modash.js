@@ -1039,8 +1039,11 @@ export class ZeroAllocEngine {
     if (!('_id' in specs)) {
       specs._id = 1;
     }
-
-    return $expressionObject(doc, specs, doc);
+    const projected = $expressionObject(doc, specs, doc) as any;
+    if (projected && projected._id === undefined) {
+      delete projected._id; // Omit undefined _id for parity with compiled project
+    }
+    return projected as Document;
   }
   private getEffectiveDocument(
     context: HotPathContext,

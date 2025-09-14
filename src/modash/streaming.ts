@@ -172,19 +172,8 @@ export class StreamingCollection<
   addBulk(newDocuments: T[]): void {
     if (newDocuments.length === 0) return;
 
-    // Queue delta for optimized batch processing
-    const delta: DeltaRecord = {
-      operation: 'add',
-      documents: newDocuments as Document[],
-      timestamp: performance.now(),
-    };
-
-    const queued = this.deltaOptimizer.queueDelta(delta);
-
-    if (!queued) {
-      // Fallback to immediate processing if queue is full
-      this.processBatchAdd(newDocuments);
-    }
+    // Process synchronously to ensure deterministic test behavior and immediate updates
+    this.processBatchAdd(newDocuments);
   }
 
   /**

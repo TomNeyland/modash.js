@@ -198,7 +198,10 @@ export class HighPerformanceGroupEngine {
       results.push(result);
     }
 
-    return results;
+    // Deterministic ordering to match traditional $group behavior
+    return results.sort((a, b) =>
+      JSON.stringify(a._id).localeCompare(JSON.stringify(b._id))
+    );
   }
 
   /**

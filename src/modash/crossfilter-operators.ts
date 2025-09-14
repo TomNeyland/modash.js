@@ -310,16 +310,24 @@ export class GroupOperator implements IVMOperator {
       return [];
     }
 
-    const activeGroupIds: RowId[] = [];
-
-    // Return the group key strings as virtual RowIds
+    // Collect active groups with their original keys, then sort deterministically
+    const activeEntries: Array<[string, any]> = [];
     for (const [groupKeyStr, groupState] of groupsMap.entries()) {
       if (groupState.count > 0) {
-        activeGroupIds.push(groupKeyStr); // Use serialized group key as virtual RowId
+        activeEntries.push([groupKeyStr, groupState]);
       }
     }
 
-    return activeGroupIds;
+    // Deterministic ordering to match traditional $group behavior
+    // Sort by the JSON string of the original group key
+    activeEntries.sort((a, b) => {
+      const aKey = JSON.stringify(a[1].groupKey);
+      const bKey = JSON.stringify(b[1].groupKey);
+      return aKey.localeCompare(bKey);
+    });
+
+    // Return the serialized keys in sorted order as virtual RowIds
+    return activeEntries.map(([groupKeyStr]) => groupKeyStr);
   }
 
   /**
