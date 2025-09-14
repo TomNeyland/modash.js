@@ -15,7 +15,7 @@ import type { Document, Collection } from './expressions.js';
 import type { Pipeline } from '../index.js';
 
 import { LiveSetImpl, DimensionImpl } from './crossfilter-impl.js';
-import { DEBUG, wrapOperator, logPipelineExecution } from './debug.js';
+import { DEBUG, wrapOperator, wrapOperatorSnapshot, logPipelineExecution } from './debug.js';
 import {
   ExpressionCompilerImpl,
   PerformanceEngineImpl,
@@ -105,7 +105,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
         case '$addFields':
         case '$set':
-          operator = this.operatorFactory.createProjectOperator(
+          operator = this.operatorFactory.createAddFieldsOperator(
             stage.stageData
           );
           break;
@@ -130,7 +130,8 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       }
 
       // Wrap operator with debug tracing if DEBUG is enabled
-      const wrappedOperator = DEBUG ? wrapOperator(stage.type, operator) : operator;
+      let wrappedOperator = DEBUG ? wrapOperator(stage.type, operator) : operator;
+      wrappedOperator = DEBUG ? wrapOperatorSnapshot(wrappedOperator, DEBUG) : wrappedOperator;
       operators.push(wrappedOperator);
     }
 
@@ -435,59 +436,117 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     operators: IVMOperator[],
     plan: ExecutionPlan
   ): Collection<Document> {
-    // Create a single persistent context for snapshot operations
-    // This ensures that projected documents from upstream stages are available to downstream stages
-    const persistentContext: IVMContext = {
-      pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
-      stageIndex: 0, // Will be updated for each stage
-      compiledStage: plan.stages[0], // Will be updated for each stage
-      executionPlan: plan,
-      tempState: new Map(), // Persistent across all stages for cross-stage data sharing
-    };
-
-    // Process snapshot through pipeline stages to build up projected documents
-    // We need to simulate the pipeline execution to ensure projected documents are cached
-    for (const rowId of this.store.liveSet) {
-      const _delta: Delta = { rowId, sign: 1 };
-      let currentDeltas = [_delta];
-
-      // Process through each stage to ensure projected documents are cached
-      for (let i = 0; i < operators.length; i++) {
-        const operator = operators[i];
-        
-        // Update context for current stage
-        persistentContext.stageIndex = i;
-        persistentContext.compiledStage = plan.stages[i];
-
-        const nextDeltas: Delta[] = [];
-        for (const currentDelta of currentDeltas) {
-          if (currentDelta.sign === 1) {
-            const stageDeltas = operator.onAdd(currentDelta, this.store, persistentContext);
-            nextDeltas.push(...stageDeltas);
-          }
-        }
-        currentDeltas = nextDeltas;
-
-        // If no deltas pass through this stage, break for this document
-        if (currentDeltas.length === 0) {
-          break;
-        }
-      }
-    }
-
-    // Now take snapshot from the final operator
     if (operators.length === 0) {
       return [];
     }
 
-    const finalOperator = operators[operators.length - 1];
-    const finalStage = plan.stages[plan.stages.length - 1];
-    
-    // Update context for final stage
-    persistentContext.stageIndex = operators.length - 1;
-    persistentContext.compiledStage = finalStage;
+    // Start with all live documents
+    let activeIds: RowId[] = Array.from(this.store.liveSet);
+    const persistentTempState = new Map(); // Shared across stages for caching
 
-    return finalOperator.snapshot(this.store, persistentContext);
+    // Process through each operator stage
+    for (let i = 0; i < operators.length; i++) {
+      const operator = operators[i];
+
+      // Create context with upstream active IDs
+      const context: IVMContext = {
+        pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+        stageIndex: i,
+        compiledStage: plan.stages[i],
+        executionPlan: plan,
+        upstreamActiveIds: activeIds,
+        tempState: persistentTempState,
+        getEffectiveUpstreamDocument: (rowId: RowId) => {
+          // Get document from immediate upstream stage (i-1), not from end
+          if (i > 0) {
+            const upstreamOperator = operators[i - 1];
+            if (upstreamOperator.getEffectiveDocument) {
+              // Create context for the upstream operator
+              const upstreamContext: IVMContext = {
+                pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+                stageIndex: i - 1,
+                compiledStage: plan.stages[i - 1],
+                executionPlan: plan,
+                upstreamActiveIds: activeIds, // This would be the IDs that went INTO stage i-1
+                tempState: persistentTempState,
+              };
+              return upstreamOperator.getEffectiveDocument(rowId, this.store, upstreamContext);
+            }
+          }
+          return this.store.documents[rowId];
+        }
+      };
+
+      // Get active IDs after this stage
+      if (process.env.DEBUG_IVM) {
+        console.log(`[Engine] Calling snapshot on ${operator.type}#${(operator as any).__id}`);
+      }
+      activeIds = operator.snapshot(this.store, context);
+    }
+
+    // Materialize final documents from the LAST stage's view
+    const lastOperator = operators[operators.length - 1];
+    if (process.env.DEBUG_IVM) {
+      console.log(`[Engine] Materializing from lastOperator ${lastOperator.type}#${(lastOperator as any).__id}`);
+    }
+    const result: Document[] = [];
+
+    // Only materialize if we have active IDs
+    if (activeIds.length > 0) {
+      // Create context for the final operator
+      const finalContext: IVMContext = {
+        pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+        stageIndex: operators.length - 1,
+        compiledStage: plan.stages[operators.length - 1],
+        executionPlan: plan,
+        upstreamActiveIds: activeIds,
+        tempState: persistentTempState,
+      };
+
+      // Materialize each document from the last operator's transformed view
+      for (const rowId of activeIds) {
+        let doc: Document | null = null;
+
+        if (process.env.DEBUG_IVM) {
+          console.log(`[Materializing] rowId ${rowId}, lastOperator.type: ${lastOperator.type}, has getEffectiveDocument: ${!!lastOperator.getEffectiveDocument}`);
+        }
+
+        if (lastOperator.getEffectiveDocument) {
+          if (process.env.DEBUG_IVM) {
+            console.log(`[Materializing] About to call ${lastOperator.type}.getEffectiveDocument for rowId ${rowId}`);
+            console.log(`[Materializing] lastOperator type check:`, typeof lastOperator.getEffectiveDocument);
+            console.log(`[Materializing] lastOperator keys:`, Object.keys(lastOperator));
+            console.log(`[Materializing] lastOperator constructor:`, lastOperator.constructor.name);
+            console.log(`[Materializing] lastOperator proto:`, Object.getPrototypeOf(lastOperator).constructor.name);
+          }
+
+          doc = lastOperator.getEffectiveDocument(rowId, this.store, finalContext);
+
+          if (process.env.DEBUG_IVM) {
+            console.log(`[Materializing] Got doc from ${lastOperator.type}.getEffectiveDocument:`, doc);
+          }
+
+          // DEBUG: In development, warn if a transforming operator returns null
+          if (!doc && process.env.DEBUG_IVM) {
+            console.warn(`[DEBUG] Operator ${lastOperator.type} returned null for rowId ${rowId}`);
+          }
+        }
+
+        // Only fall back to store if operator doesn't transform
+        if (!doc && !lastOperator.getEffectiveDocument) {
+          doc = this.store.documents[rowId];
+          if (process.env.DEBUG_IVM) {
+            console.log(`[Materializing] Falling back to store document for rowId ${rowId}`);
+          }
+        }
+
+        if (doc) {
+          result.push(doc);
+        }
+      }
+    }
+
+    return result;
   }
 
   private applyProjection(

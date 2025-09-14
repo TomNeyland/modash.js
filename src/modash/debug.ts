@@ -40,7 +40,7 @@ export function wrapOperator<T extends { onAdd: Function; onRemove: Function }>(
 ): T {
   if (!debug) return operator;
 
-  const wrapped = Object.create(operator);
+  // Don't create a new object - just wrap the methods on the original
   const original = {
     onAdd: operator.onAdd.bind(operator),
     onRemove: operator.onRemove.bind(operator),
@@ -50,7 +50,7 @@ export function wrapOperator<T extends { onAdd: Function; onRemove: Function }>(
   let removeCount = 0;
   let dropCount = 0;
 
-  wrapped.onAdd = function (...args: any[]) {
+  operator.onAdd = function (...args: any[]) {
     const result = original.onAdd(...args);
     addCount++;
 
@@ -66,7 +66,7 @@ export function wrapOperator<T extends { onAdd: Function; onRemove: Function }>(
     return result;
   };
 
-  wrapped.onRemove = function (...args: any[]) {
+  operator.onRemove = function (...args: any[]) {
     const result = original.onRemove(...args);
     removeCount++;
 
@@ -78,14 +78,69 @@ export function wrapOperator<T extends { onAdd: Function; onRemove: Function }>(
   };
 
   // Add stats getter
-  (wrapped as any).getStats = () => ({
+  (operator as any).getStats = () => ({
     name,
     adds: addCount,
     removes: removeCount,
     drops: dropCount,
   });
 
-  return wrapped;
+  return operator;
+}
+
+/**
+ * Wrap an operator's snapshot method to detect fallbacks
+ */
+export function wrapOperatorSnapshot<T extends { snapshot: Function; type: string }>(
+  operator: T,
+  debug = DEBUG
+): T {
+  if (!debug) return operator;
+
+  const originalSnapshot = operator.snapshot.bind(operator);
+
+  operator.snapshot = function(store: any, context: any) {
+    try {
+      const result = originalSnapshot(store, context);
+
+      // Check if result is unexpected (e.g., wrong document structure)
+      if (result && Array.isArray(result) && result.length > 0) {
+        const firstDoc = result[0];
+
+        // For GroupOperator, check if we're returning raw documents instead of groups
+        if (operator.type === '$group' && firstDoc && typeof firstDoc._id !== 'undefined') {
+          // Check if this looks like a raw document instead of a group result
+          const hasGroupFields = firstDoc.hasOwnProperty('_id') &&
+                                 !firstDoc.hasOwnProperty('category') &&
+                                 !firstDoc.hasOwnProperty('item');
+          if (!hasGroupFields) {
+            console.warn(`[${operator.type}] FALLBACK DETECTED: Returning raw documents instead of grouped results`);
+            recordFallback({ type: operator.type }, 'GroupOperator returning raw documents');
+          }
+        }
+
+        // For SortOperator after GroupOperator, check if groups are lost
+        if (operator.type === '$sort' && context?.stageIndex > 0) {
+          const prevStage = context.pipeline?.[context.stageIndex - 1];
+          if (prevStage && Object.keys(prevStage)[0] === '$group') {
+            // Check if we have raw documents instead of group results
+            if (firstDoc && !firstDoc.hasOwnProperty('_id') && firstDoc.hasOwnProperty('category')) {
+              console.warn(`[${operator.type}] FALLBACK DETECTED: Lost group results after $sort`);
+              recordFallback({ type: operator.type }, 'Lost group results after sort');
+            }
+          }
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`[${operator.type}] FALLBACK DETECTED: snapshot() threw error:`, error);
+      recordFallback({ type: operator.type }, error as Error);
+      throw error;
+    }
+  };
+
+  return operator;
 }
 
 /**

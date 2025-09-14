@@ -1604,8 +1604,13 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       if ('$project' in stage) {
         // Don't prune fields from the final projection stage - these are the user's requested output fields
         const isFinalStage = i === stages.length - 1;
-        
-        if (!isFinalStage) {
+
+        // Also don't prune if the next stage is $limit or $skip
+        // These stages don't "use" fields but pass through all projected fields
+        const nextStage = i + 1 < stages.length ? stages[i + 1] : null;
+        const isBeforeLimitOrSkip = nextStage && ('$limit' in nextStage || '$skip' in nextStage);
+
+        if (!isFinalStage && !isBeforeLimitOrSkip) {
           for (const field of Object.keys(stage.$project)) {
             if (!usedFields.has(field) && field !== '_id') {
               delete stage.$project[field];
