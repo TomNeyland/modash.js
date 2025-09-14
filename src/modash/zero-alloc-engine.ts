@@ -82,7 +82,8 @@ export class ZeroAllocEngine {
       
       const result: Document[] = new Array(context.activeCount);
       for (let i = 0; i < context.activeCount; i++) {
-        result[i] = context.documents[context.activeRowIds[i]];
+        const rowId = context.activeRowIds[i];
+        result[i] = context.documents[rowId];
       }
       
       return result as Collection;
@@ -590,8 +591,7 @@ export class ZeroAllocEngine {
     const fieldName = path.startsWith('$') ? path.slice(1) : path;
     
     return (context: HotPathContext): number => {
-      let count = 0;
-      const unwoundDocs: Document[] = [];
+      const unwoundDocuments: Document[] = [];
       
       // Unwind arrays and create new documents
       for (let i = 0; i < context.activeCount; i++) {
@@ -600,32 +600,33 @@ export class ZeroAllocEngine {
         const arrayValue = doc[fieldName];
         
         if (Array.isArray(arrayValue)) {
+          // Create a new document for each array element
           for (const element of arrayValue) {
             const unwoundDoc = { ...doc, [fieldName]: element };
-            unwoundDocs.push(unwoundDoc);
-            if (count < context.scratchBuffer.length) {
-              context.scratchBuffer[count] = unwoundDocs.length - 1;
-              count++;
-            }
+            unwoundDocuments.push(unwoundDoc);
           }
         } else if (arrayValue != null) {
-          // Non-array value, keep as-is
-          if (count < context.scratchBuffer.length) {
-            context.scratchBuffer[count] = rowId;
-            count++;
-          }
+          // Non-array value, keep as-is (when field exists but is not an array)
+          unwoundDocuments.push(doc);
         }
+        // Skip null/undefined values (MongoDB $unwind behavior - removes documents)
       }
       
-      // Store unwound documents in context for next stage
-      if (unwoundDocs.length > 0) {
-        (context as any)._unwoundDocuments = [
-          ...(context.documents || []),
-          ...unwoundDocs
-        ];
+      // Replace the documents array with unwound documents
+      context.documents = unwoundDocuments;
+      
+      // Check if we need a larger buffer for the expanded result set
+      if (unwoundDocuments.length > context.scratchBuffer.length) {
+        // Expand the scratch buffer to accommodate all unwound documents
+        context.scratchBuffer = new Uint32Array(unwoundDocuments.length);
       }
       
-      return count;
+      // Create new row IDs mapping (0-based indices into the new documents array)
+      for (let i = 0; i < unwoundDocuments.length; i++) {
+        context.scratchBuffer[i] = i;
+      }
+      
+      return unwoundDocuments.length;
     };
   }
 

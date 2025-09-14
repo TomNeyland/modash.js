@@ -439,6 +439,11 @@ export function hotPathAggregate<T extends Document = Document>(
   collection: Collection<T>, 
   pipeline: Pipeline
 ): Collection<Document> {
+  // Handle null/undefined collections gracefully
+  if (!collection || !Array.isArray(collection)) {
+    return [];
+  }
+  
   counters.totalOperations++;
   
   const startTime = Date.now();
@@ -460,7 +465,7 @@ export function hotPathAggregate<T extends Document = Document>(
       result = originalAggregate(collection, pipeline);
       
       const duration = Date.now() - startTime;
-      counters.fallbackThroughput = collection.length / Math.max(duration, 1) * 1000;
+      counters.fallbackThroughput = (collection?.length || 0) / Math.max(duration, 1) * 1000;
     }
   } else {
     // Use regular aggregation
@@ -468,7 +473,7 @@ export function hotPathAggregate<T extends Document = Document>(
     result = originalAggregate(collection, pipeline);
     
     const duration = Date.now() - startTime;
-    counters.fallbackThroughput = collection.length / Math.max(duration, 1) * 1000;
+    counters.fallbackThroughput = (collection?.length || 0) / Math.max(duration, 1) * 1000;
   }
 
   return result;
