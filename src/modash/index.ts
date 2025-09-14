@@ -42,12 +42,12 @@ const optimizedAggregate = <T extends Document = Document>(
   if (collection instanceof StreamingCollection) {
     return collection.stream(pipeline);
   }
-  
+
   // For regular arrays, try performance-optimized path first
   try {
     // Use the optimized aggregation from aggregation.ts which includes fast implementations
     return originalAggregate(collection, pipeline);
-  } catch (error) {
+  } catch (_error) {
     // Fall back to streaming if optimization fails
     const streamingCollection = createStreamingCollection(collection);
     return streamingCollection.stream(pipeline);

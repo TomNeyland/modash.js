@@ -1,6 +1,6 @@
 /**
  * Ultra-fast $match implementation for modash.js
- * 
+ *
  * Optimizations:
  * 1. Specialized code paths for common query patterns
  * 2. Precompiled field accessors
@@ -15,17 +15,19 @@ import type { QueryExpression } from '../index.js';
 /**
  * Fast field accessor that avoids repeated property lookups
  */
-function createFieldGetter(fieldPath: string): (doc: Document) => DocumentValue {
+function createFieldGetter(
+  fieldPath: string
+): (doc: Document) => DocumentValue {
   if (!fieldPath.includes('.')) {
     // Simple field access - fastest path
     return (doc: Document) => doc[fieldPath];
   }
-  
+
   // Nested field access - compile path once
   const segments = fieldPath.split('.');
   return (doc: Document) => {
     let current: any = doc;
-    for (let i = 0; i < segments.length && current != null; i++) {
+    for (let i = 0; i < segments.length && current !== null; i++) {
       current = current[segments[i]!];
     }
     return current;
@@ -36,26 +38,32 @@ function createFieldGetter(fieldPath: string): (doc: Document) => DocumentValue 
  * Specialized matcher for simple equality queries
  * Handles patterns like { field: value } or { field1: value1, field2: value2 }
  */
-function createSimpleEqualityMatcher(query: QueryExpression): ((doc: Document) => boolean) | null {
+function createSimpleEqualityMatcher(
+  query: QueryExpression
+): ((doc: Document) => boolean) | null {
   const entries = Object.entries(query);
-  
+
   // Check if this is a simple equality query (no operators)
   for (const [field, condition] of entries) {
     if (field.startsWith('$')) return null; // Has logical operators
-    if (typeof condition === 'object' && condition !== null && !Array.isArray(condition)) {
+    if (
+      typeof condition === 'object' &&
+      condition !== null &&
+      !Array.isArray(condition)
+    ) {
       const conditionKeys = Object.keys(condition);
       if (conditionKeys.some(key => key.startsWith('$'))) {
         return null; // Has comparison operators
       }
     }
   }
-  
+
   // All conditions are simple equality - create optimized matcher
   if (entries.length === 1) {
     // Single field optimization
     const [field, expectedValue] = entries[0]!;
     const getter = createFieldGetter(field);
-    
+
     // Type-specific optimizations
     if (typeof expectedValue === 'string') {
       return (doc: Document) => getter(doc) === expectedValue;
@@ -72,15 +80,16 @@ function createSimpleEqualityMatcher(query: QueryExpression): ((doc: Document) =
     const [field2, value2] = entries[1]!;
     const getter1 = createFieldGetter(field1);
     const getter2 = createFieldGetter(field2);
-    
-    return (doc: Document) => getter1(doc) === value1 && getter2(doc) === value2;
+
+    return (doc: Document) =>
+      getter1(doc) === value1 && getter2(doc) === value2;
   } else {
     // Multiple fields - general case but still optimized
     const getters = entries.map(([field, value]) => ({
       getter: createFieldGetter(field),
-      value
+      value,
     }));
-    
+
     return (doc: Document) => {
       for (const { getter, value } of getters) {
         if (getter(doc) !== value) return false;
@@ -94,29 +103,37 @@ function createSimpleEqualityMatcher(query: QueryExpression): ((doc: Document) =
  * Specialized matcher for simple range queries
  * Handles patterns like { field: { $gte: min, $lte: max } }
  */
-function createSimpleRangeMatcher(query: QueryExpression): ((doc: Document) => boolean) | null {
+function createSimpleRangeMatcher(
+  query: QueryExpression
+): ((doc: Document) => boolean) | null {
   const entries = Object.entries(query);
-  
+
   if (entries.length !== 1) return null;
-  
+
   const [field, condition] = entries[0]!;
-  if (typeof condition !== 'object' || condition === null || Array.isArray(condition)) {
+  if (
+    typeof condition !== 'object' ||
+    condition === null ||
+    Array.isArray(condition)
+  ) {
     return null;
   }
-  
+
   const operators = Object.keys(condition);
-  const isSimpleRange = operators.every(op => ['$gt', '$gte', '$lt', '$lte'].includes(op));
-  
+  const isSimpleRange = operators.every(op =>
+    ['$gt', '$gte', '$lt', '$lte'].includes(op)
+  );
+
   if (!isSimpleRange) return null;
-  
+
   const getter = createFieldGetter(field);
-  
+
   // Number range optimization
   const gt = condition.$gt;
   const gte = condition.$gte;
   const lt = condition.$lt;
   const lte = condition.$lte;
-  
+
   if (typeof gt === 'number' && typeof lt === 'number') {
     return (doc: Document) => {
       const value = getter(doc);
@@ -138,7 +155,7 @@ function createSimpleRangeMatcher(query: QueryExpression): ((doc: Document) => b
       return typeof value === 'number' && value > gt && value <= lte;
     };
   }
-  
+
   return null;
 }
 
@@ -146,21 +163,27 @@ function createSimpleRangeMatcher(query: QueryExpression): ((doc: Document) => b
  * Specialized matcher for $in queries
  * Handles patterns like { field: { $in: [value1, value2, ...] } }
  */
-function createInMatcher(query: QueryExpression): ((doc: Document) => boolean) | null {
+function createInMatcher(
+  query: QueryExpression
+): ((doc: Document) => boolean) | null {
   const entries = Object.entries(query);
-  
+
   if (entries.length !== 1) return null;
-  
+
   const [field, condition] = entries[0]!;
-  if (typeof condition !== 'object' || condition === null || !('$in' in condition)) {
+  if (
+    typeof condition !== 'object' ||
+    condition === null ||
+    !('$in' in condition)
+  ) {
     return null;
   }
-  
+
   const inValues = condition.$in;
   if (!Array.isArray(inValues)) return null;
-  
+
   const getter = createFieldGetter(field);
-  
+
   // Optimize based on value types and count
   if (inValues.length <= 4) {
     // Small sets - use direct comparison (faster than Set for small counts)
@@ -196,20 +219,21 @@ export function fastMatch<T extends Document = Document>(
   if (!Array.isArray(collection) || collection.length === 0) {
     return [];
   }
-  
+
   // Try specialized matchers first (fastest paths)
-  let matcher = createSimpleEqualityMatcher(query) ||
-                createSimpleRangeMatcher(query) ||
-                createInMatcher(query);
-  
+  let matcher =
+    createSimpleEqualityMatcher(query) ||
+    createSimpleRangeMatcher(query) ||
+    createInMatcher(query);
+
   if (!matcher) {
     // Fall back to general matcher for complex queries
     matcher = createGeneralMatcher(query);
   }
-  
+
   // Process collection with optimized matcher
   const result: T[] = [];
-  
+
   if (collection.length < 1000) {
     // Small collections - simple loop
     for (let i = 0; i < collection.length; i++) {
@@ -231,39 +255,53 @@ export function fastMatch<T extends Document = Document>(
       }
     }
   }
-  
+
   return result;
 }
 
 /**
  * General matcher for complex queries (fallback)
  */
-function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolean {
+function createGeneralMatcher(
+  query: QueryExpression
+): (doc: Document) => boolean {
   const conditions: Array<(doc: Document) => boolean> = [];
-  
+
   for (const [field, condition] of Object.entries(query)) {
     // Handle logical operators
     if (field === '$and' && Array.isArray(condition)) {
-      const subMatchers = condition.map(subQuery => createGeneralMatcher(subQuery as QueryExpression));
-      conditions.push((doc: Document) => subMatchers.every(matcher => matcher(doc)));
+      const subMatchers = condition.map(subQuery =>
+        createGeneralMatcher(subQuery as QueryExpression)
+      );
+      conditions.push((doc: Document) =>
+        subMatchers.every(matcher => matcher(doc))
+      );
       continue;
     }
-    
+
     if (field === '$or' && Array.isArray(condition)) {
-      const subMatchers = condition.map(subQuery => createGeneralMatcher(subQuery as QueryExpression));
-      conditions.push((doc: Document) => subMatchers.some(matcher => matcher(doc)));
+      const subMatchers = condition.map(subQuery =>
+        createGeneralMatcher(subQuery as QueryExpression)
+      );
+      conditions.push((doc: Document) =>
+        subMatchers.some(matcher => matcher(doc))
+      );
       continue;
     }
-    
+
     if (field === '$nor' && Array.isArray(condition)) {
-      const subMatchers = condition.map(subQuery => createGeneralMatcher(subQuery as QueryExpression));
-      conditions.push((doc: Document) => !subMatchers.some(matcher => matcher(doc)));
+      const subMatchers = condition.map(subQuery =>
+        createGeneralMatcher(subQuery as QueryExpression)
+      );
+      conditions.push(
+        (doc: Document) => !subMatchers.some(matcher => matcher(doc))
+      );
       continue;
     }
-    
+
     // Handle field conditions
     const getter = createFieldGetter(field);
-    
+
     if (typeof condition !== 'object' || condition === null) {
       // Simple equality
       conditions.push((doc: Document) => getter(doc) === condition);
@@ -280,7 +318,8 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$gt':
             conditions.push((doc: Document) => {
               const value = getter(doc);
-              return typeof value === 'number' && typeof expectedValue === 'number'
+              return typeof value === 'number' &&
+                typeof expectedValue === 'number'
                 ? value > expectedValue
                 : value > expectedValue;
             });
@@ -288,7 +327,8 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$gte':
             conditions.push((doc: Document) => {
               const value = getter(doc);
-              return typeof value === 'number' && typeof expectedValue === 'number'
+              return typeof value === 'number' &&
+                typeof expectedValue === 'number'
                 ? value >= expectedValue
                 : value >= expectedValue;
             });
@@ -296,7 +336,8 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$lt':
             conditions.push((doc: Document) => {
               const value = getter(doc);
-              return typeof value === 'number' && typeof expectedValue === 'number'
+              return typeof value === 'number' &&
+                typeof expectedValue === 'number'
                 ? value < expectedValue
                 : value < expectedValue;
             });
@@ -304,7 +345,8 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$lte':
             conditions.push((doc: Document) => {
               const value = getter(doc);
-              return typeof value === 'number' && typeof expectedValue === 'number'
+              return typeof value === 'number' &&
+                typeof expectedValue === 'number'
                 ? value <= expectedValue
                 : value <= expectedValue;
             });
@@ -312,7 +354,9 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$in':
             if (Array.isArray(expectedValue)) {
               if (expectedValue.length <= 4) {
-                conditions.push((doc: Document) => expectedValue.includes(getter(doc)));
+                conditions.push((doc: Document) =>
+                  expectedValue.includes(getter(doc))
+                );
               } else {
                 const valueSet = new Set(expectedValue);
                 conditions.push((doc: Document) => valueSet.has(getter(doc)));
@@ -322,7 +366,9 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
           case '$nin':
             if (Array.isArray(expectedValue)) {
               if (expectedValue.length <= 4) {
-                conditions.push((doc: Document) => !expectedValue.includes(getter(doc)));
+                conditions.push(
+                  (doc: Document) => !expectedValue.includes(getter(doc))
+                );
               } else {
                 const valueSet = new Set(expectedValue);
                 conditions.push((doc: Document) => !valueSet.has(getter(doc)));
@@ -337,7 +383,10 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
             break;
           case '$regex':
             if (typeof expectedValue === 'string') {
-              const regex = new RegExp(expectedValue, condition.$options as string);
+              const regex = new RegExp(
+                expectedValue,
+                condition.$options as string
+              );
               conditions.push((doc: Document) => {
                 const value = getter(doc);
                 return typeof value === 'string' && regex.test(value);
@@ -348,7 +397,10 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
             if (Array.isArray(expectedValue)) {
               conditions.push((doc: Document) => {
                 const value = getter(doc);
-                return Array.isArray(value) && expectedValue.every(val => value.includes(val));
+                return (
+                  Array.isArray(value) &&
+                  expectedValue.every(val => value.includes(val))
+                );
               });
             }
             break;
@@ -372,7 +424,7 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
       }
     }
   }
-  
+
   // Return optimized condition function
   if (conditions.length === 1) {
     return conditions[0]!;

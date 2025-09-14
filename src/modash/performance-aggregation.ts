@@ -1,6 +1,6 @@
 /**
  * High-performance aggregation implementation for modash.js
- * 
+ *
  * Integrates all performance optimizations:
  * 1. Operator fusion ($match + $project)
  * 2. Compiled expressions and predicates
@@ -10,9 +10,13 @@
  * 6. Zero-allocation hot paths
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import type { Pipeline, PipelineStage, QueryExpression } from '../index.js';
+import type {
+  Collection,
+  Document,
+  DocumentValue,
+} from './expressions.js';
 import { $expression } from './expressions.js';
+import type { Pipeline, PipelineStage, QueryExpression } from '../index.js';
 
 import {
   createCompilationContext,
@@ -28,10 +32,10 @@ import { optimizedSort, canUseTopK } from './performance-sorting.js';
 
 import {
   globalArena,
-  deltaBatcher,
   clearAllPools,
-  acquireTempObject,
-  releaseTempObject,
+  // deltaBatcher,
+  // acquireTempObject, 
+  // releaseTempObject,
   getScratchArray,
   releaseScratchArray,
 } from './object-pools.js';
@@ -62,10 +66,10 @@ function analyzePipeline(pipeline: Pipeline): PipelineAnalysis {
     hotPath: true,
     estimatedComplexity: 0,
   };
-  
+
   for (let i = 0; i < pipeline.length; i++) {
     const stage = pipeline[i]!;
-    
+
     // Check for $match + $project fusion
     if ('$match' in stage && i + 1 < pipeline.length) {
       const nextStage = pipeline[i + 1]!;
@@ -83,7 +87,7 @@ function analyzePipeline(pipeline: Pipeline): PipelineAnalysis {
         }
       }
     }
-    
+
     // Check for $sort + $limit (Top-K) optimization
     if ('$sort' in stage && i + 1 < pipeline.length) {
       const nextStage = pipeline[i + 1]!;
@@ -98,7 +102,7 @@ function analyzePipeline(pipeline: Pipeline): PipelineAnalysis {
         }
       }
     }
-    
+
     // Estimate complexity
     if ('$group' in stage) {
       analysis.estimatedComplexity += 3; // Grouping is expensive
@@ -114,7 +118,7 @@ function analyzePipeline(pipeline: Pipeline): PipelineAnalysis {
       analysis.estimatedComplexity += 1; // Basic operations
     }
   }
-  
+
   return analysis;
 }
 
@@ -126,26 +130,25 @@ function performanceMatch(
   query: QueryExpression,
   ctx: CompilationContext
 ): Collection {
-  
   if (collection.length === 0) {
     return [];
   }
-  
+
   const predicate = compileMatch(query, ctx);
   const result = getScratchArray('matchResult', collection.length);
   let resultIndex = 0;
-  
+
   for (let i = 0; i < collection.length; i++) {
     const doc = collection[i]!;
     if (predicate(doc, i)) {
       result[resultIndex++] = doc;
     }
   }
-  
+
   // Create properly sized result array
   const finalResult = result.slice(0, resultIndex);
   releaseScratchArray('matchResult');
-  
+
   return finalResult;
 }
 
@@ -157,20 +160,19 @@ function performanceProject(
   projectSpec: Record<string, any>,
   ctx: CompilationContext
 ): Collection {
-  
   if (collection.length === 0) {
     return [];
   }
-  
+
   const projector = compileProject(projectSpec, ctx);
   const result: Document[] = [];
-  
+
   for (let i = 0; i < collection.length; i++) {
     const doc = collection[i]!;
     const projected = projector(doc, i);
     result.push(projected);
   }
-  
+
   return result;
 }
 
@@ -182,34 +184,33 @@ function processStage(
   stage: PipelineStage,
   ctx: CompilationContext
 ): Collection {
-  
   if ('$match' in stage) {
     return performanceMatch(collection, stage.$match, ctx);
   }
-  
+
   if ('$project' in stage) {
     return performanceProject(collection, stage.$project, ctx);
   }
-  
+
   if ('$group' in stage) {
     return performanceGroup(collection, stage.$group, ctx);
   }
-  
+
   if ('$sort' in stage) {
     return optimizedSort(collection, stage.$sort, undefined, ctx);
   }
-  
+
   if ('$limit' in stage) {
     return collection.slice(0, stage.$limit);
   }
-  
+
   if ('$skip' in stage) {
     return collection.slice(stage.$skip);
   }
-  
+
   // For other stages, fall back to original implementation
   perfCounters.recordFallback();
-  
+
   // Import and use original implementations
   if ('$addFields' in stage || '$set' in stage) {
     const fieldSpecs = stage.$addFields || stage.$set;
@@ -221,13 +222,13 @@ function processStage(
       return { ...doc, ...newFields };
     });
   }
-  
+
   if ('$unwind' in stage) {
     // Simplified unwind implementation
     const spec = stage.$unwind;
     const path = typeof spec === 'string' ? spec : spec.path;
     const fieldName = path.startsWith('$') ? path.slice(1) : path;
-    
+
     const result: Document[] = [];
     for (const doc of collection) {
       const fieldValue = doc[fieldName];
@@ -241,13 +242,13 @@ function processStage(
     }
     return result;
   }
-  
+
   if ('$lookup' in stage) {
     perfCounters.recordFallback();
     // Lookup not optimized - would need original implementation
     throw new Error('$lookup not supported in performance mode yet');
   }
-  
+
   return collection;
 }
 
@@ -260,31 +261,33 @@ function applyFusions(
   analysis: PipelineAnalysis,
   ctx: CompilationContext
 ): Collection {
-  
   let result = collection;
   const processedStages = new Set<number>();
-  
+
   // Apply fusion optimizations
   for (const fusion of analysis.fusionOpportunities) {
-    if (processedStages.has(fusion.startIndex) || processedStages.has(fusion.endIndex)) {
+    if (
+      processedStages.has(fusion.startIndex) ||
+      processedStages.has(fusion.endIndex)
+    ) {
       continue; // Already processed as part of another fusion
     }
-    
+
     if (fusion.type === 'match-project') {
       const matchStage = pipeline[fusion.startIndex]! as any;
       const projectStage = pipeline[fusion.endIndex]! as any;
-      
+
       try {
         const fusedOperator = fuseMatchProject(
           matchStage.$match,
           projectStage.$project,
           ctx
         );
-        
+
         result = fusedOperator(result);
         processedStages.add(fusion.startIndex);
         processedStages.add(fusion.endIndex);
-        
+
         perfCounters.recordAdd(); // Record fusion used
       } catch (error) {
         // Fallback to individual stages
@@ -295,26 +298,26 @@ function applyFusions(
         processedStages.add(fusion.endIndex);
       }
     }
-    
+
     if (fusion.type === 'sort-limit') {
       const sortStage = pipeline[fusion.startIndex]! as any;
       const limitStage = pipeline[fusion.endIndex]! as any;
-      
+
       result = optimizedSort(result, sortStage.$sort, limitStage.$limit, ctx);
       processedStages.add(fusion.startIndex);
       processedStages.add(fusion.endIndex);
-      
+
       perfCounters.recordAdd(); // Record Top-K optimization used
     }
   }
-  
+
   // Process remaining stages
   for (let i = 0; i < pipeline.length; i++) {
     if (!processedStages.has(i)) {
       result = processStage(result, pipeline[i]!, ctx);
     }
   }
-  
+
   return result;
 }
 
@@ -325,31 +328,30 @@ export function performanceAggregate<T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline
 ): Collection<T> {
-  
   // Early return for empty inputs
   if (!Array.isArray(collection) || collection.length === 0) {
     return [];
   }
-  
+
   if (!Array.isArray(pipeline) || pipeline.length === 0) {
     return collection;
   }
-  
+
   // Reset performance counters
   perfCounters.reset();
-  
+
   // Clear temporary allocations from previous operations
   clearAllPools();
-  
+
   try {
     // Create compilation context for this aggregation
     const ctx = createCompilationContext();
-    
+
     // Analyze pipeline for optimization opportunities
     const analysis = analyzePipeline(pipeline);
-    
+
     let result: Collection;
-    
+
     if (analysis.canOptimize && analysis.fusionOpportunities.length > 0) {
       // Use fusion-optimized path
       result = applyFusions(collection, pipeline, analysis, ctx);
@@ -364,9 +366,8 @@ export function performanceAggregate<T extends Document = Document>(
       perfCounters.recordFallback();
       throw new Error('Pipeline contains operations not yet optimized');
     }
-    
+
     return result as Collection<T>;
-    
   } catch (error) {
     // If performance path fails, could fall back to original implementation
     perfCounters.recordFallback();
@@ -383,10 +384,10 @@ export function performanceAggregate<T extends Document = Document>(
 export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
   // Track fields added by $addFields/$set stages and $group stages
   const addedFields = new Set<string>();
-  
+
   for (let i = 0; i < pipeline.length; i++) {
     const stage = pipeline[i]!;
-    
+
     // Track fields added by $addFields/$set
     if ('$addFields' in stage || '$set' in stage) {
       const fieldSpecs = stage.$addFields || stage.$set;
@@ -394,7 +395,7 @@ export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
         addedFields.add(fieldName);
       }
     }
-    
+
     // Track fields created by $group
     if ('$group' in stage) {
       const groupSpec = stage.$group;
@@ -406,7 +407,7 @@ export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
           return false;
         }
       }
-      
+
       // Add group output fields to tracking
       for (const fieldName of Object.keys(groupSpec)) {
         if (fieldName !== '_id') {
@@ -414,24 +415,24 @@ export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
         }
       }
     }
-    
+
     // Check $project stages for complex expressions that need traditional processing
     if ('$project' in stage) {
       const projectSpec = stage.$project;
       for (const [field, spec] of Object.entries(projectSpec)) {
         if (field === '_id') continue;
-        
+
         // If it's a computed expression, check various conditions
         if (typeof spec === 'object' && spec !== null && !Array.isArray(spec)) {
           const specStr = JSON.stringify(spec);
-          
+
           // Check if it references fields added by previous stages
           for (const addedField of addedFields) {
             if (specStr.includes(`"$${addedField}"`)) {
               return false; // Fall back to traditional aggregation
             }
           }
-          
+
           // For now, disable optimization for any complex expressions in multi-stage pipelines
           // This is a conservative approach to ensure correctness
           if (pipeline.length > 1) {
@@ -441,7 +442,7 @@ export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
       }
     }
   }
-  
+
   const analysis = analyzePipeline(pipeline);
   return analysis.canOptimize && analysis.hotPath;
 }
@@ -454,7 +455,6 @@ export function smartAggregate<T extends Document = Document>(
   pipeline: Pipeline,
   fallbackFn: (collection: Collection<T>, pipeline: Pipeline) => Collection<T>
 ): Collection<T> {
-  
   // Try performance path first
   if (canUsePerformanceAggregation(pipeline)) {
     try {
@@ -464,7 +464,7 @@ export function smartAggregate<T extends Document = Document>(
       // Fall through to fallback implementation
     }
   }
-  
+
   perfCounters.recordFallback();
   return fallbackFn(collection, pipeline);
 }

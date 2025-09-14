@@ -1,6 +1,6 @@
 /**
  * Object pools and memory management for modash.js performance optimization
- * 
+ *
  * Key optimizations:
  * 1. Object pooling to reduce GC pressure
  * 2. Reusable scratch arrays for batching operations
@@ -18,7 +18,7 @@ class ObjectPool<T> {
   private createFn: () => T;
   private resetFn: (obj: T) => void;
   private maxSize: number;
-  
+
   constructor(
     createFn: () => T,
     resetFn: (obj: T) => void,
@@ -28,18 +28,18 @@ class ObjectPool<T> {
     this.resetFn = resetFn;
     this.maxSize = maxSize;
   }
-  
+
   acquire(): T {
     if (this.pool.length > 0) {
       perfCounters.recordCacheHit();
       return this.pool.pop()!;
     }
-    
+
     perfCounters.recordCacheMiss();
     perfCounters.recordAllocation();
     return this.createFn();
   }
-  
+
   release(obj: T): void {
     if (this.pool.length < this.maxSize) {
       this.resetFn(obj);
@@ -47,11 +47,11 @@ class ObjectPool<T> {
     }
     // If pool is full, let the object be GC'd
   }
-  
+
   size(): number {
     return this.pool.length;
   }
-  
+
   prewarm(count: number): void {
     for (let i = 0; i < count && this.pool.length < this.maxSize; i++) {
       this.pool.push(this.createFn());
@@ -66,7 +66,7 @@ class ObjectPool<T> {
 // Pool for temporary objects during projection
 const tempObjectPool = new ObjectPool<Record<string, any>>(
   () => ({}),
-  (obj) => {
+  obj => {
     // Clear all properties
     for (const key in obj) {
       delete obj[key];
@@ -80,29 +80,32 @@ const arrayPools = new Map<number, ObjectPool<any[]>>();
 function getArrayPool(size: number): ObjectPool<any[]> {
   // Round up to nearest power of 2 for efficiency
   const poolSize = Math.pow(2, Math.ceil(Math.log2(size)));
-  
+
   if (!arrayPools.has(poolSize)) {
-    arrayPools.set(poolSize, new ObjectPool<any[]>(
-      () => new Array(poolSize),
-      (arr) => {
-        arr.length = 0; // Clear array
-      }
-    ));
+    arrayPools.set(
+      poolSize,
+      new ObjectPool<any[]>(
+        () => new Array(poolSize),
+        arr => {
+          arr.length = 0; // Clear array
+        }
+      )
+    );
   }
-  
+
   return arrayPools.get(poolSize)!;
 }
 
 // Pool for Set objects used in grouping operations
 const setPool = new ObjectPool<Set<any>>(
   () => new Set(),
-  (set) => set.clear()
+  set => set.clear()
 );
 
 // Pool for Map objects
 const mapPool = new ObjectPool<Map<string, any>>(
   () => new Map(),
-  (map) => map.clear()
+  map => map.clear()
 );
 
 /**
@@ -111,10 +114,10 @@ const mapPool = new ObjectPool<Map<string, any>>(
 class ScratchArrayManager {
   private arrays: Map<string, any[]> = new Map();
   private currentSizes: Map<string, number> = new Map();
-  
+
   getArray(name: string, minSize: number): any[] {
     const currentSize = this.currentSizes.get(name) || 0;
-    
+
     if (currentSize < minSize) {
       // Need to allocate or resize
       const newSize = Math.max(minSize, currentSize * 1.5);
@@ -122,19 +125,19 @@ class ScratchArrayManager {
       this.currentSizes.set(name, Math.ceil(newSize));
       perfCounters.recordAllocation(newSize * 8); // Rough size estimate
     }
-    
+
     const array = this.arrays.get(name)!;
     array.length = minSize; // Set effective length
     return array;
   }
-  
+
   releaseArray(name: string): void {
     const array = this.arrays.get(name);
     if (array) {
       array.length = 0; // Clear but keep allocated space
     }
   }
-  
+
   clear(): void {
     for (const array of this.arrays.values()) {
       array.length = 0;
@@ -153,13 +156,13 @@ class Arena {
   private arrays: any[][] = [];
   private sets: Set<any>[] = [];
   private maps: Map<any, any>[] = [];
-  
+
   allocateObject(): Record<string, any> {
     const obj = tempObjectPool.acquire();
     this.objects.push(obj);
     return obj;
   }
-  
+
   allocateArray(size: number = 0): any[] {
     const pool = getArrayPool(Math.max(16, size));
     const arr = pool.acquire();
@@ -167,39 +170,39 @@ class Arena {
     this.arrays.push(arr);
     return arr;
   }
-  
+
   allocateSet(): Set<any> {
     const set = setPool.acquire();
     this.sets.push(set);
     return set;
   }
-  
+
   allocateMap(): Map<any, any> {
     const map = mapPool.acquire();
     this.maps.push(map);
     return map;
   }
-  
+
   clear(): void {
     // Return all objects to their pools
     for (const obj of this.objects) {
       tempObjectPool.release(obj);
     }
-    
+
     for (const arr of this.arrays) {
       const size = arr.length;
       const pool = getArrayPool(size || 16);
       pool.release(arr);
     }
-    
+
     for (const set of this.sets) {
       setPool.release(set);
     }
-    
+
     for (const map of this.maps) {
       mapPool.release(map);
     }
-    
+
     // Clear tracking arrays
     this.objects.length = 0;
     this.arrays.length = 0;
@@ -220,7 +223,7 @@ export interface DeltaBatch {
 class DeltaBatchProcessor {
   private batchPool: ObjectPool<DeltaBatch>;
   private maxBatchSize: number;
-  
+
   constructor(maxBatchSize: number = 512) {
     this.maxBatchSize = maxBatchSize;
     this.batchPool = new ObjectPool<DeltaBatch>(
@@ -229,41 +232,41 @@ class DeltaBatchProcessor {
         removals: [],
         size: 0,
       }),
-      (batch) => {
+      batch => {
         batch.additions.length = 0;
         batch.removals.length = 0;
         batch.size = 0;
       }
     );
   }
-  
+
   createBatch(): DeltaBatch {
     return this.batchPool.acquire();
   }
-  
+
   releaseBatch(batch: DeltaBatch): void {
     this.batchPool.release(batch);
   }
-  
-  processInBatches<T>(
-    items: T[],
-    processor: (batch: T[]) => void
-  ): void {
-    const batchArray = scratchArrays.getArray('processBatch', this.maxBatchSize);
-    
+
+  processInBatches<T>(items: T[], processor: (batch: T[]) => void): void {
+    const batchArray = scratchArrays.getArray(
+      'processBatch',
+      this.maxBatchSize
+    );
+
     for (let i = 0; i < items.length; i += this.maxBatchSize) {
       const batchSize = Math.min(this.maxBatchSize, items.length - i);
-      
+
       // Fill batch array
       for (let j = 0; j < batchSize; j++) {
         batchArray[j] = items[i + j];
       }
       batchArray.length = batchSize;
-      
+
       processor(batchArray);
       perfCounters.recordAdd(); // Count batch processed
     }
-    
+
     scratchArrays.releaseArray('processBatch');
   }
 }
@@ -274,35 +277,35 @@ class DeltaBatchProcessor {
 class StringDeduplicator {
   private stringCache = new Map<string, string>();
   private maxCacheSize: number;
-  
+
   constructor(maxCacheSize: number = 10000) {
     this.maxCacheSize = maxCacheSize;
   }
-  
+
   deduplicate(str: string): string {
     if (this.stringCache.has(str)) {
       perfCounters.recordCacheHit();
       return this.stringCache.get(str)!;
     }
-    
+
     perfCounters.recordCacheMiss();
-    
+
     if (this.stringCache.size >= this.maxCacheSize) {
       // Clear half the cache when full (simple LRU approximation)
       const entries = Array.from(this.stringCache.entries());
       this.stringCache.clear();
-      
+
       // Keep the second half (more recently used)
       for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
         const [key, value] = entries[i]!;
         this.stringCache.set(key, value);
       }
     }
-    
+
     this.stringCache.set(str, str);
     return str;
   }
-  
+
   size(): number {
     return this.stringCache.size;
   }
@@ -366,7 +369,7 @@ export function prewarmPools(): void {
   tempObjectPool.prewarm(100);
   setPool.prewarm(50);
   mapPool.prewarm(50);
-  
+
   // Prewarm common array sizes
   for (const size of [16, 32, 64, 128, 256, 512, 1024]) {
     getArrayPool(size).prewarm(20);
@@ -381,7 +384,7 @@ export function getPoolStats(): Record<string, any> {
   for (const [size, pool] of arrayPools.entries()) {
     arrayPoolStats[`array_${size}`] = pool.size();
   }
-  
+
   return {
     tempObjects: tempObjectPool.size(),
     sets: setPool.size(),

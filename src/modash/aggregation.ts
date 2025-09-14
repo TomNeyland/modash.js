@@ -11,9 +11,9 @@ import {
 import { $accumulate } from './accumulators.js';
 
 // Import performance optimizations
-import { 
+import {
   smartAggregate,
-  canUsePerformanceAggregation 
+  canUsePerformanceAggregation,
 } from './performance-aggregation.js';
 
 // Import ultra-fast implementations for critical operations
@@ -84,7 +84,7 @@ function $project<T extends Document = Document>(
   if (canUseFastProject(specifications)) {
     return fastProject(collection, specifications);
   }
-  
+
   // Fall back to original implementation for unsupported expressions
   const specs = { ...specifications };
   if (!('_id' in specs)) {
@@ -111,7 +111,9 @@ function $match<T extends Document = Document>(
 
 /**
  * Helper function to match a document against a query
+ * @deprecated This function is unused but kept for potential future use
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function matchDocument(doc: Document, query: QueryExpression): boolean {
   for (const field in query) {
     const condition = query[field] as FieldCondition;
@@ -271,8 +273,8 @@ function $skip<T extends Document = Document>(
  * Helper function for safe string comparison that handles mixed types
  */
 function cmpString(a: unknown, b: unknown): number {
-  const sa = a == null ? '' : String(a);
-  const sb = b == null ? '' : String(b);
+  const sa = a === null || a === undefined ? '' : String(a);
+  const sb = b === null || b === undefined ? '' : String(b);
   return sa.localeCompare(sb);
 }
 
@@ -376,7 +378,7 @@ function $group<T extends Document = Document>(
   if (canUseFastGroup(specifications)) {
     return fastGroup(collection, specifications);
   }
-  
+
   // Fall back to original implementation for unsupported operations
   const _idSpec = specifications._id;
 
