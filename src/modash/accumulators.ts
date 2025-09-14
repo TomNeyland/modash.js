@@ -51,7 +51,9 @@ function $accumulate(
 ): DocumentValue | ReadonlyArray<DocumentValue> {
   if (isAccumulatorExpression(operatorExpression)) {
     const [operator] = Object.keys(operatorExpression);
-    const args = (operatorExpression as any)[operator as keyof AccumulatorExpression] as Expression;
+    const args = (operatorExpression as any)[
+      operator as keyof AccumulatorExpression
+    ] as Expression;
     const accumulatorFunction = ACCUMULATORS[operator!];
 
     if (!accumulatorFunction) {

@@ -11,9 +11,9 @@ import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
 
-describe('Phase 6: CLI Integration', function() {
+describe('Phase 6: CLI Integration', function () {
   this.timeout(10000); // CLI operations can be slower
-  
+
   const testDataFile = '/tmp/modash-test-data.jsonl';
   const testData = `{"name": "Alice", "age": 30, "category": "A", "score": 85}
 {"name": "Bob", "age": 25, "category": "B", "score": 92}
@@ -23,11 +23,11 @@ describe('Phase 6: CLI Integration', function() {
   const __dirname = path.dirname(__filename);
   const repoRoot = path.resolve(__dirname, '..');
 
-  beforeEach(async function() {
+  beforeEach(async function () {
     await writeFile(testDataFile, testData);
   });
 
-  afterEach(async function() {
+  afterEach(async function () {
     try {
       await unlink(testDataFile);
     } catch (error) {
@@ -35,58 +35,62 @@ describe('Phase 6: CLI Integration', function() {
     }
   });
 
-  describe('CLI Basic Functionality', function() {
-    
-    it('should show help when --help flag is used', async function() {
-      const { stdout } = await execAsync(`cd "${repoRoot}" && node --import=tsx/esm src/cli.ts --help`);
-      
+  describe('CLI Basic Functionality', function () {
+    it('should show help when --help flag is used', async function () {
+      const { stdout } = await execAsync(
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts --help`
+      );
+
       expect(stdout).to.include('Modash CLI');
       expect(stdout).to.include('Usage:');
       expect(stdout).to.include('Options:');
       expect(stdout).to.include('Examples:');
     });
 
-    it('should process data from file with basic pipeline', async function() {
+    it('should process data from file with basic pipeline', async function () {
       const pipeline = '[{"$match": {"age": {"$gte": 30}}}]';
       const { stdout } = await execAsync(
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile}`
       );
-      
-      const results = stdout.trim().split('\n').map(line => JSON.parse(line));
+
+      const results = stdout
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line));
       expect(results).to.have.length(2);
       expect(results[0]).to.have.property('name', 'Alice');
       expect(results[1]).to.have.property('name', 'Charlie');
     });
 
-    it('should process data from stdin', async function() {
+    it('should process data from stdin', async function () {
       const pipeline = '[{"$project": {"name": 1, "score": 1}}]';
       const { stdout } = await execAsync(
         `cd "${repoRoot}" && echo '{"name": "Test", "age": 30, "score": 90}' | node --import=tsx/esm src/cli.ts '${pipeline}'`
       );
-      
+
       const result = JSON.parse(stdout.trim());
       expect(result).to.deep.equal({ name: 'Test', score: 90 });
     });
 
-    it('should output pretty JSON when --pretty flag is used', async function() {
+    it('should output pretty JSON when --pretty flag is used', async function () {
       const pipeline = '[{"$limit": 1}]';
       const { stdout } = await execAsync(
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --pretty`
       );
-      
+
       expect(stdout).to.include('  {'); // Pretty printed with indentation
       expect(stdout).to.include('    "name":'); // Indented property
     });
   });
 
-  describe('CLI Advanced Features', function() {
-    
-    it('should show pipeline analysis with --explain flag', async function() {
-      const pipeline = '[{"$match": {"category": "A"}}, {"$sort": {"score": -1}}]';
+  describe('CLI Advanced Features', function () {
+    it('should show pipeline analysis with --explain flag', async function () {
+      const pipeline =
+        '[{"$match": {"category": "A"}}, {"$sort": {"score": -1}}]';
       const { stderr } = await execAsync(
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --explain`
       );
-      
+
       expect(stderr).to.include('Pipeline Analysis');
       expect(stderr).to.include('Stage 1: $match');
       expect(stderr).to.include('Stage 2: $sort');
@@ -94,12 +98,13 @@ describe('Phase 6: CLI Integration', function() {
       expect(stderr).to.include('Hot path eligible');
     });
 
-    it('should show performance stats with --stats flag', async function() {
-      const pipeline = '[{"$group": {"_id": "$category", "avgScore": {"$avg": "$score"}}}]';
+    it('should show performance stats with --stats flag', async function () {
+      const pipeline =
+        '[{"$group": {"_id": "$category", "avgScore": {"$avg": "$score"}}}]';
       const { stderr } = await execAsync(
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --stats`
       );
-      
+
       expect(stderr).to.include('Performance Stats');
       expect(stderr).to.include('Execution time:');
       expect(stderr).to.include('Input documents:');
@@ -108,20 +113,29 @@ describe('Phase 6: CLI Integration', function() {
       expect(stderr).to.include('Throughput:');
     });
 
-    it('should handle complex aggregation pipelines', async function() {
+    it('should handle complex aggregation pipelines', async function () {
       const pipeline = JSON.stringify([
         { $match: { score: { $gte: 80 } } },
-        { $group: { _id: '$category', avgScore: { $avg: '$score' }, count: { $sum: 1 } } },
-        { $sort: { avgScore: -1 } }
+        {
+          $group: {
+            _id: '$category',
+            avgScore: { $avg: '$score' },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { avgScore: -1 } },
       ]);
-      
+
       const { stdout } = await execAsync(
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile}`
       );
-      
-      const results = stdout.trim().split('\n').map(line => JSON.parse(line));
+
+      const results = stdout
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line));
       expect(results).to.have.length(2);
-      
+
       // Should be sorted by avgScore descending
       expect(results[0]._id).to.equal('B'); // Higher average score
       expect(results[0].avgScore).to.be.closeTo(93.5, 0.1);
@@ -130,9 +144,8 @@ describe('Phase 6: CLI Integration', function() {
     });
   });
 
-  describe('CLI Error Handling', function() {
-    
-    it('should show error for invalid pipeline JSON', async function() {
+  describe('CLI Error Handling', function () {
+    it('should show error for invalid pipeline JSON', async function () {
       try {
         await execAsync(
           `cd "${repoRoot}" && echo '{}' | node --import=tsx/esm src/cli.ts '[{invalid json}]'`
@@ -143,7 +156,7 @@ describe('Phase 6: CLI Integration', function() {
       }
     });
 
-    it('should show error when no pipeline is provided', async function() {
+    it('should show error when no pipeline is provided', async function () {
       try {
         await execAsync(
           `cd "${repoRoot}" && echo '{}' | node --import=tsx/esm src/cli.ts`
@@ -154,9 +167,9 @@ describe('Phase 6: CLI Integration', function() {
       }
     });
 
-    it('should show helpful error when no input data available', async function() {
+    it('should show helpful error when no input data available', async function () {
       try {
-        // Run without stdin or --file, with input redirected from /dev/null 
+        // Run without stdin or --file, with input redirected from /dev/null
         await execAsync(
           `cd "${repoRoot}" && timeout 5s node --import=tsx/esm src/cli.ts '[{"$match": {}}]' < /dev/null || true`
         );

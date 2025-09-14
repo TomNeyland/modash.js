@@ -523,7 +523,8 @@ export function hotPathAggregate<T extends Document = Document>(
         (collection.length / Math.max(duration, 1)) * 1000;
     } catch (error) {
       // Fallback on hot path failure
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       if (process.env.DEBUG_UNWIND) {
         console.log(
           `[DEBUG] Hot path failed, falling back to traditional aggregation: ${errorMessage}`

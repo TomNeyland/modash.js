@@ -40,7 +40,8 @@ export function loadFixture(filePath) {
     return null;
   }
 
-  return fs.readFileSync(filePath, 'utf-8')
+  return fs
+    .readFileSync(filePath, 'utf-8')
     .split('\n')
     .filter(line => line.trim())
     .map(line => deepParseDates(JSON.parse(line)));
@@ -50,11 +51,7 @@ export function loadFixture(filePath) {
  * Measure query performance with warmup passes
  */
 export function measurePerformance(name, fn, options = {}) {
-  const {
-    warmupPasses = 3,
-    measurePasses = 5,
-    verbose = false
-  } = options;
+  const { warmupPasses = 3, measurePasses = 5, verbose = false } = options;
 
   // Warmup passes
   if (verbose) console.log(`  Warming up ${name}...`);
@@ -84,7 +81,7 @@ export function measurePerformance(name, fn, options = {}) {
     min: Math.round(min * 100) / 100,
     max: Math.round(max * 100) / 100,
     median: Math.round(median * 100) / 100,
-    passes: measurePasses
+    passes: measurePasses,
   };
 
   if (verbose) {
@@ -101,12 +98,17 @@ export function measurePerformance(name, fn, options = {}) {
 /**
  * Compare floating point numbers with tolerance
  */
-export function assertCloseTo(actual, expected, tolerance = 0.01, message = '') {
+export function assertCloseTo(
+  actual,
+  expected,
+  tolerance = 0.01,
+  message = ''
+) {
   const diff = Math.abs(actual - expected);
   if (diff > tolerance) {
     throw new Error(
       message ||
-      `Expected ${actual} to be close to ${expected} (tolerance: ${tolerance}, diff: ${diff})`
+        `Expected ${actual} to be close to ${expected} (tolerance: ${tolerance}, diff: ${diff})`
     );
   }
   return true;
@@ -121,7 +123,9 @@ export function formatPerformanceReport(results) {
 
   for (const result of results) {
     lines.push(`\n${result.name}:`);
-    lines.push(`  Avg: ${result.avg}ms | Med: ${result.median}ms | Min: ${result.min}ms | Max: ${result.max}ms`);
+    lines.push(
+      `  Avg: ${result.avg}ms | Med: ${result.median}ms | Min: ${result.min}ms | Max: ${result.max}ms`
+    );
   }
 
   lines.push('\n========================\n');

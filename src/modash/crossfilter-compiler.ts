@@ -716,13 +716,14 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     `;
   }
 
-
   private generateExpressionCode(expr: any): string {
     if (typeof expr === 'string' && expr.startsWith('$')) {
       return this.generateFieldAccess(expr.substring(1));
     } else if (Array.isArray(expr)) {
       // Array expression
-      const elements = expr.map((item: any) => this.generateExpressionCode(item));
+      const elements = expr.map((item: any) =>
+        this.generateExpressionCode(item)
+      );
       return `[${elements.join(', ')}]`;
     } else if (typeof expr === 'object' && expr !== null) {
       // Check if it's a plain object (like {day: ..., month: ..., year: ...})
@@ -746,8 +747,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private compileOperatorExpression(expr: any): string {
     // Math operators
     if (expr.$add && Array.isArray(expr.$add)) {
-      const values = expr.$add.map((v: any) =>
-        `(Number(${this.generateExpressionCode(v)}) || 0)`
+      const values = expr.$add.map(
+        (v: any) => `(Number(${this.generateExpressionCode(v)}) || 0)`
       );
       return `(${values.join(' + ')})`;
     }
@@ -812,8 +813,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       return `(${str}).substring(${start}, ${start} + ${length})`;
     }
     if (expr.$concat && Array.isArray(expr.$concat)) {
-      const parts = expr.$concat.map((part: any) =>
-        `String(${this.generateExpressionCode(part)} || '')`
+      const parts = expr.$concat.map(
+        (part: any) => `String(${this.generateExpressionCode(part)} || '')`
       );
       return `(${parts.join(' + ')})`;
     }
@@ -1245,7 +1246,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             if ((docValue !== undefined) !== value) return false;
             break;
           case '$regex': {
-            const pattern = value instanceof RegExp ? value : new RegExp(String(value));
+            const pattern =
+              value instanceof RegExp ? value : new RegExp(String(value));
             if (!pattern.test(String(docValue || ''))) return false;
             break;
           }
@@ -1626,7 +1628,9 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     const stageOutputs = this.getStageOutputFields(previousStage);
 
     // Safe if match doesn't depend on fields produced by previous stage
-    return !Array.from(matchFields).some((field: string) => stageOutputs.includes(field));
+    return !Array.from(matchFields).some((field: string) =>
+      stageOutputs.includes(field)
+    );
   }
 
   private isConstantExpression(expr: any): boolean {
@@ -1643,7 +1647,10 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       if (expr.$add && Array.isArray(expr.$add)) {
         const values = expr.$add.map((v: any) => this.evaluateConstant(v));
         if (values.every((v: any) => typeof v === 'number')) {
-          return (values as number[]).reduce((sum: number, val: number) => sum + val, 0);
+          return (values as number[]).reduce(
+            (sum: number, val: number) => sum + val,
+            0
+          );
         }
       }
     }

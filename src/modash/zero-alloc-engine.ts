@@ -1064,7 +1064,6 @@ export class ZeroAllocEngine {
     return compiledStage;
   }
 
-
   /**
    * Apply projection specification to document
    */

@@ -23,7 +23,7 @@ function parseArgs(): { pipeline: Pipeline; options: CLIOptions } {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
+
     if (arg === '--file') {
       options.file = args[++i];
     } else if (arg === '--explain') {
@@ -56,7 +56,9 @@ function parseArgs(): { pipeline: Pipeline; options: CLIOptions } {
   try {
     pipeline = JSON.parse(pipelineStr);
   } catch (error) {
-    console.error(`❌ Error: Invalid pipeline JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(
+      `❌ Error: Invalid pipeline JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
     process.exit(1);
   }
 
@@ -147,11 +149,11 @@ function formatOutput(result: ReadonlyArray<unknown>, pretty: boolean): string {
 async function explainPipeline(pipeline: Pipeline): Promise<void> {
   console.error('🔍 Pipeline Analysis:');
   console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
+
   pipeline.forEach((stage, index) => {
     const stageName = Object.keys(stage)[0];
     console.error(`Stage ${index + 1}: ${stageName}`);
-    
+
     // Basic stage analysis
     switch (stageName) {
       case '$match':
@@ -179,7 +181,7 @@ async function explainPipeline(pipeline: Pipeline): Promise<void> {
         console.error('  ℹ Standard aggregation stage');
     }
   });
-  
+
   console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
@@ -198,8 +200,12 @@ async function main() {
     } else {
       // Check if stdin has data
       if (process.stdin.isTTY) {
-        console.error('❌ Error: No input data. Use --file or pipe data via stdin.');
-        console.error('Example: cat data.jsonl | npx modash \'[{"$match": {"active": true}}]\'');
+        console.error(
+          '❌ Error: No input data. Use --file or pipe data via stdin.'
+        );
+        console.error(
+          'Example: cat data.jsonl | npx modash \'[{"$match": {"active": true}}]\''
+        );
         process.exit(1);
       }
       documents = await readJSONLFromStdin();
@@ -226,8 +232,12 @@ async function main() {
       console.error(`⏱️  Execution time: ${duration.toFixed(2)}ms`);
       console.error(`📄 Input documents: ${documents.length.toLocaleString()}`);
       console.error(`📋 Output documents: ${result.length.toLocaleString()}`);
-      console.error(`💾 Memory delta: ${(memoryDiff / 1024 / 1024).toFixed(2)}MB`);
-      console.error(`🚀 Throughput: ${(documents.length / duration * 1000).toLocaleString()} docs/sec`);
+      console.error(
+        `💾 Memory delta: ${(memoryDiff / 1024 / 1024).toFixed(2)}MB`
+      );
+      console.error(
+        `🚀 Throughput: ${((documents.length / duration) * 1000).toLocaleString()} docs/sec`
+      );
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
 
@@ -237,18 +247,26 @@ async function main() {
     if (options.watch) {
       console.error('📡 Watch mode not yet implemented - use regular mode');
     }
-
   } catch (error) {
     if (error instanceof Error) {
       console.error(`❌ Error: ${error.message}`);
-      
+
       // Provide helpful remediation hints
       if (error.message.includes('regex') || error.message.includes('RegExp')) {
-        console.error('💡 Hint: Regex too complex → fell back to standard mode');
-      } else if (error.message.includes('memory') || error.message.includes('Memory')) {
-        console.error('💡 Hint: Try reducing dataset size or use --file for large data');
+        console.error(
+          '💡 Hint: Regex too complex → fell back to standard mode'
+        );
+      } else if (
+        error.message.includes('memory') ||
+        error.message.includes('Memory')
+      ) {
+        console.error(
+          '💡 Hint: Try reducing dataset size or use --file for large data'
+        );
       } else if (error.message.includes('JSON')) {
-        console.error('💡 Hint: Check your pipeline JSON syntax and input data format');
+        console.error(
+          '💡 Hint: Check your pipeline JSON syntax and input data format'
+        );
       }
     } else {
       console.error(`❌ Unknown error: ${error}`);

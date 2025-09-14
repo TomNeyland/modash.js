@@ -615,7 +615,7 @@ export class StreamingCollection<
           state.canIncrement = plan.canIncrement;
           state.canDecrement = plan.canDecrement;
         } catch (e) {
-          const msg = `IVM compile failed; using hot path recompute: ${((e as any)?.message ?? String(e))}`;
+          const msg = `IVM compile failed; using hot path recompute: ${(e as any)?.message ?? String(e)}`;
           recordFallback(pipeline, msg, { code: 'ivm_compile_failed' });
           state.canIncrement = false;
           state.canDecrement = false;
@@ -644,7 +644,7 @@ export class StreamingCollection<
           this.emit('result-updated', { result: newResult, pipeline });
           this.emit('update', newResult);
         } catch (e) {
-          const msg = `IVM runtime error; recomputing via hot path: ${((e as any)?.message ?? String(e))}`;
+          const msg = `IVM runtime error; recomputing via hot path: ${(e as any)?.message ?? String(e)}`;
           recordFallback(pipeline, msg, { code: 'ivm_runtime_error' });
           const disableHotPath =
             process.env.DISABLE_HOT_PATH_STREAMING === '1' ||

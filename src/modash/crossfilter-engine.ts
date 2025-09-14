@@ -799,7 +799,6 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
     return size;
   }
-
 }
 
 /**

@@ -476,7 +476,13 @@ export class DimensionImpl implements Dimension {
     const result = new Set<RowId>();
 
     for (const value of this.sortedValues) {
-      if (value !== null && min !== null && max !== null && value >= min && value <= max) {
+      if (
+        value !== null &&
+        min !== null &&
+        max !== null &&
+        value >= min &&
+        value <= max
+      ) {
         const rowIds = this.valueIndex.get(value);
         if (rowIds) {
           for (const rowId of rowIds) {
@@ -792,13 +798,19 @@ export class GroupStateImpl implements GroupState {
         const values = accField.$multiply.map((field: any) =>
           this.getAccumulatorValue(field, doc)
         );
-        return values.reduce((a: any, b: any) => (Number(a) || 0) * (Number(b) || 0), 1);
+        return values.reduce(
+          (a: any, b: any) => (Number(a) || 0) * (Number(b) || 0),
+          1
+        );
       }
       if (accField.$add && Array.isArray(accField.$add)) {
         const values = accField.$add.map((field: any) =>
           this.getAccumulatorValue(field, doc)
         );
-        return values.reduce((a: any, b: any) => (Number(a) || 0) + (Number(b) || 0), 0);
+        return values.reduce(
+          (a: any, b: any) => (Number(a) || 0) + (Number(b) || 0),
+          0
+        );
       }
       if (
         accField.$subtract &&

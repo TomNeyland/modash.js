@@ -53,7 +53,7 @@ echo '{"name": "Alice", "age": 30}' | modash '[{"$project": {"name": 1}}]' --pre
 ### CLI Options
 
 - `--file <path>`: Read data from file instead of stdin
-- `--explain`: Show pipeline analysis and optimization details  
+- `--explain`: Show pipeline analysis and optimization details
 - `--stats`: Display performance metrics and timing
 - `--pretty`: Pretty-print JSON output (default: JSONL)
 - `--watch`: Watch mode for streaming data (coming soon)
@@ -91,12 +91,12 @@ import { aggregate, streamingAggregate } from '@modash/rxjs';
 const events$ = from(eventStream);
 const analytics$ = aggregate(events$, [
   { $match: { type: 'user_action' } },
-  { $group: { _id: '$userId', actions: { $sum: 1 } } }
+  { $group: { _id: '$userId', actions: { $sum: 1 } } },
 ]);
 
 // Streaming aggregation for real-time dashboards
 const metrics$ = streamingAggregate(sensorData$, [
-  { $group: { _id: null, avgTemp: { $avg: '$temperature' } } }
+  { $group: { _id: null, avgTemp: { $avg: '$temperature' } } },
 ]);
 ```
 
@@ -185,7 +185,7 @@ import { explain } from 'modash';
 const analysis = explain([
   { $match: { status: 'active' } },
   { $sort: { createdAt: -1 } },
-  { $limit: 10 }
+  { $limit: 10 },
 ]);
 
 console.log('Hot path eligible:', analysis.hotPathEligible);
@@ -201,12 +201,18 @@ Measure and optimize your pipeline performance:
 ```typescript
 import { benchmark } from 'modash';
 
-const metrics = await benchmark(largeDataset, [
-  { $match: { category: 'electronics' } },
-  { $group: { _id: '$brand', avgPrice: { $avg: '$price' } } }
-], { iterations: 5 });
+const metrics = await benchmark(
+  largeDataset,
+  [
+    { $match: { category: 'electronics' } },
+    { $group: { _id: '$brand', avgPrice: { $avg: '$price' } } },
+  ],
+  { iterations: 5 }
+);
 
-console.log(`Throughput: ${metrics.throughput.documentsPerSecond.toLocaleString()} docs/sec`);
+console.log(
+  `Throughput: ${metrics.throughput.documentsPerSecond.toLocaleString()} docs/sec`
+);
 console.log(`Memory efficiency: ${metrics.memory.efficiency}%`);
 console.log(`Execution time: ${metrics.duration.total}ms`);
 ```

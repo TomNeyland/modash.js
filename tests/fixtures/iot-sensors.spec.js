@@ -6,7 +6,7 @@ import {
   loadFixture,
   measurePerformance,
   assertCloseTo,
-  formatPerformanceReport
+  formatPerformanceReport,
 } from './test-helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +17,10 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
   const performanceResults = [];
 
   before(() => {
-    const readingsPath = path.join(__dirname, '../../fixtures/iot-sensors.jsonl');
+    const readingsPath = path.join(
+      __dirname,
+      '../../fixtures/iot-sensors.jsonl'
+    );
     readings = loadFixture(readingsPath) || generateSensorReadingsFixture(100);
   });
 
@@ -32,18 +35,18 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
       let result;
       const perf = measurePerformance('Low Battery Sensors Query', () => {
         result = Modash.aggregate(readings, [
-        { $match: { 'metadata.batteryLevel': { $lt: 20 } } },
-        {
-          $group: {
-            _id: '$deviceId',
-            avgBattery: { $avg: '$metadata.batteryLevel' },
-            lastReading: { $max: '$timestamp' },
-            location: { $first: '$location' },
-            readingCount: { $sum: 1 }
-          }
-        },
-        { $sort: { avgBattery: 1 } }
-      ]);
+          { $match: { 'metadata.batteryLevel': { $lt: 20 } } },
+          {
+            $group: {
+              _id: '$deviceId',
+              avgBattery: { $avg: '$metadata.batteryLevel' },
+              lastReading: { $max: '$timestamp' },
+              location: { $first: '$location' },
+              readingCount: { $sum: 1 },
+            },
+          },
+          { $sort: { avgBattery: 1 } },
+        ]);
       });
       performanceResults.push(perf);
 
@@ -62,12 +65,12 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             minSignal: { $min: '$metadata.signalStrength' },
             maxSignal: { $max: '$metadata.signalStrength' },
             signalVariance: {
-              $stdDevPop: '$metadata.signalStrength'
-            }
-          }
+              $stdDevPop: '$metadata.signalStrength',
+            },
+          },
         },
         { $match: { avgSignal: { $lt: -70 } } },
-        { $sort: { avgSignal: 1 } }
+        { $sort: { avgSignal: 1 } },
       ]);
 
       result.forEach(sensor => {
@@ -86,31 +89,31 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             _id: {
               building: '$location.building',
               floor: '$location.floor',
-              sensorType: '$sensorType'
+              sensorType: '$sensorType',
             },
             avgValue: { $avg: '$value' },
             minValue: { $min: '$value' },
             maxValue: { $max: '$value' },
-            readingCount: { $sum: 1 }
-          }
+            readingCount: { $sum: 1 },
+          },
         },
         {
           $group: {
             _id: {
               building: '$_id.building',
-              floor: '$_id.floor'
+              floor: '$_id.floor',
             },
             conditions: {
               $push: {
                 type: '$_id.sensorType',
                 avg: '$avgValue',
                 min: '$minValue',
-                max: '$maxValue'
-              }
-            }
-          }
+                max: '$maxValue',
+              },
+            },
+          },
         },
-        { $sort: { '_id.building': 1, '_id.floor': 1 } }
+        { $sort: { '_id.building': 1, '_id.floor': 1 } },
       ]);
 
       result.forEach(location => {
@@ -127,8 +130,8 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: '$location.building',
             avgTemp: { $avg: '$value' },
-            stdDev: { $stdDevPop: '$value' }
-          }
+            stdDev: { $stdDevPop: '$value' },
+          },
         },
         {
           $lookup: {
@@ -143,26 +146,46 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
                       { $eq: ['$sensorType', 'temperature'] },
                       {
                         $or: [
-                          { $gt: ['$value', { $add: ['$$avgTemp', { $multiply: ['$$stdDev', 2] }] }] },
-                          { $lt: ['$value', { $subtract: ['$$avgTemp', { $multiply: ['$$stdDev', 2] }] }] }
-                        ]
-                      }
-                    ]
-                  }
-                }
-              }
+                          {
+                            $gt: [
+                              '$value',
+                              {
+                                $add: [
+                                  '$$avgTemp',
+                                  { $multiply: ['$$stdDev', 2] },
+                                ],
+                              },
+                            ],
+                          },
+                          {
+                            $lt: [
+                              '$value',
+                              {
+                                $subtract: [
+                                  '$$avgTemp',
+                                  { $multiply: ['$$stdDev', 2] },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
             ],
-            as: 'anomalies'
-          }
+            as: 'anomalies',
+          },
         },
         {
           $project: {
             building: '$_id',
             avgTemp: 1,
             stdDev: 1,
-            anomalyCount: { $size: '$anomalies' }
-          }
-        }
+            anomalyCount: { $size: '$anomalies' },
+          },
+        },
       ]);
 
       result.forEach(building => {
@@ -181,13 +204,13 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: {
               device: '$deviceId',
-              type: '$sensorType'
+              type: '$sensorType',
             },
             criticalCount: { $sum: 1 },
             latestValue: { $last: '$value' },
             latestTime: { $max: '$timestamp' },
-            location: { $first: '$location' }
-          }
+            location: { $first: '$location' },
+          },
         },
         {
           $addFields: {
@@ -199,17 +222,17 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
                     branches: [
                       { case: { $eq: ['$_id.type', 'co2'] }, then: 3 },
                       { case: { $eq: ['$_id.type', 'temperature'] }, then: 2 },
-                      { case: { $eq: ['$_id.type', 'motion'] }, then: 2 }
+                      { case: { $eq: ['$_id.type', 'motion'] }, then: 2 },
                     ],
-                    default: 1
-                  }
-                }
-              ]
-            }
-          }
+                    default: 1,
+                  },
+                },
+              ],
+            },
+          },
         },
         { $sort: { urgencyScore: -1, latestTime: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]);
 
       result.forEach(alert => {
@@ -224,27 +247,27 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
         {
           $addFields: {
             hour: { $hour: '$timestamp' },
-            dayOfWeek: { $dayOfWeek: '$timestamp' }
-          }
+            dayOfWeek: { $dayOfWeek: '$timestamp' },
+          },
         },
         {
           $group: {
             _id: {
               hour: '$hour',
-              dayOfWeek: '$dayOfWeek'
+              dayOfWeek: '$dayOfWeek',
             },
             alertCount: { $sum: 1 },
             affectedDevices: { $addToSet: '$deviceId' },
-            sensorTypes: { $addToSet: '$sensorType' }
-          }
+            sensorTypes: { $addToSet: '$sensorType' },
+          },
         },
         {
           $addFields: {
             deviceCount: { $size: '$affectedDevices' },
-            sensorTypeCount: { $size: '$sensorTypes' }
-          }
+            sensorTypeCount: { $size: '$sensorTypes' },
+          },
         },
-        { $sort: { alertCount: -1 } }
+        { $sort: { alertCount: -1 } },
       ]);
 
       result.forEach(pattern => {
@@ -263,42 +286,44 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             _id: '$deviceId',
             totalReadings: { $sum: 1 },
             normalReadings: {
-              $sum: { $cond: [{ $eq: ['$status', 'normal'] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$status', 'normal'] }, 1, 0] },
             },
             warningReadings: {
-              $sum: { $cond: [{ $eq: ['$status', 'warning'] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$status', 'warning'] }, 1, 0] },
             },
             criticalReadings: {
-              $sum: { $cond: [{ $eq: ['$status', 'critical'] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ['$status', 'critical'] }, 1, 0] },
             },
             avgBattery: { $avg: '$metadata.batteryLevel' },
-            avgSignal: { $avg: '$metadata.signalStrength' }
-          }
+            avgSignal: { $avg: '$metadata.signalStrength' },
+          },
         },
         {
           $addFields: {
             reliabilityScore: {
               $multiply: [
                 100,
-                { $divide: ['$normalReadings', '$totalReadings'] }
-              ]
+                { $divide: ['$normalReadings', '$totalReadings'] },
+              ],
             },
             healthScore: {
               $avg: [
                 { $divide: ['$avgBattery', 100] },
                 { $add: [1, { $divide: ['$avgSignal', 100] }] },
-                { $divide: ['$normalReadings', '$totalReadings'] }
-              ]
-            }
-          }
+                { $divide: ['$normalReadings', '$totalReadings'] },
+              ],
+            },
+          },
         },
-        { $sort: { reliabilityScore: -1 } }
+        { $sort: { reliabilityScore: -1 } },
       ]);
 
       result.forEach(device => {
         expect(device.reliabilityScore).to.be.at.least(0).and.at.most(100);
         expect(device.totalReadings).to.equal(
-          device.normalReadings + device.warningReadings + device.criticalReadings
+          device.normalReadings +
+            device.warningReadings +
+            device.criticalReadings
         );
       });
     });
@@ -310,10 +335,10 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             daysSinceCalibration: {
               $divide: [
                 { $subtract: [new Date(), '$metadata.calibratedAt'] },
-                1000 * 60 * 60 * 24
-              ]
-            }
-          }
+                1000 * 60 * 60 * 24,
+              ],
+            },
+          },
         },
         {
           $group: {
@@ -322,19 +347,19 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             sensorType: { $first: '$sensorType' },
             location: { $first: '$location' },
             anomalyRate: {
-              $avg: { $cond: ['$anomaly', 1, 0] }
-            }
-          }
+              $avg: { $cond: ['$anomaly', 1, 0] },
+            },
+          },
         },
         {
           $match: {
             $or: [
               { avgDaysSinceCalibration: { $gte: 180 } },
-              { anomalyRate: { $gte: 0.1 } }
-            ]
-          }
+              { anomalyRate: { $gte: 0.1 } },
+            ],
+          },
         },
-        { $sort: { avgDaysSinceCalibration: -1 } }
+        { $sort: { avgDaysSinceCalibration: -1 } },
       ]);
 
       result.forEach(device => {
@@ -348,35 +373,37 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     it('should maintain conservation of readings across groupings', () => {
       const totalReadings = readings.length;
 
-      const byDevice = Modash.aggregate(readings, [
-        {
-          $group: {
-            _id: '$deviceId',
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$count' }
-          }
-        }
-      ])[0]?.total || 0;
+      const byDevice =
+        Modash.aggregate(readings, [
+          {
+            $group: {
+              _id: '$deviceId',
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$count' },
+            },
+          },
+        ])[0]?.total || 0;
 
-      const byType = Modash.aggregate(readings, [
-        {
-          $group: {
-            _id: '$sensorType',
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$count' }
-          }
-        }
-      ])[0]?.total || 0;
+      const byType =
+        Modash.aggregate(readings, [
+          {
+            $group: {
+              _id: '$sensorType',
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$count' },
+            },
+          },
+        ])[0]?.total || 0;
 
       expect(byDevice).to.equal(totalReadings);
       expect(byType).to.equal(totalReadings);
@@ -385,21 +412,23 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     it('should preserve anomaly detection consistency', () => {
       const directAnomalies = readings.filter(r => r.anomaly).length;
 
-      const aggregatedAnomalies = Modash.aggregate(readings, [
-        { $match: { anomaly: true } },
-        { $count: 'total' }
-      ])[0]?.total || 0;
+      const aggregatedAnomalies =
+        Modash.aggregate(readings, [
+          { $match: { anomaly: true } },
+          { $count: 'total' },
+        ])[0]?.total || 0;
 
-      const summedAnomalies = Modash.aggregate(readings, [
-        {
-          $group: {
-            _id: null,
-            anomalyCount: {
-              $sum: { $cond: ['$anomaly', 1, 0] }
-            }
-          }
-        }
-      ])[0]?.anomalyCount || 0;
+      const summedAnomalies =
+        Modash.aggregate(readings, [
+          {
+            $group: {
+              _id: null,
+              anomalyCount: {
+                $sum: { $cond: ['$anomaly', 1, 0] },
+              },
+            },
+          },
+        ])[0]?.anomalyCount || 0;
 
       expect(aggregatedAnomalies).to.equal(directAnomalies);
       expect(summedAnomalies).to.equal(directAnomalies);
@@ -409,17 +438,20 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
       const tempReadings = readings.filter(r => r.sensorType === 'temperature');
 
       if (tempReadings.length > 0) {
-        const directAvg = tempReadings.reduce((sum, r) => sum + r.value, 0) / tempReadings.length;
+        const directAvg =
+          tempReadings.reduce((sum, r) => sum + r.value, 0) /
+          tempReadings.length;
 
-        const aggregatedAvg = Modash.aggregate(readings, [
-          { $match: { sensorType: 'temperature' } },
-          {
-            $group: {
-              _id: null,
-              avgTemp: { $avg: '$value' }
-            }
-          }
-        ])[0]?.avgTemp || 0;
+        const aggregatedAvg =
+          Modash.aggregate(readings, [
+            { $match: { sensorType: 'temperature' } },
+            {
+              $group: {
+                _id: null,
+                avgTemp: { $avg: '$value' },
+              },
+            },
+          ])[0]?.avgTemp || 0;
 
         expect(Math.abs(directAvg - aggregatedAvg)).to.be.lessThan(0.01);
       }
@@ -432,9 +464,9 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
         {
           $group: {
             _id: '$status',
-            count: { $sum: 1 }
-          }
-        }
+            count: { $sum: 1 },
+          },
+        },
       ]);
 
       const buildingStatuses = buildings.flatMap(building =>
@@ -443,9 +475,9 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
           {
             $group: {
               _id: '$status',
-              count: { $sum: 1 }
-            }
-          }
+              count: { $sum: 1 },
+            },
+          },
         ])
       );
 
@@ -468,29 +500,33 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
             _id: {
               building: '$location.building',
               floor: '$location.floor',
-              room: '$location.room'
+              room: '$location.room',
             },
             temperature: {
               $avg: {
-                $cond: [{ $eq: ['$sensorType', 'temperature'] }, '$value', null]
-              }
+                $cond: [
+                  { $eq: ['$sensorType', 'temperature'] },
+                  '$value',
+                  null,
+                ],
+              },
             },
             humidity: {
               $avg: {
-                $cond: [{ $eq: ['$sensorType', 'humidity'] }, '$value', null]
-              }
+                $cond: [{ $eq: ['$sensorType', 'humidity'] }, '$value', null],
+              },
             },
             co2: {
               $avg: {
-                $cond: [{ $eq: ['$sensorType', 'co2'] }, '$value', null]
-              }
+                $cond: [{ $eq: ['$sensorType', 'co2'] }, '$value', null],
+              },
             },
             light: {
               $avg: {
-                $cond: [{ $eq: ['$sensorType', 'light'] }, '$value', null]
-              }
-            }
-          }
+                $cond: [{ $eq: ['$sensorType', 'light'] }, '$value', null],
+              },
+            },
+          },
         },
         {
           $addFields: {
@@ -498,30 +534,70 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
               $avg: [
                 {
                   $cond: [
-                    { $and: [{ $gte: ['$temperature', 20] }, { $lte: ['$temperature', 24] }] },
+                    {
+                      $and: [
+                        { $gte: ['$temperature', 20] },
+                        { $lte: ['$temperature', 24] },
+                      ],
+                    },
                     100,
-                    { $multiply: [50, { $subtract: [1, { $abs: { $subtract: ['$temperature', 22] } }] }] }
-                  ]
+                    {
+                      $multiply: [
+                        50,
+                        {
+                          $subtract: [
+                            1,
+                            { $abs: { $subtract: ['$temperature', 22] } },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
                 },
                 {
                   $cond: [
-                    { $and: [{ $gte: ['$humidity', 40] }, { $lte: ['$humidity', 60] }] },
+                    {
+                      $and: [
+                        { $gte: ['$humidity', 40] },
+                        { $lte: ['$humidity', 60] },
+                      ],
+                    },
                     100,
-                    { $multiply: [50, { $subtract: [1, { $abs: { $subtract: ['$humidity', 50] } }] }] }
-                  ]
+                    {
+                      $multiply: [
+                        50,
+                        {
+                          $subtract: [
+                            1,
+                            { $abs: { $subtract: ['$humidity', 50] } },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
                 },
                 {
                   $cond: [
                     { $lte: ['$co2', 800] },
                     100,
-                    { $max: [0, { $subtract: [100, { $divide: [{ $subtract: ['$co2', 800] }, 10] }] }] }
-                  ]
-                }
-              ]
-            }
-          }
+                    {
+                      $max: [
+                        0,
+                        {
+                          $subtract: [
+                            100,
+                            { $divide: [{ $subtract: ['$co2', 800] }, 10] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
-        { $sort: { comfortIndex: -1 } }
+        { $sort: { comfortIndex: -1 } },
       ]);
 
       result.forEach(room => {
@@ -541,25 +617,25 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
               $avg: {
                 $subtract: [
                   { $first: '$metadata.batteryLevel' },
-                  { $last: '$metadata.batteryLevel' }
-                ]
-              }
+                  { $last: '$metadata.batteryLevel' },
+                ],
+              },
             },
             anomalyRate: {
-              $avg: { $cond: ['$anomaly', 1, 0] }
+              $avg: { $cond: ['$anomaly', 1, 0] },
             },
             criticalRate: {
-              $avg: { $cond: [{ $eq: ['$status', 'critical'] }, 1, 0] }
+              $avg: { $cond: [{ $eq: ['$status', 'critical'] }, 1, 0] },
             },
             daysSinceCalibration: {
               $avg: {
                 $divide: [
                   { $subtract: [new Date(), '$metadata.calibratedAt'] },
-                  1000 * 60 * 60 * 24
-                ]
-              }
-            }
-          }
+                  1000 * 60 * 60 * 24,
+                ],
+              },
+            },
+          },
         },
         {
           $addFields: {
@@ -568,13 +644,18 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
                 { $multiply: [{ $subtract: [100, '$avgBattery'] }, 0.3] },
                 { $multiply: ['$anomalyRate', 100, 0.3] },
                 { $multiply: ['$criticalRate', 100, 0.2] },
-                { $multiply: [{ $min: ['$daysSinceCalibration', 365] }, 0.2 / 365] }
-              ]
-            }
-          }
+                {
+                  $multiply: [
+                    { $min: ['$daysSinceCalibration', 365] },
+                    0.2 / 365,
+                  ],
+                },
+              ],
+            },
+          },
         },
         { $sort: { maintenanceScore: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]);
 
       result.forEach(device => {
@@ -586,13 +667,22 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
 });
 
 function generateSensorReadingsFixture(count) {
-  const sensorTypes = ['temperature', 'humidity', 'pressure', 'motion', 'light', 'co2'];
+  const sensorTypes = [
+    'temperature',
+    'humidity',
+    'pressure',
+    'motion',
+    'light',
+    'co2',
+  ];
   const buildings = ['A', 'B', 'C'];
   const statuses = ['normal', 'warning', 'critical'];
 
   return Array.from({ length: count }, (_, i) => {
-    const sensorType = sensorTypes[Math.floor(Math.random() * sensorTypes.length)];
-    let value, status = 'normal';
+    const sensorType =
+      sensorTypes[Math.floor(Math.random() * sensorTypes.length)];
+    let value,
+      status = 'normal';
 
     switch (sensorType) {
       case 'temperature':
@@ -625,25 +715,32 @@ function generateSensorReadingsFixture(count) {
       sensorType,
       timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
       value,
-      unit: sensorType === 'temperature' ? '°C' : sensorType === 'humidity' ? '%' : 'unit',
+      unit:
+        sensorType === 'temperature'
+          ? '°C'
+          : sensorType === 'humidity'
+            ? '%'
+            : 'unit',
       location: {
         building: buildings[Math.floor(Math.random() * buildings.length)],
         floor: Math.floor(Math.random() * 10) + 1,
         room: `${Math.floor(Math.random() * 900) + 100}`,
         coordinates: {
           lat: Math.random() * 180 - 90,
-          lng: Math.random() * 360 - 180
-        }
+          lng: Math.random() * 360 - 180,
+        },
       },
       status,
       metadata: {
         batteryLevel: Math.floor(Math.random() * 90) + 10,
         signalStrength: -Math.floor(Math.random() * 60) - 30,
         firmware: `v1.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
-        calibratedAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000)
+        calibratedAt: new Date(
+          Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
+        ),
       },
       anomaly: status === 'critical' || Math.random() < 0.05,
-      tags: status === 'critical' ? ['alert', 'requires-attention'] : []
+      tags: status === 'critical' ? ['alert', 'requires-attention'] : [],
     };
   });
 }
