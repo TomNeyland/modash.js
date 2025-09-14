@@ -186,7 +186,7 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== 1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
+    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -236,7 +236,7 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== -1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
+    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
