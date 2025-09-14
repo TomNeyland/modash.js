@@ -3,10 +3,10 @@ import {
   $expression,
   type Collection,
   type DocumentValue,
-} from './expressions.js';
+} from './expressions';
 
 // Import complex types from main index for now
-import type { Expression, AccumulatorExpression } from '../index.js';
+import type { Expression, AccumulatorExpression } from '../index';
 
 // Local type definitions for accumulator functions
 type AccumulatorFunction = (

@@ -7,8 +7,8 @@
  * Architecture inspired by crossfilter.js concepts but adapted for MongoDB syntax.
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import type { Pipeline } from '../index.js';
+import type { Collection, Document, DocumentValue } from './expressions';
+import type { Pipeline } from '../index';
 
 /**
  * Stable row identifier for tracking documents across operations

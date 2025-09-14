@@ -5,12 +5,12 @@
  * for stable 1M+ docs/sec group performance with minimal memory allocation.
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import type { GroupStage, Expression } from '../index.js';
-import { $expression } from './expressions.js';
-import { RobinHoodHashTable } from './robin-hood-hash.js';
-import { BatchSoAAccumulator } from './soa-accumulators.js';
-import { DEBUG, logPipelineExecution } from './debug.js';
+import type { Collection, Document, DocumentValue } from './expressions';
+import type { GroupStage, Expression } from '../index';
+import { $expression } from './expressions';
+import { RobinHoodHashTable } from './robin-hood-hash';
+import { BatchSoAAccumulator } from './soa-accumulators';
+import { DEBUG, logPipelineExecution } from './debug';
 
 /**
  * Group result interface

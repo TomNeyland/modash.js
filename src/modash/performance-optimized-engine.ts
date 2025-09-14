@@ -9,14 +9,14 @@
  * - Compiled expressions with constant folding
  */
 
-import type { Document } from './expressions.js';
+import type { Document } from './expressions';
 import type {
   RowId,
   Delta,
   CrossfilterStore,
   IVMContext,
   IVMOperator,
-} from './crossfilter-ivm.js';
+} from './crossfilter-ivm';
 
 /**
  * Buffer pool for reusing arrays to avoid allocations

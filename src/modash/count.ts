@@ -1,5 +1,5 @@
 // Import basic types from expressions module
-import type { Collection, Document } from './expressions.js';
+import type { Collection, Document } from './expressions';
 
 /**
  * Returns the count of documents in the collection.

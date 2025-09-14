@@ -30,7 +30,7 @@ A clean, elegant API for processing JavaScript arrays using MongoDB aggregation 
 npm install modash
 ```
 
-> **TypeScript Native**: This library runs TypeScript directly without compilation. Use with `tsx`, `ts-node`, or any modern TypeScript runtime.
+> This package ships compiled ESM in `dist/` for runtime, and TypeScript sources are used for editor IntelliSense. No runtime TS loader required.
 
 ## 🛠️ CLI Tool (Phase 6)
 
@@ -1396,13 +1396,13 @@ npm run format:check
 # Run all quality checks
 npm run quality
 
-# No build step needed - TypeScript runs directly!
-npm run build  # Just echoes "No build step needed"
+# Build step produces `dist/` via tsup
+npm run build
 ```
 
 ### Development Workflow
 
-1. **Direct TypeScript Execution**: No compilation step - use `tsx` for direct TS execution
+1. **Build Artifacts**: `tsup` compiles to `dist/` for production/runtime
 2. **Type-Safe Development**: Full TypeScript checking in your IDE
 3. **Test-Driven Development**: Comprehensive test suite with 80+ tests
 4. **Modern Tooling**: ESLint + Prettier for code quality

@@ -9,10 +9,10 @@ import type {
   CrossfilterStore,
   CompiledStage,
   ExecutionPlan,
-} from './crossfilter-ivm.js';
-import type { Document, DocumentValue } from './expressions.js';
-import type { Pipeline } from '../index.js';
-import { DEBUG, logPipelineExecution } from './debug.js';
+} from './crossfilter-ivm';
+import type { Document, DocumentValue } from './expressions';
+import type { Pipeline } from '../index';
+import { DEBUG, logPipelineExecution } from './debug';
 
 /**
  * JIT Expression Compiler for MongoDB expressions

@@ -11,8 +11,8 @@ import type {
   OrderStatNode,
   OrderStatTree,
   GroupState,
-} from './crossfilter-ivm.js';
-import type { Document, DocumentValue } from './expressions.js';
+} from './crossfilter-ivm';
+import type { Document, DocumentValue } from './expressions';
 
 /**
  * Implementation of RefCountedMultiSet with efficient min/max operations

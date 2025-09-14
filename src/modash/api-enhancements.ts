@@ -2,8 +2,9 @@
  * API enhancements for Phase 6 - Developer Experience improvements
  */
 
-import type { Document, Pipeline, Collection } from './types.js';
-import { aggregate } from './index.js';
+import type { Document, Collection } from './expressions';
+import type { Pipeline } from '../index';
+import { aggregate } from './index';
 import { createInterface } from 'readline';
 
 /**

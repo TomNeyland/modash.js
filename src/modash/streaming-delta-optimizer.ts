@@ -11,9 +11,9 @@
  */
 
 import { EventEmitter } from 'events';
-import type { Collection, Document } from './expressions.js';
-import type { Pipeline } from '../index.js';
-import { DEBUG, logPipelineExecution } from './debug.js';
+import type { Collection, Document } from './expressions';
+import type { Pipeline } from '../index';
+import { DEBUG, logPipelineExecution } from './debug';
 
 /**
  * Delta operation types

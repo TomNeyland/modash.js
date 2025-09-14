@@ -9,11 +9,11 @@
  */
 
 import { EventEmitter } from 'events';
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import type { Pipeline } from '../index.js';
-import { aggregate, $match } from './aggregation.js';
-import { createCrossfilterEngine } from './crossfilter-engine.js';
-import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
+import type { Collection, Document, DocumentValue } from './expressions';
+import type { Pipeline } from '../index';
+import { aggregate, $match } from './aggregation';
+import { createCrossfilterEngine } from './crossfilter-engine';
+import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm';
 
 /**
  * Events emitted by StreamingCollection

@@ -3,8 +3,8 @@ import { readFileSync, createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import { pipeline } from 'stream/promises';
 import { Transform } from 'stream';
-import Modash from './index.js';
-import type { Pipeline, Document } from './index.js';
+import Modash from './index';
+import type { Pipeline, Document } from './index';
 
 interface CLIOptions {
   file?: string;

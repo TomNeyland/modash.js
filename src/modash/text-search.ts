@@ -5,9 +5,9 @@
  * Target: 5x speedup with 90%+ candidate reduction and <1% false positive rate
  */
 
-import type { Collection, Document, DocumentValue } from './expressions.js';
-import { TextSearchBloomFilter, extractTokens } from './bloom-filter.js';
-import { DEBUG } from './debug.js';
+import type { Collection, Document, DocumentValue } from './expressions';
+import { TextSearchBloomFilter, extractTokens } from './bloom-filter';
+import { DEBUG } from './debug';
 
 /**
  * Text search statistics for monitoring and debugging

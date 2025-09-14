@@ -12,12 +12,12 @@ import {
   $expressionObject,
   type Collection,
   type Document,
-} from './expressions.js';
-import type { Pipeline } from '../index.js';
+} from './expressions';
+import type { Pipeline } from '../index';
 import {
   highPerformanceGroup,
   canUseHighPerformanceGroup,
-} from './high-performance-group.js';
+} from './high-performance-group';
 
 /**
  * Minimal hot path context - no object allocations

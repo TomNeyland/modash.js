@@ -5,11 +5,11 @@
  * Falls back to regular aggregation for complex operations
  */
 
-import { ZeroAllocEngine } from './zero-alloc-engine.js';
-import { aggregate as originalAggregate } from './aggregation.js';
-import type { Collection, Document } from './expressions.js';
-import type { Pipeline } from '../index.js';
-import { DEBUG, logPipelineExecution } from './debug.js';
+import { ZeroAllocEngine } from './zero-alloc-engine';
+import { aggregate as originalAggregate } from './aggregation';
+import type { Collection, Document } from './expressions';
+import type { Pipeline } from '../index';
+import { DEBUG, logPipelineExecution } from './debug';
 
 /**
  * Singleton zero-allocation engine

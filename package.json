@@ -3,18 +3,19 @@
   "version": "0.8.1",
   "description": "Modern MongoDB-inspired aggregation library for JavaScript",
   "type": "module",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/TomNeyland/modash.js"
   },
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "types": "src/index.ts",
   "bin": {
-    "modash": "src/cli.ts"
+    "modash": "dist/cli.js"
   },
   "exports": {
     ".": {
-      "import": "./src/index.ts",
+      "import": "./dist/index.js",
       "types": "./src/index.ts"
     }
   },
@@ -34,11 +35,15 @@
     "modern-javascript"
   ],
   "files": [
+    "dist/",
     "src/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -60,8 +65,10 @@
     "lint:fix": "eslint src/ tests/ examples/ --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
-    "build": "echo 'No build step needed - TypeScript native'",
-    "build:watch": "echo 'No build step needed - TypeScript native'",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm run type-check && npm run format:check",
     "quality": "npm run format:check && npm run lint && npm run type-check && npm run test:coverage",
     "quality:fix": "npm run format && npm run lint:fix",
     "type-check": "tsc --noEmit",
@@ -94,6 +101,7 @@
     "mocha": "^10.8.2",
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
+    "tsup": "^8.1.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {

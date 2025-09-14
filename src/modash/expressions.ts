@@ -1,7 +1,7 @@
 // Modern JavaScript - use our utility functions instead of lodash
-import { get, set, merge, isObject } from './util.js';
+import { get, set, merge, isObject } from './util';
 
-import EXPRESSION_OPERATORS, { set$expression } from './operators.js';
+import EXPRESSION_OPERATORS, { set$expression } from './operators';
 
 // Basic value types that can appear in documents
 // Basic value types
@@ -25,7 +25,7 @@ export type FieldPath = `$${string}`;
 export type SystemVariable = `$$${string}`;
 
 // Import only the complex expression types from main index for now
-import type { Expression } from '../index.js';
+import type { Expression } from '../index';
 
 // Local type definitions for expression evaluation
 type ExpressionOperatorObject = Record<string, Expression | Expression[]>;

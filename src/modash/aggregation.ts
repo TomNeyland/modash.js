@@ -1,5 +1,5 @@
 // Modern JavaScript - use our utility functions instead of lodash
-import { get as lodashGet } from './util.js';
+import { get as lodashGet } from './util';
 
 import {
   $expressionObject,
@@ -7,13 +7,13 @@ import {
   type Collection,
   type Document,
   type DocumentValue,
-} from './expressions.js';
-import { $accumulate } from './accumulators.js';
+} from './expressions';
+import { $accumulate } from './accumulators';
 
 // Phase 3.5: Import enhanced text and regex search capabilities
-import { $text } from './text-search.js';
-import { enhancedRegexMatch } from './regex-search.js';
-import { DEBUG } from './debug.js';
+import { $text } from './text-search';
+import { enhancedRegexMatch } from './regex-search';
+import { DEBUG } from './debug';
 
 // Import complex types from main index for now
 import type {
@@ -25,7 +25,7 @@ import type {
   SortStage,
   LookupStage,
   AddFieldsStage,
-} from '../index.js';
+} from '../index';
 
 // Match-related type definitions
 // Comparison operators for $match

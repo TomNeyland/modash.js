@@ -10,16 +10,16 @@ import type {
   IVMContext,
   CrossfilterStore,
   IVMOperatorFactory,
-} from './crossfilter-ivm.js';
-import type { Document, DocumentValue } from './expressions.js';
-import { DimensionImpl, GroupStateImpl } from './crossfilter-impl.js';
-import { ExpressionCompilerImpl } from './crossfilter-compiler.js';
+} from './crossfilter-ivm';
+import type { Document, DocumentValue } from './expressions';
+import { DimensionImpl, GroupStateImpl } from './crossfilter-impl';
+import { ExpressionCompilerImpl } from './crossfilter-compiler';
 import {
   OptimizedExpressionCompiler,
   FusedMatchProjectOperator,
   DeltaBatchProcessor,
-} from './performance-optimized-engine.js';
-import { optimizedSortLimit } from './topk-heap.js';
+} from './performance-optimized-engine';
+import { optimizedSortLimit } from './topk-heap';
 
 /**
  * Performance-optimized $match operator with hot path compilation

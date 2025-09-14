@@ -5,7 +5,7 @@
  * instead of O(n log n) full sorting when k << n
  */
 
-import type { Document, DocumentValue } from './expressions.js';
+import type { Document, DocumentValue } from './expressions';
 
 interface SortSpec {
   [field: string]: 1 | -1;

@@ -1,5 +1,5 @@
 // Import streaming types for interface
-import type { StreamingCollection } from './modash/streaming.js';
+import type { StreamingCollection } from './modash/streaming';
 
 /**
  * TypeScript type definitions for modash.js
@@ -14,13 +14,13 @@ export type {
   Collection,
   FieldPath,
   SystemVariable,
-} from './modash/expressions.js';
+} from './modash/expressions';
 
 export type {
   ComparisonOperators,
   QueryOperators,
   QueryExpression,
-} from './modash/aggregation.js';
+} from './modash/aggregation';
 
 // Re-export error classes for better error handling
 export {
@@ -29,7 +29,7 @@ export {
   ExpressionError,
   OperatorError,
   ValidationError,
-} from './modash/errors.js';
+} from './modash/errors';
 
 // Re-export advanced type utilities
 export type {
@@ -41,7 +41,7 @@ export type {
   MakeOptional,
   MakeRequired,
   NonEmptyArray,
-} from './modash/types.js';
+} from './modash/types';
 
 // Phase 6: Enhanced API types
 export type {
@@ -50,7 +50,7 @@ export type {
   OptimizationInfo,
   BenchmarkResults,
   StreamLoaderOptions,
-} from './modash/api-enhancements.js';
+} from './modash/api-enhancements';
 
 // Import the basic types for use in Expression definition
 import type {
@@ -59,8 +59,8 @@ import type {
   SystemVariable,
   Collection,
   Document,
-} from './modash/expressions.js';
-import type { QueryExpression } from './modash/aggregation.js';
+} from './modash/expressions';
+import type { QueryExpression } from './modash/aggregation';
 
 // Expression type - used in $project, $addFields, etc.
 export type Expression =
@@ -324,7 +324,7 @@ export interface ModashStatic {
    * @param pipeline - Pipeline to analyze
    * @returns Detailed pipeline analysis
    */
-  explain(pipeline: Pipeline): import('./modash/api-enhancements.js').PipelineExplanation;
+  explain(pipeline: Pipeline): import('./modash/api-enhancements').PipelineExplanation;
 
   /**
    * Phase 6: Benchmarks a pipeline with performance metrics
@@ -337,7 +337,7 @@ export interface ModashStatic {
     collection: Collection<T>,
     pipeline: Pipeline,
     options?: { iterations?: number; warmupRuns?: number }
-  ): Promise<import('./modash/api-enhancements.js').BenchmarkResults>;
+  ): Promise<import('./modash/api-enhancements').BenchmarkResults>;
 
   /**
    * Phase 6: Creates an async iterable from JSONL stream
@@ -347,7 +347,7 @@ export interface ModashStatic {
    */
   fromJSONL(
     stream: NodeJS.ReadableStream,
-    options?: import('./modash/api-enhancements.js').StreamLoaderOptions
+    options?: import('./modash/api-enhancements').StreamLoaderOptions
   ): AsyncIterable<Document>;
 
   // Stage operators (can be used standalone)
@@ -413,13 +413,13 @@ export {
   explain,
   benchmark,
   fromJSONL,
-} from './modash/index.js';
+} from './modash/index';
 
 // Re-export streaming capabilities
 export {
   StreamingCollection,
   createStreamingCollection,
-} from './modash/streaming.js';
+} from './modash/streaming';
 
 // Re-export streaming types
 export type {
@@ -427,7 +427,7 @@ export type {
   AggregationState,
   EventTransform,
   EventConsumerConfig,
-} from './modash/streaming.js';
+} from './modash/streaming';
 
 // Phase 3.5: Export text and regex search capabilities
 export {
@@ -436,7 +436,7 @@ export {
   resetTextSearchStats,
   configureTextSearch,
   clearTextSearchIndex,
-} from './modash/text-search.js';
+} from './modash/text-search';
 
 export {
   enhancedRegexMatch,
@@ -445,7 +445,7 @@ export {
   analyzeRegexPattern,
   configureRegexSearch,
   clearRegexSearchIndex,
-} from './modash/regex-search.js';
+} from './modash/regex-search';
 
 export {
   BloomFilter,
@@ -454,17 +454,17 @@ export {
   extractTokens,
   extractTrigrams,
   extractLiteralsFromRegex,
-} from './modash/bloom-filter.js';
+} from './modash/bloom-filter';
 
 // Phase 3.5: Export enhanced search types
 export type {
   TextSearchStats,
   TextSearchConfig,
-} from './modash/text-search.js';
+} from './modash/text-search';
 
 export type {
   RegexSearchStats,
   RegexSearchConfig,
-} from './modash/regex-search.js';
+} from './modash/regex-search';
 
-export type { BloomFilterStats } from './modash/bloom-filter.js';
+export type { BloomFilterStats } from './modash/bloom-filter';

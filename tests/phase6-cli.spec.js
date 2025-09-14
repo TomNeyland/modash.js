@@ -6,6 +6,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { writeFile, unlink } from 'fs/promises';
 import { expect } from 'chai';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
 
@@ -17,6 +19,9 @@ describe('Phase 6: CLI Integration', function() {
 {"name": "Bob", "age": 25, "category": "B", "score": 92}
 {"name": "Charlie", "age": 35, "category": "A", "score": 78}
 {"name": "Diana", "age": 28, "category": "B", "score": 95}`;
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const repoRoot = path.resolve(__dirname, '..');
 
   beforeEach(async function() {
     await writeFile(testDataFile, testData);
@@ -33,7 +38,7 @@ describe('Phase 6: CLI Integration', function() {
   describe('CLI Basic Functionality', function() {
     
     it('should show help when --help flag is used', async function() {
-      const { stdout } = await execAsync('cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts --help');
+      const { stdout } = await execAsync(`cd "${repoRoot}" && node --import=tsx/esm src/cli.ts --help`);
       
       expect(stdout).to.include('Modash CLI');
       expect(stdout).to.include('Usage:');
@@ -44,7 +49,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should process data from file with basic pipeline', async function() {
       const pipeline = '[{"$match": {"age": {"$gte": 30}}}]';
       const { stdout } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts '${pipeline}' --file ${testDataFile}`
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile}`
       );
       
       const results = stdout.trim().split('\n').map(line => JSON.parse(line));
@@ -56,7 +61,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should process data from stdin', async function() {
       const pipeline = '[{"$project": {"name": 1, "score": 1}}]';
       const { stdout } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && echo '{"name": "Test", "age": 30, "score": 90}' | npx tsx src/cli.ts '${pipeline}'`
+        `cd "${repoRoot}" && echo '{"name": "Test", "age": 30, "score": 90}' | node --import=tsx/esm src/cli.ts '${pipeline}'`
       );
       
       const result = JSON.parse(stdout.trim());
@@ -66,7 +71,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should output pretty JSON when --pretty flag is used', async function() {
       const pipeline = '[{"$limit": 1}]';
       const { stdout } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts '${pipeline}' --file ${testDataFile} --pretty`
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --pretty`
       );
       
       expect(stdout).to.include('  {'); // Pretty printed with indentation
@@ -79,7 +84,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should show pipeline analysis with --explain flag', async function() {
       const pipeline = '[{"$match": {"category": "A"}}, {"$sort": {"score": -1}}]';
       const { stderr } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts '${pipeline}' --file ${testDataFile} --explain`
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --explain`
       );
       
       expect(stderr).to.include('Pipeline Analysis');
@@ -92,7 +97,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should show performance stats with --stats flag', async function() {
       const pipeline = '[{"$group": {"_id": "$category", "avgScore": {"$avg": "$score"}}}]';
       const { stderr } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts '${pipeline}' --file ${testDataFile} --stats`
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile} --stats`
       );
       
       expect(stderr).to.include('Performance Stats');
@@ -111,7 +116,7 @@ describe('Phase 6: CLI Integration', function() {
       ]);
       
       const { stdout } = await execAsync(
-        `cd /home/runner/work/modash.js/modash.js && npx tsx src/cli.ts '${pipeline}' --file ${testDataFile}`
+        `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts '${pipeline}' --file ${testDataFile}`
       );
       
       const results = stdout.trim().split('\n').map(line => JSON.parse(line));
@@ -130,7 +135,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should show error for invalid pipeline JSON', async function() {
       try {
         await execAsync(
-          `cd /home/runner/work/modash.js/modash.js && echo '{}' | npx tsx src/cli.ts '[{invalid json}]'`
+          `cd "${repoRoot}" && echo '{}' | node --import=tsx/esm src/cli.ts '[{invalid json}]'`
         );
         expect.fail('Should have thrown an error');
       } catch (error) {
@@ -141,7 +146,7 @@ describe('Phase 6: CLI Integration', function() {
     it('should show error when no pipeline is provided', async function() {
       try {
         await execAsync(
-          `cd /home/runner/work/modash.js/modash.js && echo '{}' | npx tsx src/cli.ts`
+          `cd "${repoRoot}" && echo '{}' | node --import=tsx/esm src/cli.ts`
         );
         expect.fail('Should have thrown an error');
       } catch (error) {
@@ -153,7 +158,7 @@ describe('Phase 6: CLI Integration', function() {
       try {
         // Run without stdin or --file, with input redirected from /dev/null 
         await execAsync(
-          `cd /home/runner/work/modash.js/modash.js && timeout 5s npx tsx src/cli.ts '[{"$match": {}}]' < /dev/null || true`
+          `cd "${repoRoot}" && timeout 5s node --import=tsx/esm src/cli.ts '[{"$match": {}}]' < /dev/null || true`
         );
         // If it succeeds, that's unexpected but not a test failure - it may handle empty stdin gracefully
       } catch (error) {

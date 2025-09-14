@@ -1,0 +1,33 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig([
+  {
+    entry: { index: 'src/index.ts' },
+    format: ['esm'],
+    platform: 'node',
+    target: 'node18',
+    sourcemap: true,
+    clean: true,
+    dts: false,
+    bundle: true,
+    splitting: false,
+    skipNodeModulesBundle: true,
+    treeshake: true,
+  },
+  {
+    entry: { cli: 'src/cli.ts' },
+    format: ['esm'],
+    platform: 'node',
+    target: 'node18',
+    sourcemap: true,
+    clean: false,
+    dts: false,
+    bundle: true,
+    splitting: false,
+    skipNodeModulesBundle: true,
+    treeshake: true,
+    // Preserve the shebang from src/cli.ts
+    // esbuild (used by tsup) preserves the first-line shebang automatically
+  },
+]);
+

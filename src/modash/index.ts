@@ -11,12 +11,12 @@ import {
   $addFields,
   $set,
   type QueryExpression,
-} from './aggregation.js';
-import { count } from './count.js';
-import { $expression, type Collection, type Document } from './expressions.js';
-import { createStreamingCollection, StreamingCollection } from './streaming.js';
-import { hotPathAggregate } from './hot-path-aggregation.js';
-import { explain, benchmark, fromJSONL } from './api-enhancements.js';
+} from './aggregation';
+import { count } from './count';
+import { $expression, type Collection, type Document } from './expressions';
+import { createStreamingCollection, StreamingCollection } from './streaming';
+import { hotPathAggregate } from './hot-path-aggregation';
+import { explain, benchmark, fromJSONL } from './api-enhancements';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -30,7 +30,7 @@ import type {
   LookupStage,
   AddFieldsStage,
   SetStage,
-} from '../index.js';
+} from '../index';
 
 /**
  * High-performance aggregation function with hot path optimization
@@ -94,9 +94,9 @@ const Modash: ModashStatic = {
 
   // Hot path performance monitoring
   getHotPathStats: () =>
-    import('./hot-path-aggregation.js').then(m => m.getHotPathStats()),
+    import('./hot-path-aggregation').then(m => m.getHotPathStats()),
   resetHotPathStats: () =>
-    import('./hot-path-aggregation.js').then(m => m.resetHotPathStats()),
+    import('./hot-path-aggregation').then(m => m.resetHotPathStats()),
 };
 
 export default Modash;
@@ -126,10 +126,10 @@ export {
 export type { Collection, Document, QueryExpression };
 
 // Re-export streaming capabilities
-export { StreamingCollection, createStreamingCollection } from './streaming.js';
+export { StreamingCollection, createStreamingCollection } from './streaming';
 
 // Re-export streaming types
-export type { StreamingEvents, AggregationState } from './streaming.js';
+export type { StreamingEvents, AggregationState } from './streaming';
 
 // Re-export complex types from main index for convenience
 export type {

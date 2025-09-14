@@ -9,18 +9,18 @@
  */
 
 import { EventEmitter } from 'events';
-import type { Collection, Document } from './expressions.js';
-import type { Pipeline } from '../index.js';
-import { aggregate } from './aggregation.js';
-import { hotPathAggregate } from './hot-path-aggregation.js';
-import { createCrossfilterEngine } from './crossfilter-engine.js';
-import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
-import { DEBUG, recordFallback, logPipelineExecution } from './debug.js';
+import type { Collection, Document } from './expressions';
+import type { Pipeline } from '../index';
+import { aggregate } from './aggregation';
+import { hotPathAggregate } from './hot-path-aggregation';
+import { createCrossfilterEngine } from './crossfilter-engine';
+import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm';
+import { DEBUG, recordFallback, logPipelineExecution } from './debug';
 import {
   createDeltaOptimizer,
   type StreamingDeltaOptimizer,
   type Delta as DeltaRecord,
-} from './streaming-delta-optimizer.js';
+} from './streaming-delta-optimizer';
 
 /**
  * Events emitted by StreamingCollection

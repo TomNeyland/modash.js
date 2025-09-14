@@ -5,9 +5,9 @@
  * for common aggregation functions ($sum, $avg, $min, $max, etc.)
  */
 
-import type { Document, DocumentValue } from './expressions.js';
-import type { Expression } from '../index.js';
-import { $expression } from './expressions.js';
+import type { Document, DocumentValue } from './expressions';
+import type { Expression } from '../index';
+import { $expression } from './expressions';
 
 /**
  * Structure-of-Arrays accumulator for efficient aggregation

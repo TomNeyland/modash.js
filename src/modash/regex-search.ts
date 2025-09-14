@@ -5,13 +5,13 @@
  * Target: 3x speedup for patterns with 3+ literal characters and <1% false positive rate
  */
 
-import type { Collection, Document } from './expressions.js';
+import type { Collection, Document } from './expressions';
 import {
   RegexSearchBloomFilter,
   extractLiteralsFromRegex,
   extractTrigrams,
-} from './bloom-filter.js';
-import { DEBUG } from './debug.js';
+} from './bloom-filter';
+import { DEBUG } from './debug';
 
 /**
  * Regex search statistics for monitoring and debugging

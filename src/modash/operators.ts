@@ -8,13 +8,13 @@ import {
   gte,
   lt,
   lte,
-} from './util.js';
+} from './util';
 
 // Import basic types from expressions module
-import type { Document, DocumentValue, PrimitiveValue } from './expressions.js';
+import type { Document, DocumentValue, PrimitiveValue } from './expressions';
 
 // Import complex types from main index for now
-import type { Expression } from '../index.js';
+import type { Expression } from '../index';
 
 /**
  * Modern MongoDB Expression Operators for TypeScript

@@ -10,22 +10,22 @@ import type {
   ExecutionPlan,
   IVMOperator,
   IVMContext,
-} from './crossfilter-ivm.js';
-import type { Document, Collection } from './expressions.js';
-import type { Pipeline } from '../index.js';
+} from './crossfilter-ivm';
+import type { Document, Collection } from './expressions';
+import type { Pipeline } from '../index';
 
-import { LiveSetImpl, DimensionImpl } from './crossfilter-impl.js';
+import { LiveSetImpl, DimensionImpl } from './crossfilter-impl';
 import {
   DEBUG,
   wrapOperator,
   wrapOperatorSnapshot,
   logPipelineExecution,
-} from './debug.js';
+} from './debug';
 import {
   ExpressionCompilerImpl,
   PerformanceEngineImpl,
-} from './crossfilter-compiler.js';
-import { OptimizedIVMOperatorFactory } from './crossfilter-operators.js';
+} from './crossfilter-compiler';
+import { OptimizedIVMOperatorFactory } from './crossfilter-operators';
 
 /**
  * Main crossfilter-inspired IVM engine
