@@ -77,7 +77,7 @@ function recordOptimizerRejection(
         pipelineLength: pipeline.length,
         stageIndex,
         stageType,
-        pipeline: pipeline,
+        pipeline,
       }
     );
   }
@@ -534,7 +534,9 @@ export function hotPathAggregate<T extends Document = Document>(
     } catch (error) {
       // Fallback on hot path failure
       if (process.env.DEBUG_UNWIND) {
-        console.log(`[DEBUG] Hot path failed, falling back to traditional aggregation: ${error.message}`);
+        console.log(
+          `[DEBUG] Hot path failed, falling back to traditional aggregation: ${error.message}`
+        );
       }
       console.warn(`Hot path failed, falling back: ${error.message}`);
       counters.fallbacks++;

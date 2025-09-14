@@ -206,7 +206,7 @@ export class StreamingCollection<
 
     // Emit single data-added event for entire batch
     this.emit('data-added', {
-      newDocuments: newDocuments,
+      newDocuments,
       totalCount: this.documents.length,
     });
 

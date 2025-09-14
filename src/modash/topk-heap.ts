@@ -132,7 +132,7 @@ export class TopKHeap {
       const aVal = a.sortKey[i];
       const bVal = b.sortKey[i];
 
-      let comparison = this.compareValues(aVal, bVal);
+      const comparison = this.compareValues(aVal, bVal);
       if (comparison !== 0) {
         return order * comparison;
       }

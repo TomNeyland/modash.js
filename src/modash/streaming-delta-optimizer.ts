@@ -374,10 +374,10 @@ export class StreamingDeltaOptimizer extends EventEmitter {
           adjustmentFactor: adjustmentFactor.toFixed(2),
           latencyOk,
           throughputOk,
-          queuePressure: Math.round(queuePressure * 100) + '%',
-          p99Latency: this.metrics.p99LatencyMs.toFixed(2) + 'ms',
-          throughput: Math.round(currentThroughput) + ' deltas/sec',
-          batchDuration: batchDuration.toFixed(1) + 'ms',
+          queuePressure: `${Math.round(queuePressure * 100)}%`,
+          p99Latency: `${this.metrics.p99LatencyMs.toFixed(2)}ms`,
+          throughput: `${Math.round(currentThroughput)} deltas/sec`,
+          batchDuration: `${batchDuration.toFixed(1)}ms`,
         }
       );
     }
