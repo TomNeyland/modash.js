@@ -1288,6 +1288,33 @@ The test suite includes automatic performance measurement and tracking:
 - **`npm run test:slow`**: Slower tests like aggregation and enhanced operators
 - **`npm run test:all`**: Alias for complete test suite (same as `npm test`)
 
+### Dead Code Scanning
+
+modash.js includes comprehensive dead code scanning using [Knip](https://knip.dev) to maintain code quality:
+
+- **`npm run deadcode`**: Scan for unused files, exports, and dependencies
+- **`npm run deadcode:production`**: Check only production dependencies for unused code
+- **`npm run deadcode:json`**: Output results in JSON format for tooling integration
+- **`npm run deadcode:fix`**: Automatically remove unused exports where safe
+
+Dead code scanning runs automatically in CI on pull requests and pushes to main/develop branches. The configuration is in `knip.json` and covers:
+
+- **Unused Files**: Standalone files not imported anywhere
+- **Unused Exports**: Functions, variables, or classes exported but never imported
+- **Unused Dependencies**: npm packages installed but never used
+- **TypeScript-Aware**: Understands TypeScript imports, exports, and type usage
+
+Example output:
+```bash
+Unused files (1)
+src/modash/streaming-old.ts  
+
+Unused exports (3)
+getDebugStats    function  src/modash/debug.ts:45:17
+unusedHelper     function  src/modash/util.ts:123:14
+LEGACY_CONSTANT  variable  src/modash/constants.ts:8:14
+```
+
 Performance results are saved in `performance-results/` as timestamped JSON files:
 
 - `performance-{timestamp}.json` - Contains detailed benchmark data

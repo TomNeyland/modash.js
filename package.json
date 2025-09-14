@@ -66,6 +66,10 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "validate": "npm run quality",
     "precommit": "npm run validate",
+    "deadcode": "knip",
+    "deadcode:production": "knip --production",
+    "deadcode:json": "knip --reporter json",
+    "deadcode:fix": "knip --fix",
     "ci": "npm run validate && npm run test:coverage && npm run test:performance && npm run ci:regression-gates",
     "ci:regression-gates": "node --import=tsx/esm ci-regression-gates.mjs",
     "phase3:validate": "npm run ci:regression-gates"
@@ -81,10 +85,10 @@
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "knip": "^5.63.1",
     "mocha": "^10.8.2",
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.9.2"
-  },
-  "dependencies": {}
+  }
 }

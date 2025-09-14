@@ -44,6 +44,9 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
         
+      - name: Dead code scan
+        run: npm run deadcode
+        
       - name: Upload coverage reports to Codecov
         if: matrix.node-version == 20
         uses: codecov/codecov-action@v4
