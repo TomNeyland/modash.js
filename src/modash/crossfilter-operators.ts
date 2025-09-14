@@ -569,7 +569,6 @@ export class ProjectOperator implements IVMOperator {
         result.push(rowId);
 
         if (process.env.DEBUG_IVM) {
-          console.log(`[ProjectOperator#${this.__id}.snapshot] Input doc for rowId ${rowId}:`, JSON.stringify(doc));
           console.log(`[ProjectOperator#${this.__id}.snapshot] Cached rowId ${rowId}:`, JSON.stringify(projectedDoc));
         }
       }
@@ -1152,12 +1151,6 @@ export class AddFieldsOperator implements IVMOperator {
         // Merge with existing document (preserving all original fields)
         const mergedDoc = { ...doc, ...newFields };
         this.cache.set(_delta.rowId, mergedDoc);
-        
-        if (process.env.DEBUG_IVM) {
-          console.log(`[AddFieldsOperator.onAdd] rowId=${_delta.rowId}, input doc:`, JSON.stringify(doc));
-          console.log(`[AddFieldsOperator.onAdd] newFields:`, JSON.stringify(newFields));
-          console.log(`[AddFieldsOperator.onAdd] mergedDoc:`, JSON.stringify(mergedDoc));
-        }
       }
     }
 
@@ -1182,16 +1175,7 @@ export class AddFieldsOperator implements IVMOperator {
     _context: IVMContext
   ): Document | null {
     // Return cached merged document
-    const cached = this.cache.get(rowId);
-    if (process.env.DEBUG_IVM) {
-      console.log(`[AddFieldsOperator.getEffectiveDocument] rowId=${rowId}, cache.has=${this.cache.has(rowId)}, cache.size=${this.cache.size}`);
-      if (cached) {
-        console.log(`[AddFieldsOperator.getEffectiveDocument] Returning cached:`, JSON.stringify(cached));
-      } else {
-        console.log(`[AddFieldsOperator.getEffectiveDocument] No cached document found`);
-      }
-    }
-    return cached || null;
+    return this.cache.get(rowId) || null;
   }
 
   snapshot(
