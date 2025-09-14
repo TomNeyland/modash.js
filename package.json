@@ -90,7 +90,13 @@
     "fixtures:generate": "tsx scripts/fixture-generator.ts generate",
     "fixtures:demo": "tsx scripts/fixture-generator.ts demo",
     "fixtures:test": "tsx scripts/fixture-generator.ts demo --size small",
-    "test:fixtures": "mocha --import=tsx/esm --exit tests/fixtures/*.spec.js"
+    "test:fixtures": "mocha --import=tsx/esm --exit tests/fixtures/*.spec.js",
+    "fixtures:large:generate": "tsx scripts/generate-large-fixtures.ts",
+    "test:perf": "npm run fixtures:large:ensure && mocha --import=tsx/esm --exit tests/performance/*.perf.js",
+    "test:perf:cli": "npm run fixtures:large:ensure && mocha --import=tsx/esm --exit tests/performance/cli-streaming.perf.js",
+    "benchmark": "./scripts/benchmark-large.sh",
+    "fixtures:large:ensure": "tsx scripts/generate-large-fixtures.ts",
+    "fixtures:large:clean": "rm -rf fixtures/large"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {

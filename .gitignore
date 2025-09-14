@@ -41,3 +41,10 @@ prettier-results.*
 # Temporary files
 tmp/
 temp/
+
+# Large performance test fixtures (auto-generated)
+fixtures/large/
+*.large.jsonl
+fixtures/*-1m.jsonl
+fixtures/*-100k.jsonl
+fixtures/*-10m.jsonl
