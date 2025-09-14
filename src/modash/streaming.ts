@@ -556,6 +556,24 @@ export class StreamingCollection<
       // Calculate initial result using IVM engine
       logPipelineExecution('execute', 'Executing pipeline with IVM');
       const result = this.ivmEngine.execute(pipeline);
+      
+      // B) Parity validation: Compare IVM result with traditional aggregation for correctness
+      try {
+        const traditionalResult = aggregate(this.documents, pipeline);
+        const resultsMatch = this.compareResults(result, traditionalResult);
+        
+        if (!resultsMatch) {
+          const msg = 'IVM result differs from traditional aggregation, falling back';
+          console.warn(msg);
+          recordFallback(pipeline, msg);
+          // Use traditional result instead
+          state.lastResult = traditionalResult;
+          return traditionalResult;
+        }
+      } catch (validationError) {
+        console.warn('Parity validation failed, using IVM result:', validationError);
+      }
+      
       state.lastResult = result;
 
       return result;
@@ -752,6 +770,27 @@ export class StreamingCollection<
    */
   optimize(): void {
     this.ivmEngine.optimize();
+  }
+
+  /**
+   * B) Parity validation: Compare two aggregation results for equality
+   */
+  private compareResults(result1: Collection<Document>, result2: Collection<Document>): boolean {
+    if (result1.length !== result2.length) {
+      return false;
+    }
+    
+    // Sort both results for comparison (since order might vary)
+    const sorted1 = [...result1].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const sorted2 = [...result2].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    
+    for (let i = 0; i < sorted1.length; i++) {
+      if (JSON.stringify(sorted1[i]) !== JSON.stringify(sorted2[i])) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 }
 
