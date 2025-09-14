@@ -2,11 +2,13 @@
  * Minimal debug infrastructure for IVM fallback diagnosis
  */
 
-export const DEBUG = process.env.DEBUG_IVM === 'true' || process.env.NODE_ENV === 'test';
+export const DEBUG =
+  process.env.DEBUG_IVM === 'true' || process.env.NODE_ENV === 'test';
 
 // Fallback tracking
 let fallbackCount = 0;
-const fallbackErrors: Array<{ pipeline: any; error: string; stack?: string }> = [];
+const fallbackErrors: Array<{ pipeline: any; error: string; stack?: string }> =
+  [];
 
 export function resetFallbackTracking(): void {
   fallbackCount = 0;
@@ -91,15 +93,14 @@ export function wrapOperator<T extends { onAdd: Function; onRemove: Function }>(
 /**
  * Wrap an operator's snapshot method to detect fallbacks
  */
-export function wrapOperatorSnapshot<T extends { snapshot: Function; type: string }>(
-  operator: T,
-  debug = DEBUG
-): T {
+export function wrapOperatorSnapshot<
+  T extends { snapshot: Function; type: string },
+>(operator: T, debug = DEBUG): T {
   if (!debug) return operator;
 
   const originalSnapshot = operator.snapshot.bind(operator);
 
-  operator.snapshot = function(store: any, context: any) {
+  operator.snapshot = function (store: any, context: any) {
     try {
       const result = originalSnapshot(store, context);
 
@@ -108,14 +109,24 @@ export function wrapOperatorSnapshot<T extends { snapshot: Function; type: strin
         const firstDoc = result[0];
 
         // For GroupOperator, check if we're returning raw documents instead of groups
-        if (operator.type === '$group' && firstDoc && typeof firstDoc._id !== 'undefined') {
+        if (
+          operator.type === '$group' &&
+          firstDoc &&
+          typeof firstDoc._id !== 'undefined'
+        ) {
           // Check if this looks like a raw document instead of a group result
-          const hasGroupFields = firstDoc.hasOwnProperty('_id') &&
-                                 !firstDoc.hasOwnProperty('category') &&
-                                 !firstDoc.hasOwnProperty('item');
+          const hasGroupFields =
+            firstDoc.hasOwnProperty('_id') &&
+            !firstDoc.hasOwnProperty('category') &&
+            !firstDoc.hasOwnProperty('item');
           if (!hasGroupFields) {
-            console.warn(`[${operator.type}] FALLBACK DETECTED: Returning raw documents instead of grouped results`);
-            recordFallback({ type: operator.type }, 'GroupOperator returning raw documents');
+            console.warn(
+              `[${operator.type}] FALLBACK DETECTED: Returning raw documents instead of grouped results`
+            );
+            recordFallback(
+              { type: operator.type },
+              'GroupOperator returning raw documents'
+            );
           }
         }
 
@@ -124,9 +135,18 @@ export function wrapOperatorSnapshot<T extends { snapshot: Function; type: strin
           const prevStage = context.pipeline?.[context.stageIndex - 1];
           if (prevStage && Object.keys(prevStage)[0] === '$group') {
             // Check if we have raw documents instead of group results
-            if (firstDoc && !firstDoc.hasOwnProperty('_id') && firstDoc.hasOwnProperty('category')) {
-              console.warn(`[${operator.type}] FALLBACK DETECTED: Lost group results after $sort`);
-              recordFallback({ type: operator.type }, 'Lost group results after sort');
+            if (
+              firstDoc &&
+              !firstDoc.hasOwnProperty('_id') &&
+              firstDoc.hasOwnProperty('category')
+            ) {
+              console.warn(
+                `[${operator.type}] FALLBACK DETECTED: Lost group results after $sort`
+              );
+              recordFallback(
+                { type: operator.type },
+                'Lost group results after sort'
+              );
             }
           }
         }
@@ -134,7 +154,10 @@ export function wrapOperatorSnapshot<T extends { snapshot: Function; type: strin
 
       return result;
     } catch (error) {
-      console.error(`[${operator.type}] FALLBACK DETECTED: snapshot() threw error:`, error);
+      console.error(
+        `[${operator.type}] FALLBACK DETECTED: snapshot() threw error:`,
+        error
+      );
       recordFallback({ type: operator.type }, error as Error);
       throw error;
     }
@@ -146,7 +169,11 @@ export function wrapOperatorSnapshot<T extends { snapshot: Function; type: strin
 /**
  * Log pipeline execution for debugging
  */
-export function logPipelineExecution(stage: string, message: string, data?: any): void {
+export function logPipelineExecution(
+  stage: string,
+  message: string,
+  data?: any
+): void {
   if (!DEBUG) return;
 
   const prefix = `[IVM:${stage}]`;

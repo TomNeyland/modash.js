@@ -7,6 +7,7 @@ Fixed fundamental architectural issues in the IVM (Incremental View Maintenance)
 ## The Problem
 
 ### Symptoms
+
 1. Projection operators (`$project`) were not working - documents retained all fields
 2. Filtered documents would reappear in later stages
 3. Cross-stage field resolution was broken
@@ -25,6 +26,7 @@ Fixed fundamental architectural issues in the IVM (Incremental View Maintenance)
 ### 1. Operators Return RowId[]
 
 **Before:**
+
 ```typescript
 snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
   const result: Document[] = [];
@@ -37,6 +39,7 @@ snapshot(store: CrossfilterStore, context: IVMContext): Collection<Document> {
 ```
 
 **After:**
+
 ```typescript
 snapshot(store: CrossfilterStore, context: IVMContext): RowId[] {
   const result: RowId[] = [];
@@ -105,7 +108,9 @@ class ProjectOperator {
 class SortOperator {
   getEffectiveDocument = (rowId, store, context): Document | null => {
     // Sort doesn't transform, just reorders
-    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    return (
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+    );
   };
 }
 ```
@@ -149,17 +154,20 @@ function wrapOperator(operator) {
 ## Operators Fixed
 
 ### Transforming Operators (with cache)
+
 - ✅ **ProjectOperator**: Caches projected documents with only requested fields
 - ✅ **AddFieldsOperator**: Caches merged documents with new fields added
 - ✅ **LookupOperator**: Caches documents with joined data
 
 ### Passthrough Operators (delegate upstream)
+
 - ✅ **MatchOperator**: Filters but doesn't transform
 - ✅ **SortOperator**: Reorders but doesn't transform
 - ✅ **LimitOperator**: Slices but doesn't transform
 - ✅ **SkipOperator**: Slices but doesn't transform
 
 ### Partially Fixed
+
 - ⚠️ **GroupOperator**: Returns group documents (needs virtual rowId support)
 - ⚠️ **UnwindOperator**: Creates child documents (needs virtual rowId support)
 - ⚠️ **TopKOperator**: Returns top K rowIds
@@ -167,6 +175,7 @@ function wrapOperator(operator) {
 ## Test Coverage
 
 ### Invariant Tests (`test_invariants.mjs`)
+
 1. **$project → $limit**: Only projected fields survive
 2. **$project → $sort**: Sort operates on projected view
 3. **$match → $project → $skip**: Row count matches filter
@@ -176,6 +185,7 @@ function wrapOperator(operator) {
 All tests: ✅ **PASSING**
 
 ### Benchmark Tests (`test_ivm_benchmarks.mjs`)
+
 - `simpleFilter`: 0 fallbacks ✅
 - `filterAndProject`: 0 fallbacks ✅
 - `complexPipeline`: 0 fallbacks ✅
@@ -187,19 +197,30 @@ All tests: ✅ **PASSING**
 ```typescript
 // Verify snapshot returns RowId[]
 if (DEBUG_IVM && !Array.isArray(activeIds)) {
-  throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[]`);
+  throw new Error(
+    `[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[]`
+  );
 }
 
 // Verify transforming operators have getEffectiveDocument
-const transformingOps = ['$project', '$addFields', '$group', '$unwind', '$lookup'];
+const transformingOps = [
+  '$project',
+  '$addFields',
+  '$group',
+  '$unwind',
+  '$lookup',
+];
 if (transformingOps.includes(operator.type) && !operator.getEffectiveDocument) {
-  throw new Error(`[INVARIANT VIOLATION] ${operator.type} must implement getEffectiveDocument`);
+  throw new Error(
+    `[INVARIANT VIOLATION] ${operator.type} must implement getEffectiveDocument`
+  );
 }
 ```
 
 ## CI Checks
 
 ### LiveSet Usage Check (`check_liveset_usage.sh`)
+
 - Greps for `store.liveSet` usage in snapshot methods
 - Ensures operators only process `upstreamActiveIds`
 - Runs invariant tests automatically
@@ -207,11 +228,13 @@ if (transformingOps.includes(operator.type) && !operator.getEffectiveDocument) {
 ## Performance Impact
 
 ### Improvements
+
 - **Reduced iteration**: Operators only process active documents, not entire store
 - **Better caching**: Transformed documents cached and reused
 - **Memory efficiency**: RowId arrays use less memory than Document arrays
 
 ### Metrics
+
 - Simple pipelines: ~0-2ms for 100 documents
 - Complex pipelines: ~1-2ms for 100 documents
 - Zero fallbacks for supported operations
@@ -243,6 +266,7 @@ if (transformingOps.includes(operator.type) && !operator.getEffectiveDocument) {
 ### Context Flow
 
 Each operator receives an `IVMContext` with:
+
 - `upstreamActiveIds`: RowIds that passed through previous stage
 - `getEffectiveUpstreamDocument`: Function to get transformed doc from upstream
 - `stageIndex`: Current position in pipeline
@@ -251,11 +275,13 @@ Each operator receives an `IVMContext` with:
 ## Known Issues & Future Work
 
 ### Issues to Address
+
 1. **GroupOperator**: Needs to return virtual rowIds for groups
 2. **UnwindOperator**: Needs proper parent-child rowId mapping
 3. **Aggregation functions**: Many still not implemented ($stdDev, $percentile, etc.)
 
 ### Future Improvements
+
 1. **Virtual RowIds**: Support for group/unwind operations
 2. **Incremental aggregations**: True incremental updates for groups
 3. **Query optimization**: Reorder stages for better performance
@@ -266,6 +292,7 @@ Each operator receives an `IVMContext` with:
 ### For New Operators
 
 1. **Implement snapshot() correctly**:
+
    ```typescript
    snapshot(store: CrossfilterStore, context: IVMContext): RowId[] {
      const result: RowId[] = [];
@@ -283,6 +310,7 @@ Each operator receives an `IVMContext` with:
    ```
 
 2. **For transforming operators, implement getEffectiveDocument**:
+
    ```typescript
    private cache = new Map<RowId, Document>();
 
@@ -294,7 +322,9 @@ Each operator receives an `IVMContext` with:
 3. **For passthrough operators, delegate upstream**:
    ```typescript
    getEffectiveDocument = (rowId, store, context): Document | null => {
-     return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+     return (
+       context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+     );
    };
    ```
 
@@ -308,12 +338,14 @@ Each operator receives an `IVMContext` with:
 ## Debugging Tips
 
 ### Enable Debug Mode
+
 ```bash
 export DEBUG_IVM=true
 npm test
 ```
 
 ### Check for Fallbacks
+
 ```typescript
 import { getFallbackCount, resetFallbackTracking } from './src/modash/debug.ts';
 
@@ -324,6 +356,7 @@ console.log(`Fallbacks: ${fallbacks}`);
 ```
 
 ### Trace Operator Execution
+
 - Each operator logs with `[OperatorType#ID]` format
 - Instance IDs help track if same operator is used throughout
 - Check cache sizes to verify documents are being cached
@@ -331,6 +364,7 @@ console.log(`Fallbacks: ${fallbacks}`);
 ## Conclusion
 
 The IVM engine now has a solid architectural foundation:
+
 - ✅ Correct data flow (RowId[] through pipeline)
 - ✅ Proper document transformation and caching
 - ✅ No liveSet leaks
@@ -339,6 +373,7 @@ The IVM engine now has a solid architectural foundation:
 - ✅ Runtime invariant checking
 
 This foundation enables us to:
+
 1. Add more operators with confidence
 2. Implement advanced features (virtual rowIds, incremental aggregation)
 3. Optimize performance further

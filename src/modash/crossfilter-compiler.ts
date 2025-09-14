@@ -1608,7 +1608,8 @@ export class PerformanceEngineImpl implements PerformanceEngine {
         // Also don't prune if the next stage is $limit or $skip
         // These stages don't "use" fields but pass through all projected fields
         const nextStage = i + 1 < stages.length ? stages[i + 1] : null;
-        const isBeforeLimitOrSkip = nextStage && ('$limit' in nextStage || '$skip' in nextStage);
+        const isBeforeLimitOrSkip =
+          nextStage && ('$limit' in nextStage || '$skip' in nextStage);
 
         if (!isFinalStage && !isBeforeLimitOrSkip) {
           for (const field of Object.keys(stage.$project)) {
@@ -1768,7 +1769,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       '$skip',
       '$addFields',
       '$set',
-      '$topK',  // TopK operator supports incremental updates
+      '$topK', // TopK operator supports incremental updates
       '$unwind',
       '$lookup',
     ];
@@ -1789,7 +1790,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       '$skip',
       '$addFields',
       '$set',
-      '$topK',  // TopK operator supports decremental updates
+      '$topK', // TopK operator supports decremental updates
       '$unwind',
       '$lookup',
     ];

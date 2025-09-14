@@ -2,7 +2,6 @@
  * IVM Operators for MongoDB aggregation stages
  */
 
-
 import type {
   RowId,
   Delta,
@@ -11,7 +10,7 @@ import type {
   CrossfilterStore,
   IVMOperatorFactory,
 } from './crossfilter-ivm.js';
-import type { Document, DocumentValue, Collection } from './expressions.js';
+import type { Document, DocumentValue } from './expressions.js';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl.js';
 import { ExpressionCompilerImpl } from './crossfilter-compiler.js';
 
@@ -68,10 +67,7 @@ export class MatchOperator implements IVMOperator {
     return []; // Document wasn't in result set anyway
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
     // Use upstream active IDs if available, otherwise use all live documents
@@ -97,7 +93,9 @@ export class MatchOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    return (
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+    );
   };
 
   estimateComplexity(): string {
@@ -133,17 +131,25 @@ export class MatchOperator implements IVMOperator {
     return Array.from(fields);
   }
 
-  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+  private getEffectiveDocument(
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null {
     // Check if there are projected documents from upstream stages
     // Look backwards through stages to find the most recent projection
-    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+    for (
+      let stageIndex = _context.stageIndex - 1;
+      stageIndex >= 0;
+      stageIndex--
+    ) {
       const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
       const projectedDocs = _context.tempState.get(projectedDocsKey);
       if (projectedDocs && projectedDocs.has(rowId)) {
         return projectedDocs.get(rowId);
       }
     }
-    
+
     // Fallback to original document
     return _store.documents[rowId] || null;
   }
@@ -186,7 +192,9 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== 1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
+    const doc =
+      _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
+      this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -236,7 +244,9 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== -1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
+    const doc =
+      _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
+      this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -277,10 +287,7 @@ export class GroupOperator implements IVMOperator {
     return [_delta]; // Propagate removal
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const groupsMap = _store.groups.get(this.groupsKey);
     if (!groupsMap || groupsMap.size === 0) {
       return [];
@@ -301,7 +308,11 @@ export class GroupOperator implements IVMOperator {
   /**
    * Get the effective document for a group virtual RowId
    */
-  getEffectiveDocument = (rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null => {
+  getEffectiveDocument = (
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null => {
     // For group operations, rowId is the serialized group key
     const groupsMap = _store.groups.get(this.groupsKey);
     if (!groupsMap) {
@@ -351,17 +362,25 @@ export class GroupOperator implements IVMOperator {
     return Object.keys(this.groupExpr);
   }
 
-  private getEffectiveUpstreamDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+  private getEffectiveUpstreamDocument(
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null {
     // Check if there are projected documents from upstream stages
     // Look backwards through stages to find the most recent projection
-    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+    for (
+      let stageIndex = _context.stageIndex - 1;
+      stageIndex >= 0;
+      stageIndex--
+    ) {
       const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
       const projectedDocs = _context.tempState.get(projectedDocsKey);
       if (projectedDocs && projectedDocs.has(rowId)) {
         return projectedDocs.get(rowId);
       }
     }
-    
+
     // Fallback to original document
     return _store.documents[rowId] || null;
   }
@@ -411,10 +430,7 @@ export class SortOperator implements IVMOperator {
     return [_delta];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Use upstreamActiveIds from context
     const sourceRowIds = _context.upstreamActiveIds || [];
     if (sourceRowIds.length === 0) return [];
@@ -424,7 +440,9 @@ export class SortOperator implements IVMOperator {
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc = _context.getEffectiveUpstreamDocument?.(rowId) || _store.documents[rowId];
+      const doc =
+        _context.getEffectiveUpstreamDocument?.(rowId) ||
+        _store.documents[rowId];
       if (doc) {
         docsWithIds.push({ rowId, doc });
       }
@@ -458,7 +476,9 @@ export class SortOperator implements IVMOperator {
     context: IVMContext
   ): Document | null => {
     // Get document from upstream stage if it was transformed
-    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    return (
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+    );
   };
 
   estimateComplexity(): string {
@@ -521,7 +541,9 @@ export class ProjectOperator implements IVMOperator {
   ): Delta[] {
     // Transform and cache document for downstream stages
     if (_delta.sign === 1) {
-      const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || _store.documents[_delta.rowId];
+      const doc =
+        _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
+        _store.documents[_delta.rowId];
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, _delta.rowId);
         this.cache.set(_delta.rowId, projectedDoc);
@@ -544,17 +566,16 @@ export class ProjectOperator implements IVMOperator {
     return [_delta];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
     // Use upstreamActiveIds from context, not store.liveSet
     const sourceRowIds = _context.upstreamActiveIds || [];
 
     if (process.env.DEBUG_IVM) {
-      console.log(`[ProjectOperator#${this.__id}.snapshot] Processing ${sourceRowIds.length} upstream IDs`);
+      console.log(
+        `[ProjectOperator#${this.__id}.snapshot] Processing ${sourceRowIds.length} upstream IDs`
+      );
     }
 
     // Clear and rebuild cache for active documents
@@ -562,20 +583,27 @@ export class ProjectOperator implements IVMOperator {
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc = _context.getEffectiveUpstreamDocument?.(rowId) || _store.documents[rowId];
+      const doc =
+        _context.getEffectiveUpstreamDocument?.(rowId) ||
+        _store.documents[rowId];
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, rowId);
         this.cache.set(rowId, projectedDoc);
         result.push(rowId);
 
         if (process.env.DEBUG_IVM) {
-          console.log(`[ProjectOperator#${this.__id}.snapshot] Cached rowId ${rowId}:`, JSON.stringify(projectedDoc));
+          console.log(
+            `[ProjectOperator#${this.__id}.snapshot] Cached rowId ${rowId}:`,
+            JSON.stringify(projectedDoc)
+          );
         }
       }
     }
 
     if (process.env.DEBUG_IVM) {
-      console.log(`[ProjectOperator#${this.__id}.snapshot] Cache size after snapshot: ${this.cache.size}`);
+      console.log(
+        `[ProjectOperator#${this.__id}.snapshot] Cache size after snapshot: ${this.cache.size}`
+      );
     }
 
     return result;
@@ -587,16 +615,23 @@ export class ProjectOperator implements IVMOperator {
     _store: CrossfilterStore,
     _context: IVMContext
   ): Document | null => {
-
     // Return cached projected document
     const cached = this.cache.get(rowId);
 
     if (process.env.DEBUG_IVM) {
-      console.log(`[ProjectOperator#${this.__id}.getEffectiveDocument] rowId=${rowId}, cache.has=${this.cache.has(rowId)}, cache.size=${this.cache.size}`);
+      console.log(
+        `[ProjectOperator#${this.__id}.getEffectiveDocument] rowId=${rowId}, cache.has=${this.cache.has(rowId)}, cache.size=${this.cache.size}`
+      );
       if (cached) {
-        console.log(`[ProjectOperator#${this.__id}.getEffectiveDocument] Returning cached doc:`, cached);
+        console.log(
+          `[ProjectOperator#${this.__id}.getEffectiveDocument] Returning cached doc:`,
+          cached
+        );
       } else {
-        console.log(`[ProjectOperator#${this.__id}.getEffectiveDocument] NO CACHE ENTRY! Cache keys:`, Array.from(this.cache.keys()));
+        console.log(
+          `[ProjectOperator#${this.__id}.getEffectiveDocument] NO CACHE ENTRY! Cache keys:`,
+          Array.from(this.cache.keys())
+        );
       }
     }
 
@@ -629,17 +664,25 @@ export class ProjectOperator implements IVMOperator {
     );
   }
 
-  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+  private getEffectiveDocument(
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null {
     // Check if there are projected documents from upstream stages
     // Look backwards through stages to find the most recent projection
-    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+    for (
+      let stageIndex = _context.stageIndex - 1;
+      stageIndex >= 0;
+      stageIndex--
+    ) {
       const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
       const projectedDocs = _context.tempState.get(projectedDocsKey);
       if (projectedDocs && projectedDocs.has(rowId)) {
         return projectedDocs.get(rowId);
       }
     }
-    
+
     // Fallback to original document
     return _store.documents[rowId] || null;
   }
@@ -672,10 +715,7 @@ export class LimitOperator implements IVMOperator {
     return [_delta];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Pure rowId slicer - just take first N from upstream
     const sourceRowIds = _context.upstreamActiveIds || [];
     return sourceRowIds.slice(0, this.limitValue);
@@ -687,7 +727,9 @@ export class LimitOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    return (
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+    );
   };
 
   estimateComplexity(): string {
@@ -729,10 +771,7 @@ export class SkipOperator implements IVMOperator {
     return [_delta];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Pure rowId slicer - skip first N from upstream
     const sourceRowIds = _context.upstreamActiveIds || [];
     return sourceRowIds.slice(this.skipValue);
@@ -744,7 +783,9 @@ export class SkipOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    return (
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+    );
   };
 
   estimateComplexity(): string {
@@ -875,10 +916,7 @@ export class UnwindOperator implements IVMOperator {
     return deltas;
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
     // Use upstream active IDs
@@ -1011,10 +1049,7 @@ export class LookupOperator implements IVMOperator {
     return [_delta];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Use upstream active IDs
     const sourceRowIds = _context.upstreamActiveIds || [];
 
@@ -1028,7 +1063,8 @@ export class LookupOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    const doc = context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    const doc =
+      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
     if (!doc) return null;
 
     const localValue = this.getFieldValue(doc, this.expr.localField);
@@ -1144,7 +1180,9 @@ export class AddFieldsOperator implements IVMOperator {
   ): Delta[] {
     // Transform and cache document for downstream stages
     if (_delta.sign === 1) {
-      const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || _store.documents[_delta.rowId];
+      const doc =
+        _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
+        _store.documents[_delta.rowId];
       if (doc) {
         // Compute new fields
         const newFields = this.compiledExpr(doc, _delta.rowId);
@@ -1178,10 +1216,7 @@ export class AddFieldsOperator implements IVMOperator {
     return this.cache.get(rowId) || null;
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
     // Use upstreamActiveIds from context
@@ -1192,7 +1227,9 @@ export class AddFieldsOperator implements IVMOperator {
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc = _context.getEffectiveUpstreamDocument?.(rowId) || _store.documents[rowId];
+      const doc =
+        _context.getEffectiveUpstreamDocument?.(rowId) ||
+        _store.documents[rowId];
       if (doc) {
         // Compute new fields and merge
         const newFields = this.compiledExpr(doc, rowId);
@@ -1252,7 +1289,9 @@ export class TopKOperator implements IVMOperator {
     if (_delta.sign !== 1) return [];
 
     // Get effective document from upstream stages
-    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || _store.documents[_delta.rowId];
+    const doc =
+      _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
+      _store.documents[_delta.rowId];
     if (!doc) return [];
 
     // Insert into sorted results maintaining top-k
@@ -1293,10 +1332,7 @@ export class TopKOperator implements IVMOperator {
     return [];
   }
 
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[] {
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     return this.results.map(item => item.rowId);
   }
 
@@ -1315,10 +1351,18 @@ export class TopKOperator implements IVMOperator {
   /**
    * TopK is a passthrough operator - delegate to upstream for document transformation
    */
-  getEffectiveDocument = (rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null => {
+  getEffectiveDocument = (
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null => {
     // TopK doesn't transform documents, just reorders and limits them
     // Always delegate to upstream for the actual document content
-    return _context.getEffectiveUpstreamDocument?.(rowId) || _store.documents[rowId] || null;
+    return (
+      _context.getEffectiveUpstreamDocument?.(rowId) ||
+      _store.documents[rowId] ||
+      null
+    );
   };
 
   private compareDocuments(a: Document, b: Document): number {
