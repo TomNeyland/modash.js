@@ -43,6 +43,8 @@ jobs:
         
       - name: Run tests with coverage
         run: npm run test:coverage
+      - name: Parity check (array vs streaming)
+        run: npm run parity
         
       - name: Upload coverage reports to Codecov
         if: matrix.node-version == 20

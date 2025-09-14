@@ -35,13 +35,22 @@ export function resetFallbackTracking(): void {
   fallbackErrors.length = 0;
 }
 
-export function recordFallback(pipeline: any, error: Error | string): void {
+export function recordFallback(
+  pipeline: any,
+  error: Error | string,
+  meta?: { code?: string; details?: any }
+): void {
   fallbackCount++;
-  fallbackErrors.push({
+  const payload: any = {
     pipeline,
     error: typeof error === 'string' ? error : error.message,
     stack: error instanceof Error ? error.stack : undefined,
-  });
+  };
+  if (meta && (meta.code || meta.details)) {
+    payload.code = meta.code;
+    payload.details = meta.details;
+  }
+  fallbackErrors.push(payload);
 }
 
 export function getFallbackCount(): number {
