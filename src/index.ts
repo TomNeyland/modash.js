@@ -43,6 +43,15 @@ export type {
   NonEmptyArray,
 } from './modash/types.js';
 
+// Phase 6: Enhanced API types
+export type {
+  PipelineExplanation,
+  StageExplanation,
+  OptimizationInfo,
+  BenchmarkResults,
+  StreamLoaderOptions,
+} from './modash/api-enhancements.js';
+
 // Import the basic types for use in Expression definition
 import type {
   DocumentValue,
@@ -310,6 +319,37 @@ export interface ModashStatic {
     pipeline: Pipeline
   ): Collection<Document>;
 
+  /**
+   * Phase 6: Analyzes a pipeline and provides optimization insights
+   * @param pipeline - Pipeline to analyze
+   * @returns Detailed pipeline analysis
+   */
+  explain(pipeline: Pipeline): import('./modash/api-enhancements.js').PipelineExplanation;
+
+  /**
+   * Phase 6: Benchmarks a pipeline with performance metrics
+   * @param collection - Documents to process
+   * @param pipeline - Pipeline to benchmark
+   * @param options - Benchmark options
+   * @returns Performance metrics
+   */
+  benchmark<T extends Document = Document>(
+    collection: Collection<T>,
+    pipeline: Pipeline,
+    options?: { iterations?: number; warmupRuns?: number }
+  ): Promise<import('./modash/api-enhancements.js').BenchmarkResults>;
+
+  /**
+   * Phase 6: Creates an async iterable from JSONL stream
+   * @param stream - Node.js readable stream
+   * @param options - Stream processing options
+   * @returns AsyncIterable of documents
+   */
+  fromJSONL(
+    stream: NodeJS.ReadableStream,
+    options?: import('./modash/api-enhancements.js').StreamLoaderOptions
+  ): AsyncIterable<Document>;
+
   // Stage operators (can be used standalone)
   $group<T extends Document = Document>(
     collection: Collection<T>,
@@ -369,6 +409,10 @@ export {
   $addFields,
   $set,
   default,
+  // Phase 6: Enhanced DX APIs
+  explain,
+  benchmark,
+  fromJSONL,
 } from './modash/index.js';
 
 // Re-export streaming capabilities

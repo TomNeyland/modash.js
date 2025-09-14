@@ -9,6 +9,9 @@
   },
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "bin": {
+    "modash": "src/cli.ts"
+  },
   "exports": {
     ".": {
       "import": "./src/index.ts",
