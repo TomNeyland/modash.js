@@ -49,7 +49,7 @@
     "bench:operators": "node --import=tsx/esm benchmarks/bench-runner.js operators",
     "bench:pipelines": "node --import=tsx/esm benchmarks/bench-runner.js pipelines",
     "bench:delta": "node --import=tsx/esm benchmarks/bench-runner.js delta",
-    "bench:ci": "node --import=tsx/esm benchmarks/bench-runner.js pipelines",
+    "bench:ci": "node --import=tsx/esm benchmarks/ci-benchmark.js",
     "lint": "eslint src/ tests/ examples/",
     "lint:fix": "eslint src/ tests/ examples/ --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",

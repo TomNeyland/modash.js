@@ -1,13 +1,15 @@
+#!/usr/bin/env node
+
 import Modash from './src/modash/index.ts';
-import { createCrossfilterEngine } from './src/modash/crossfilter-engine.js';
+import { generateTestData } from './benchmarks/setup.js';
+import { canUseFastProject } from './src/modash/fast-project.ts';
+import { canUseFastGroup } from './src/modash/fast-group.ts';
 
-// Test data
-const testData = [
-  { _id: 1, item: 'laptop', category: 'electronics', price: 250, quantity: 10, active: true, date: new Date(2023, 4, 15) },
-  { _id: 2, item: 'mouse', category: 'electronics', price: 50, quantity: 5, active: true, date: new Date(2023, 3, 10) }
-];
+// Test the complex pipeline components
+const testData = generateTestData(100);
+console.log('Testing complex pipeline components...');
 
-// Complex pipeline from benchmark
+// Test the individual stages
 const complexPipeline = [
   { $match: { active: true, quantity: { $gt: 0 } } },
   {
@@ -29,41 +31,31 @@ const complexPipeline = [
   { $limit: 10 },
 ];
 
-// Test IVM compilation
-const engine = createCrossfilterEngine();
-
-// Add documents
-testData.forEach(doc => engine.addDocument(doc));
-
-// Compile the pipeline and check the execution plan
-console.log('\n📋 Testing complexPipeline compilation:');
-const executionPlan = engine.compilePipeline(complexPipeline);
-
-console.log('\nExecution Plan:', {
-  canIncrement: executionPlan.canIncrement,
-  canDecrement: executionPlan.canDecrement,
-  stages: executionPlan.stages.map(s => ({
-    type: s.type,
-    canIncrement: s.canIncrement,
-    canDecrement: s.canDecrement
-  }))
+console.log('Pipeline stages:');
+complexPipeline.forEach((stage, index) => {
+  console.log(`${index + 1}. ${Object.keys(stage)[0]}`);
 });
 
-// Check which stage is causing the issue
-executionPlan.stages.forEach((stage, i) => {
-  if (!stage.canIncrement || !stage.canDecrement) {
-    console.log(`\n❌ Stage ${i} (${stage.type}) cannot be incremented/decremented:`, {
-      canIncrement: stage.canIncrement,
-      canDecrement: stage.canDecrement,
-      stageData: stage.stageData
-    });
-  }
+// Check if individual stages can use fast implementations
+const projectStage = complexPipeline[1].$project;
+const groupStage = complexPipeline[2].$group;
+
+console.log('\nOptimization analysis:');
+console.log('Can use fast project:', canUseFastProject(projectStage));
+console.log('Can use fast group:', canUseFastGroup(groupStage));
+
+// Test the project stage expressions
+console.log('\nProject stage expressions:');
+Object.entries(projectStage).forEach(([field, expr]) => {
+  console.log(`${field}:`, JSON.stringify(expr));
 });
 
-// Try to execute
-try {
-  const result = engine.execute(complexPipeline);
-  console.log('\n✅ Execution succeeded:', result);
-} catch (error) {
-  console.log('\n❌ Execution failed:', error.message);
-}
+// Run the pipeline
+console.log('\nRunning pipeline...');
+const start = performance.now();
+const result = Modash.aggregate(testData, complexPipeline);
+const end = performance.now();
+
+console.log('Result length:', result.length);
+console.log('Time taken:', (end - start).toFixed(2), 'ms');
+console.log('Sample result:', result[0]);

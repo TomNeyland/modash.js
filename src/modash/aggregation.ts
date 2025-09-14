@@ -19,6 +19,7 @@ import {
 // Import ultra-fast implementations for critical operations
 import { fastMatch } from './fast-match.js';
 import { fastGroup, canUseFastGroup } from './fast-group.js';
+import { fastProject, canUseFastProject } from './fast-project.js';
 
 // Import complex types from main index for now
 import type {
@@ -73,11 +74,18 @@ type GroupResult = Record<string, DocumentValue>;
 /**
  * Reshapes each document in the stream, such as by adding new fields or
  * removing existing fields. For each input document, outputs one document.
+ * Now uses ultra-fast implementation for supported expressions.
  */
 function $project<T extends Document = Document>(
   collection: Collection<T>,
   specifications: ProjectStage['$project']
 ): Collection<T> {
+  // Use fast project implementation when possible
+  if (canUseFastProject(specifications)) {
+    return fastProject(collection, specifications);
+  }
+  
+  // Fall back to original implementation for unsupported expressions
   const specs = { ...specifications };
   if (!('_id' in specs)) {
     specs._id = 1;
