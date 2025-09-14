@@ -61,7 +61,9 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "validate": "npm run quality",
     "precommit": "npm run validate",
-    "ci": "npm run validate && npm run test:coverage && npm run test:performance"
+    "ci": "npm run validate && npm run test:coverage && npm run test:performance && npm run ci:regression-gates",
+    "ci:regression-gates": "node --import=tsx/esm ci-regression-gates.mjs",
+    "phase3:validate": "npm run ci:regression-gates"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
