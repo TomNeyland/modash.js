@@ -587,6 +587,14 @@ export class StreamingCollection<
   }
 
   /**
+   * Alias for stream method - provides compatible API with traditional aggregation
+   * Registers a pipeline for streaming updates and returns current result
+   */
+  aggregate(pipeline: Pipeline): Collection<Document> {
+    return this.stream(pipeline);
+  }
+
+  /**
    * Stop streaming updates for a pipeline
    */
   unstream(pipeline: Pipeline): void {
