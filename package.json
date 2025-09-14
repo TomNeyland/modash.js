@@ -45,6 +45,11 @@
     "test:performance": "node --import=tsx/esm benchmarks/performance-measurement.js",
     "test:watch": "mocha --import=tsx/esm --recursive tests/ --watch",
     "test:coverage": "c8 --reporter=lcov --reporter=text mocha --import=tsx/esm --recursive tests/",
+    "bench": "node --import=tsx/esm benchmarks/bench-runner.js",
+    "bench:operators": "node --import=tsx/esm benchmarks/bench-runner.js operators",
+    "bench:pipelines": "node --import=tsx/esm benchmarks/bench-runner.js pipelines",
+    "bench:delta": "node --import=tsx/esm benchmarks/bench-runner.js delta",
+    "bench:ci": "node --import=tsx/esm benchmarks/bench-runner.js pipelines",
     "lint": "eslint src/ tests/ examples/",
     "lint:fix": "eslint src/ tests/ examples/ --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
@@ -58,7 +63,7 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "validate": "npm run quality",
     "precommit": "npm run validate",
-    "ci": "npm run validate && npm run test:coverage && npm run test:performance"
+    "ci": "npm run validate && npm run test:coverage && npm run test:performance && npm run bench:ci"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
