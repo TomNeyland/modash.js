@@ -89,7 +89,9 @@ export class OptimizedMatchOperator implements IVMOperator {
     // Enforce no liveSet scan in snapshots
     const sourceIds = _context.upstreamActiveIds;
     if (!sourceIds) {
-      throw new Error('[IVM INVARIANT] Match.snapshot missing upstreamActiveIds');
+      throw new Error(
+        '[IVM INVARIANT] Match.snapshot missing upstreamActiveIds'
+      );
     }
 
     // Hot path: batch process for better cache locality
@@ -115,7 +117,9 @@ export class OptimizedMatchOperator implements IVMOperator {
   ): Document | null => {
     const upstream = context.getEffectiveUpstreamDocument?.(rowId) || null;
     if (!upstream && process.env.DEBUG_IVM === '1' && context.stageIndex > 0) {
-      throw new Error('[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0');
+      throw new Error(
+        '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
+      );
     }
     return upstream || store.documents[rowId] || null;
   };
@@ -226,7 +230,7 @@ export class GroupOperator implements IVMOperator {
 
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, _delta.rowId);
-    
+
     // Serialize group key for consistent Map indexing
     const groupKeyStr = this.serializeGroupKey(groupKey);
     if (process.env.DEBUG_GROUP_KEYS === '1') {
@@ -486,7 +490,9 @@ export class OptimizedSortOperator implements IVMOperator {
     // Use upstreamActiveIds from context
     const sourceRowIds = _context.upstreamActiveIds;
     if (!sourceRowIds) {
-      throw new Error('[IVM INVARIANT] Sort.snapshot missing upstreamActiveIds');
+      throw new Error(
+        '[IVM INVARIANT] Sort.snapshot missing upstreamActiveIds'
+      );
     }
 
     // Collect documents with their rowIds for sorting
@@ -494,11 +500,11 @@ export class OptimizedSortOperator implements IVMOperator {
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc =
-        _context.getEffectiveUpstreamDocument?.(rowId) ||
-        null;
+      const doc = _context.getEffectiveUpstreamDocument?.(rowId) || null;
       if (!doc && process.env.DEBUG_IVM === '1' && _context.stageIndex > 0) {
-        throw new Error('[IVM INVARIANT] $sort attempted store fallback beyond stage 0');
+        throw new Error(
+          '[IVM INVARIANT] $sort attempted store fallback beyond stage 0'
+        );
       }
       const eff = doc || _store.documents[rowId];
       if (eff) {
@@ -667,7 +673,9 @@ export class ProjectOperator implements IVMOperator {
     const sourceRowIds = _context.upstreamActiveIds;
     if (!sourceRowIds) {
       if (process.env.DEBUG_IVM === '1') {
-        throw new Error('[IVM INVARIANT] Project.snapshot missing upstreamActiveIds');
+        throw new Error(
+          '[IVM INVARIANT] Project.snapshot missing upstreamActiveIds'
+        );
       }
       return result;
     }
@@ -819,7 +827,9 @@ export class LimitOperator implements IVMOperator {
     // Pure rowId slicer - just take first N from upstream
     const sourceRowIds = _context.upstreamActiveIds;
     if (!sourceRowIds) {
-      throw new Error('[IVM INVARIANT] Limit.snapshot missing upstreamActiveIds');
+      throw new Error(
+        '[IVM INVARIANT] Limit.snapshot missing upstreamActiveIds'
+      );
     }
     return sourceRowIds.slice(0, this.limitValue);
   }
@@ -832,7 +842,9 @@ export class LimitOperator implements IVMOperator {
   ): Document | null => {
     const upstream = context.getEffectiveUpstreamDocument?.(rowId) || null;
     if (!upstream && process.env.DEBUG_IVM === '1' && context.stageIndex > 0) {
-      throw new Error('[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0');
+      throw new Error(
+        '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
+      );
     }
     return upstream || store.documents[rowId] || null;
   };
@@ -880,7 +892,9 @@ export class SkipOperator implements IVMOperator {
     // Pure rowId slicer - skip first N from upstream
     const sourceRowIds = _context.upstreamActiveIds;
     if (!sourceRowIds) {
-      throw new Error('[IVM INVARIANT] Skip.snapshot missing upstreamActiveIds');
+      throw new Error(
+        '[IVM INVARIANT] Skip.snapshot missing upstreamActiveIds'
+      );
     }
     return sourceRowIds.slice(this.skipValue);
   }

@@ -377,7 +377,9 @@ export class ZeroAllocEngine {
       const usingGroups = Array.isArray(groupResults);
 
       // Create sorting pairs from appropriate source
-      const pairs: Array<{ rowId: number; value: any }> = new Array(context.activeCount);
+      const pairs: Array<{ rowId: number; value: any }> = new Array(
+        context.activeCount
+      );
       if (usingGroups) {
         for (let i = 0; i < context.activeCount; i++) {
           const idx = i; // current index corresponds to group result index prior to sort
@@ -430,7 +432,10 @@ export class ZeroAllocEngine {
       const usingGroups = Array.isArray((context as any)._groupResults);
       if (usingGroups) {
         // Limit group results directly
-        (context as any)._groupResults = (context as any)._groupResults.slice(0, count);
+        (context as any)._groupResults = (context as any)._groupResults.slice(
+          0,
+          count
+        );
         (context as any)._groupIndexModeActive = true;
         for (let i = 0; i < count; i++) {
           context.scratchBuffer[i] = i;

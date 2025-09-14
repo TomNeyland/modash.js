@@ -544,11 +544,13 @@ function $group<T extends Document = Document>(
 
   // Process groups - A) Stable ordering: sort groups by deterministic JSON-stable key
   const results: Document[] = [];
-  const sortedGroupEntries = Array.from(groupsMap.entries()).sort(([keyA], [keyB]) => {
-    // Sort by the JSON string representation for deterministic ordering
-    return keyA.localeCompare(keyB);
-  });
-  
+  const sortedGroupEntries = Array.from(groupsMap.entries()).sort(
+    ([keyA], [keyB]) => {
+      // Sort by the JSON string representation for deterministic ordering
+      return keyA.localeCompare(keyB);
+    }
+  );
+
   for (const [groupKey, members] of sortedGroupEntries) {
     const result: GroupResult = {};
     for (const [field, fieldSpec] of Object.entries(specifications)) {

@@ -104,7 +104,10 @@ export function resetOptimizerRejections(): void {
 function canUseHotPath(pipeline: Pipeline): boolean {
   // D) Pipeline Input Validation - Double-check pipeline is an array
   if (!Array.isArray(pipeline)) {
-    recordOptimizerRejection(pipeline as any, `Pipeline is not an array: ${typeof pipeline}`);
+    recordOptimizerRejection(
+      pipeline as any,
+      `Pipeline is not an array: ${typeof pipeline}`
+    );
     return false;
   }
 
@@ -344,7 +347,7 @@ function isSimpleGroup(groupSpec: any): boolean {
     if (ops.length !== 1) return false;
 
     const [op, value] = ops[0];
-    
+
     // Phase 3: Enhanced accumulator support including vectorized $addToSet and $push
     const supportedOps = [
       '$sum',

@@ -550,7 +550,12 @@ export class StreamingCollection<
           console.warn(msg);
           recordFallback(pipeline, msg, { code: 'ivm_hotpath_mismatch' });
           // Print small diffs (size + first 2 entries)
-          console.warn('IVM length:', ivmResult.length, 'HotPath length:', hotPathResult.length);
+          console.warn(
+            'IVM length:',
+            ivmResult.length,
+            'HotPath length:',
+            hotPathResult.length
+          );
           console.warn('IVM[0..1]:', JSON.stringify(ivmResult.slice(0, 2)));
           console.warn('HP [0..1]:', JSON.stringify(hotPathResult.slice(0, 2)));
         }
@@ -603,7 +608,11 @@ export class StreamingCollection<
       // Lazy-compile IVM plan on first update
       if (!state._ivmEngine || !state._executionPlan) {
         try {
-          logPipelineExecution('compile', 'Compiling pipeline (lazy)', pipeline);
+          logPipelineExecution(
+            'compile',
+            'Compiling pipeline (lazy)',
+            pipeline
+          );
           const plan = this.ivmEngine.compilePipeline(pipeline);
           (state as any)._ivmEngine = this.ivmEngine;
           (state as any)._executionPlan = plan;
@@ -617,7 +626,12 @@ export class StreamingCollection<
         }
       }
 
-      if (state._ivmEngine && state._executionPlan && state.canIncrement && state.canDecrement) {
+      if (
+        state._ivmEngine &&
+        state._executionPlan &&
+        state.canIncrement &&
+        state.canDecrement
+      ) {
         // Create deltas for the row changes
         const deltas: Delta[] = rowIds.map(rowId => ({
           rowId,
@@ -736,21 +750,28 @@ export class StreamingCollection<
   /**
    * B) Parity validation: Compare two aggregation results for equality
    */
-  private compareResults(result1: Collection<Document>, result2: Collection<Document>): boolean {
+  private compareResults(
+    result1: Collection<Document>,
+    result2: Collection<Document>
+  ): boolean {
     if (result1.length !== result2.length) {
       return false;
     }
-    
+
     // Sort both results for comparison (since order might vary)
-    const sorted1 = [...result1].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    const sorted2 = [...result2].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    
+    const sorted1 = [...result1].sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+    const sorted2 = [...result2].sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+
     for (let i = 0; i < sorted1.length; i++) {
       if (JSON.stringify(sorted1[i]) !== JSON.stringify(sorted2[i])) {
         return false;
       }
     }
-    
+
     return true;
   }
 }
