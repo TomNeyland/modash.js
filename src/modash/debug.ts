@@ -1,5 +1,6 @@
 /**
  * Minimal debug infrastructure for IVM fallback diagnosis
+ * Phase 3.5: Enhanced with text and regex prefiltering metrics
  */
 
 export const DEBUG =
@@ -9,6 +10,25 @@ export const DEBUG =
 let fallbackCount = 0;
 const fallbackErrors: Array<{ pipeline: any; error: string; stack?: string }> =
   [];
+
+// Phase 3.5: Text and regex prefiltering metrics
+interface PrefilterMetrics {
+  textSearchQueries: number;
+  regexSearchQueries: number;
+  bloomFilterHits: number;
+  candidateReductions: number;
+  averageReductionRate: number;
+  falsePositiveRate: number;
+}
+
+let prefilterMetrics: PrefilterMetrics = {
+  textSearchQueries: 0,
+  regexSearchQueries: 0,
+  bloomFilterHits: 0,
+  candidateReductions: 0,
+  averageReductionRate: 0,
+  falsePositiveRate: 0,
+};
 
 export function resetFallbackTracking(): void {
   fallbackCount = 0;
@@ -30,6 +50,118 @@ export function getFallbackCount(): number {
 
 export function getFallbackErrors(): typeof fallbackErrors {
   return [...fallbackErrors];
+}
+
+/**
+ * Phase 3.5: Record text search prefiltering metrics
+ */
+export function recordTextSearchMetrics(
+  candidatesBefore: number,
+  candidatesAfter: number,
+  actualMatches: number,
+  prefilterUsed: boolean
+): void {
+  prefilterMetrics.textSearchQueries++;
+  
+  if (prefilterUsed) {
+    prefilterMetrics.bloomFilterHits++;
+    prefilterMetrics.candidateReductions += candidatesBefore - candidatesAfter;
+    
+    const reductionRate = candidatesBefore > 0 ? 
+      (candidatesBefore - candidatesAfter) / candidatesBefore : 0;
+    prefilterMetrics.averageReductionRate = (
+      (prefilterMetrics.averageReductionRate * (prefilterMetrics.bloomFilterHits - 1) + reductionRate) /
+      prefilterMetrics.bloomFilterHits
+    );
+    
+    if (candidatesAfter > actualMatches) {
+      const fpRate = (candidatesAfter - actualMatches) / candidatesAfter;
+      prefilterMetrics.falsePositiveRate = (
+        (prefilterMetrics.falsePositiveRate * (prefilterMetrics.bloomFilterHits - 1) + fpRate) /
+        prefilterMetrics.bloomFilterHits
+      );
+    }
+  }
+  
+  if (DEBUG) {
+    console.log(`🔍 Text search: ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`);
+    if (prefilterUsed) {
+      console.log(`📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`);
+    }
+  }
+}
+
+/**
+ * Phase 3.5: Record regex search prefiltering metrics
+ */
+export function recordRegexSearchMetrics(
+  candidatesBefore: number,
+  candidatesAfter: number,
+  actualMatches: number,
+  prefilterUsed: boolean,
+  pattern: string
+): void {
+  prefilterMetrics.regexSearchQueries++;
+  
+  if (prefilterUsed) {
+    prefilterMetrics.bloomFilterHits++;
+    prefilterMetrics.candidateReductions += candidatesBefore - candidatesAfter;
+    
+    const reductionRate = candidatesBefore > 0 ? 
+      (candidatesBefore - candidatesAfter) / candidatesBefore : 0;
+    prefilterMetrics.averageReductionRate = (
+      (prefilterMetrics.averageReductionRate * (prefilterMetrics.bloomFilterHits - 1) + reductionRate) /
+      prefilterMetrics.bloomFilterHits
+    );
+  }
+  
+  if (DEBUG) {
+    console.log(`🔍 Regex search "${pattern}": ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`);
+    if (prefilterUsed) {
+      console.log(`📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`);
+    } else {
+      console.log(`⚠️  Prefilter skipped for pattern: "${pattern}"`);
+    }
+  }
+}
+
+/**
+ * Phase 3.5: Get prefiltering statistics
+ */
+export function getPrefilterMetrics(): PrefilterMetrics {
+  return { ...prefilterMetrics };
+}
+
+/**
+ * Phase 3.5: Reset prefiltering metrics
+ */
+export function resetPrefilterMetrics(): void {
+  prefilterMetrics = {
+    textSearchQueries: 0,
+    regexSearchQueries: 0,
+    bloomFilterHits: 0,
+    candidateReductions: 0,
+    averageReductionRate: 0,
+    falsePositiveRate: 0,
+  };
+}
+
+/**
+ * Phase 3.5: Log comprehensive performance summary
+ */
+export function logPerformanceSummary(): void {
+  if (!DEBUG) return;
+  
+  console.log('\n📊 Phase 3.5 Performance Summary');
+  console.log('═══════════════════════════════════');
+  console.log(`🔍 Text searches: ${prefilterMetrics.textSearchQueries}`);
+  console.log(`🔍 Regex searches: ${prefilterMetrics.regexSearchQueries}`);
+  console.log(`⚡ Bloom filter hits: ${prefilterMetrics.bloomFilterHits}`);
+  console.log(`📉 Total candidate reductions: ${prefilterMetrics.candidateReductions}`);
+  console.log(`📊 Average reduction rate: ${(prefilterMetrics.averageReductionRate * 100).toFixed(1)}%`);
+  console.log(`⚠️  False positive rate: ${(prefilterMetrics.falsePositiveRate * 100).toFixed(2)}%`);
+  console.log(`❌ Fallbacks: ${fallbackCount}`);
+  console.log('═══════════════════════════════════\n');
 }
 
 /**
