@@ -13,7 +13,10 @@ import {
 } from './aggregation';
 import { count } from './count';
 import { $expression } from './expressions';
-import type { Document as PublicDocument, Collection as PublicCollection } from '../index';
+import type {
+  Document as PublicDocument,
+  Collection as PublicCollection,
+} from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
 import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
@@ -35,7 +38,10 @@ const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
   }
 
   // Route to hot path for maximum performance
-  return hotPathAggregate(collection as any, pipeline) as unknown as PublicCollection<T>;
+  return hotPathAggregate(
+    collection as any,
+    pipeline
+  ) as unknown as PublicCollection<T>;
 };
 
 /**
@@ -48,7 +54,10 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
 ): PublicCollection<T> => {
   // For regular collections, use hot path optimization
   if (!(collection instanceof StreamingCollection)) {
-    return optimizedAggregate(collection as any, pipeline) as PublicCollection<T>;
+    return optimizedAggregate(
+      collection as any,
+      pipeline
+    ) as PublicCollection<T>;
   }
 
   // For streaming collections, use streaming path

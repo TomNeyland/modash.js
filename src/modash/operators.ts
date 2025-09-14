@@ -653,7 +653,7 @@ function $coalesce(...values: EvaluatableValue[]): DocumentValue {
 // Type checking operators
 function $type(value: EvaluatableValue): string {
   const val = evaluate(value);
-  
+
   if (val === null) return 'null';
   if (val === undefined) return 'undefined';
   if (Array.isArray(val)) return 'array';
@@ -662,7 +662,7 @@ function $type(value: EvaluatableValue): string {
   if (typeof val === 'string') return 'string';
   if (typeof val === 'number') return 'number';
   if (typeof val === 'boolean') return 'bool';
-  
+
   return 'unknown';
 }
 
@@ -679,14 +679,18 @@ function $isArray(value: EvaluatableValue): boolean {
 // Object composition operator
 function $mergeObjects(...objects: EvaluatableValue[]): Document {
   const result: Document = {};
-  
+
   for (const obj of objects) {
     const evaluated = evaluate(obj);
-    if (evaluated && typeof evaluated === 'object' && !Array.isArray(evaluated)) {
+    if (
+      evaluated &&
+      typeof evaluated === 'object' &&
+      !Array.isArray(evaluated)
+    ) {
       Object.assign(result, evaluated);
     }
   }
-  
+
   return result;
 }
 
@@ -787,15 +791,15 @@ const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   $ifNull,
   $switch: () => null, // Special operator handled in expressions.ts
   $coalesce,
-  
+
   // Type checking
   $type,
   $isNumber,
   $isArray,
-  
+
   // Object composition
   $mergeObjects,
-  
+
   // Array accumulation
   $reduce: () => null, // Special operator handled in expressions.ts
 };

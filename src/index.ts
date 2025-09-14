@@ -13,12 +13,10 @@ import type {
   PrimitiveValue as _PrimitiveValue,
   DocumentValue as _DocumentValue,
   Document as _ImplDocument,
-} from './modash/expressions';
-import type { DeepReadonly } from './modash/types';
-import type {
   FieldPath as PublicFieldPath,
   SystemVariable as PublicSystemVariable,
 } from './modash/expressions';
+import type { DeepReadonly } from './modash/types';
 
 export type PrimitiveValue = _PrimitiveValue;
 export type DocumentValue = _DocumentValue;
@@ -335,7 +333,9 @@ export interface ModashStatic {
    * @param pipeline - Pipeline to analyze
    * @returns Detailed pipeline analysis
    */
-  explain(pipeline: Pipeline): import('./modash/api-enhancements').PipelineExplanation;
+  explain(
+    pipeline: Pipeline
+  ): import('./modash/api-enhancements').PipelineExplanation;
 
   /**
    * Phase 6: Benchmarks a pipeline with performance metrics
@@ -468,10 +468,7 @@ export {
 } from './modash/bloom-filter';
 
 // Phase 3.5: Export enhanced search types
-export type {
-  TextSearchStats,
-  TextSearchConfig,
-} from './modash/text-search';
+export type { TextSearchStats, TextSearchConfig } from './modash/text-search';
 
 export type {
   RegexSearchStats,

@@ -118,10 +118,11 @@ export function isEqual(a: any, b: any): boolean {
  */
 export function intersection<T>(...arrays: T[][]): T[] {
   if (arrays.length === 0) return [];
-  return arrays.slice(1).reduce<T[]>(
-    (acc, arr) => acc.filter(item => arr.includes(item)),
-    arrays[0]
-  );
+  return arrays
+    .slice(1)
+    .reduce<
+      T[]
+    >((acc, arr) => acc.filter(item => arr.includes(item)), arrays[0]);
 }
 
 /**
@@ -137,7 +138,10 @@ export function union<T>(...arrays: T[][]): T[] {
 export function difference<T>(...arrays: T[][]): T[] {
   if (arrays.length === 0) return [];
   const [first, ...rest] = arrays;
-  return rest.reduce<T[]>((acc, arr) => acc.filter(item => !arr.includes(item)), first);
+  return rest.reduce<T[]>(
+    (acc, arr) => acc.filter(item => !arr.includes(item)),
+    first
+  );
 }
 
 /**

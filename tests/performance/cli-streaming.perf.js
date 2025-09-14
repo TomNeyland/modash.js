@@ -18,7 +18,7 @@ function ensureFixture(name) {
     console.log(`\n⚡ Generating missing fixture: ${name}`);
     execSync(`npx tsx scripts/generate-large-fixtures.ts`, {
       stdio: 'inherit',
-      cwd: path.join(__dirname, '../..')
+      cwd: path.join(__dirname, '../..'),
     });
   }
 
@@ -26,7 +26,12 @@ function ensureFixture(name) {
 }
 
 // Helper to measure streaming performance
-function measureStreamingPerformance(name, fixturePath, pipeline, options = {}) {
+function measureStreamingPerformance(
+  name,
+  fixturePath,
+  pipeline,
+  options = {}
+) {
   return new Promise((resolve, reject) => {
     const startTime = process.hrtime.bigint();
     const startMem = process.memoryUsage();
@@ -38,19 +43,22 @@ function measureStreamingPerformance(name, fixturePath, pipeline, options = {}) 
     let errorBuffer = '';
 
     const child = spawn('sh', ['-c', command], {
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    child.stdout.on('data', (chunk) => {
+    child.stdout.on('data', chunk => {
       outputBuffer += chunk.toString();
-      outputLines += chunk.toString().split('\n').filter(line => line.trim()).length;
+      outputLines += chunk
+        .toString()
+        .split('\n')
+        .filter(line => line.trim()).length;
     });
 
-    child.stderr.on('data', (chunk) => {
+    child.stderr.on('data', chunk => {
       errorBuffer += chunk.toString();
     });
 
-    child.on('close', (code) => {
+    child.on('close', code => {
       const endTime = process.hrtime.bigint();
       const endMem = process.memoryUsage();
       const duration = Number(endTime - startTime) / 1_000_000; // Convert to ms
@@ -64,12 +72,14 @@ function measureStreamingPerformance(name, fixturePath, pipeline, options = {}) 
       // Parse performance stats if --stats was used
       let stats = null;
       if (options.stats && errorBuffer.includes('Performance Stats')) {
-        const throughputMatch = errorBuffer.match(/Throughput: ([\d,]+) docs\/sec/);
+        const throughputMatch = errorBuffer.match(
+          /Throughput: ([\d,]+) docs\/sec/
+        );
         const timeMatch = errorBuffer.match(/Execution time: ([\d.]+)ms/);
         if (throughputMatch) {
           stats = {
             throughput: parseInt(throughputMatch[1].replace(/,/g, '')),
-            reportedTime: timeMatch ? parseFloat(timeMatch[1]) : null
+            reportedTime: timeMatch ? parseFloat(timeMatch[1]) : null,
           };
         }
       }
@@ -80,7 +90,7 @@ function measureStreamingPerformance(name, fixturePath, pipeline, options = {}) 
         memory: Math.round(memDelta * 100) / 100,
         outputLines,
         stats,
-        code
+        code,
       });
     });
 
@@ -88,7 +98,7 @@ function measureStreamingPerformance(name, fixturePath, pipeline, options = {}) 
   });
 }
 
-describe('CLI Streaming Performance Tests', function() {
+describe('CLI Streaming Performance Tests', function () {
   // Increase timeout for large data processing
   this.timeout(120000);
 
@@ -103,7 +113,9 @@ describe('CLI Streaming Performance Tests', function() {
       'Time (ms)': r.duration,
       'Memory (MB)': r.memory,
       'Output Lines': r.outputLines,
-      'Throughput': r.throughput ? `${r.throughput.toLocaleString()} docs/sec` : 'N/A',
+      Throughput: r.throughput
+        ? `${r.throughput.toLocaleString()} docs/sec`
+        : 'N/A',
     }));
 
     console.table(table);
@@ -119,9 +131,9 @@ describe('CLI Streaming Performance Tests', function() {
             _id: null,
             totalRevenue: { $sum: '$totalAmount' },
             orderCount: { $sum: 1 },
-            avgOrderValue: { $avg: '$totalAmount' }
-          }
-        }
+            avgOrderValue: { $avg: '$totalAmount' },
+          },
+        },
       ];
 
       const result = await measureStreamingPerformance(
@@ -144,10 +156,10 @@ describe('CLI Streaming Performance Tests', function() {
             _id: '$status',
             count: { $sum: 1 },
             totalRevenue: { $sum: '$totalAmount' },
-            avgOrderValue: { $avg: '$totalAmount' }
-          }
+            avgOrderValue: { $avg: '$totalAmount' },
+          },
         },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
       ];
 
       const result = await measureStreamingPerformance(
@@ -170,12 +182,14 @@ describe('CLI Streaming Performance Tests', function() {
         {
           $group: {
             _id: '$items.category',
-            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            itemCount: { $sum: '$items.quantity' }
-          }
+            revenue: {
+              $sum: { $multiply: ['$items.price', '$items.quantity'] },
+            },
+            itemCount: { $sum: '$items.quantity' },
+          },
         },
         { $sort: { revenue: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ];
 
       const result = await measureStreamingPerformance(
@@ -197,9 +211,9 @@ describe('CLI Streaming Performance Tests', function() {
           $group: {
             _id: '$paymentMethod',
             count: { $sum: 1 },
-            totalRevenue: { $sum: '$totalAmount' }
-          }
-        }
+            totalRevenue: { $sum: '$totalAmount' },
+          },
+        },
       ];
 
       const result = await measureStreamingPerformance(
@@ -218,7 +232,7 @@ describe('CLI Streaming Performance Tests', function() {
   describe('1M Orders - Large Scale Streaming', () => {
     const fixturePath = path.join(LARGE_FIXTURES_DIR, 'orders-1m.jsonl');
 
-    before(function() {
+    before(function () {
       if (!fs.existsSync(fixturePath)) {
         console.log('⚠️  Skipping 1M orders tests - fixture not generated yet');
         console.log('   Run: npm run fixtures:large:generate orders');
@@ -232,9 +246,9 @@ describe('CLI Streaming Performance Tests', function() {
           $group: {
             _id: null,
             totalRevenue: { $sum: '$totalAmount' },
-            orderCount: { $sum: 1 }
-          }
-        }
+            orderCount: { $sum: 1 },
+          },
+        },
       ];
 
       const result = await measureStreamingPerformance(
@@ -256,14 +270,14 @@ describe('CLI Streaming Performance Tests', function() {
           $group: {
             _id: {
               status: '$status',
-              priority: '$priority'
+              priority: '$priority',
             },
             count: { $sum: 1 },
-            avgAmount: { $avg: '$totalAmount' }
-          }
+            avgAmount: { $avg: '$totalAmount' },
+          },
         },
         { $sort: { count: -1 } },
-        { $limit: 20 }
+        { $limit: 20 },
       ];
 
       const result = await measureStreamingPerformance(
@@ -286,7 +300,7 @@ describe('CLI Streaming Performance Tests', function() {
       // Test with streaming (cat | cli)
       const streamPipeline = [
         { $match: { status: 'delivered' } },
-        { $group: { _id: null, count: { $sum: 1 } } }
+        { $group: { _id: null, count: { $sum: 1 } } },
       ];
 
       const streamResult = await measureStreamingPerformance(
@@ -311,7 +325,9 @@ describe('CLI Streaming Performance Tests', function() {
       console.log('\n📈 Streaming vs File Loading:');
       console.log(`   Streaming: ${streamResult.duration}ms`);
       console.log(`   File Load: ${Math.round(fileDuration)}ms`);
-      console.log(`   Advantage: ${Math.round(((fileDuration - streamResult.duration) / fileDuration) * 100)}% faster`);
+      console.log(
+        `   Advantage: ${Math.round(((fileDuration - streamResult.duration) / fileDuration) * 100)}% faster`
+      );
 
       expect(streamResult.duration).to.be.lessThan(fileDuration * 1.5); // Streaming should be comparable or faster
     });
@@ -337,7 +353,7 @@ describe('CLI Streaming Performance Tests', function() {
     it('should handle --pretty option with streaming', async () => {
       const pipeline = [
         { $group: { _id: '$status', count: { $sum: 1 } } },
-        { $limit: 2 }
+        { $limit: 2 },
       ];
 
       const command = `cat ${fixturePath} | node ${CLI_PATH} '${JSON.stringify(pipeline)}' --pretty`;
@@ -363,15 +379,15 @@ describe('CLI Streaming Performance Tests', function() {
         {
           $group: {
             _id: '$status',
-            orders: { $push: '$orderId' } // This could use a lot of memory
-          }
+            orders: { $push: '$orderId' }, // This could use a lot of memory
+          },
         },
         {
           $project: {
             status: '$_id',
-            orderCount: { $size: '$orders' }
-          }
-        }
+            orderCount: { $size: '$orders' },
+          },
+        },
       ];
 
       const result = await measureStreamingPerformance(

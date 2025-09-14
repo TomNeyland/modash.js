@@ -11,4 +11,3 @@
   "include": ["src/types-entry.ts"],
   "exclude": ["node_modules", "dist"]
 }
-

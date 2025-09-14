@@ -6,7 +6,7 @@ import {
   loadFixture,
   measurePerformance,
   assertCloseTo,
-  formatPerformanceReport
+  formatPerformanceReport,
 } from './test-helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,8 +19,14 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   before(() => {
     // Load fixtures with deep date parsing
-    const ordersPath = path.join(__dirname, '../../fixtures/ecommerce-orders.jsonl');
-    const customersPath = path.join(__dirname, '../../fixtures/ecommerce-customers.jsonl');
+    const ordersPath = path.join(
+      __dirname,
+      '../../fixtures/ecommerce-orders.jsonl'
+    );
+    const customersPath = path.join(
+      __dirname,
+      '../../fixtures/ecommerce-customers.jsonl'
+    );
 
     orders = loadFixture(ordersPath) || generateOrdersFixture(100);
     customers = loadFixture(customersPath) || generateCustomersFixture(20);
@@ -43,9 +49,9 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
               _id: null,
               totalRevenue: { $sum: '$totalAmount' },
               orderCount: { $sum: 1 },
-              avgOrderValue: { $avg: '$totalAmount' }
-            }
-          }
+              avgOrderValue: { $avg: '$totalAmount' },
+            },
+          },
         ]);
       });
       performanceResults.push(perf);
@@ -62,13 +68,19 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: '$status',
             count: { $sum: 1 },
-            totalValue: { $sum: '$totalAmount' }
-          }
+            totalValue: { $sum: '$totalAmount' },
+          },
         },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
       ]);
 
-      const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      const statuses = [
+        'pending',
+        'processing',
+        'shipped',
+        'delivered',
+        'cancelled',
+      ];
       result.forEach(group => {
         expect(statuses).to.include(group._id);
         expect(group.count).to.be.at.least(0);
@@ -82,21 +94,21 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         {
           $addFields: {
             orderMonth: { $month: '$orderDate' },
-            orderYear: { $year: '$orderDate' }
-          }
+            orderYear: { $year: '$orderDate' },
+          },
         },
         {
           $group: {
             _id: {
               year: '$orderYear',
-              month: '$orderMonth'
+              month: '$orderMonth',
             },
             orders: { $sum: 1 },
             revenue: { $sum: '$totalAmount' },
-            avgOrderValue: { $avg: '$totalAmount' }
-          }
+            avgOrderValue: { $avg: '$totalAmount' },
+          },
         },
-        { $sort: { '_id.year': -1, '_id.month': -1 } }
+        { $sort: { '_id.year': -1, '_id.month': -1 } },
       ]);
 
       result.forEach(period => {
@@ -110,18 +122,18 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       const result = Modash.aggregate(orders, [
         {
           $addFields: {
-            orderHour: { $hour: '$orderDate' }
-          }
+            orderHour: { $hour: '$orderDate' },
+          },
         },
         {
           $group: {
             _id: '$orderHour',
             orderCount: { $sum: 1 },
-            totalRevenue: { $sum: '$totalAmount' }
-          }
+            totalRevenue: { $sum: '$totalAmount' },
+          },
         },
         { $sort: { orderCount: -1 } },
-        { $limit: 5 }
+        { $limit: 5 },
       ]);
 
       expect(result.length).to.be.at.most(5);
@@ -136,17 +148,17 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       let result;
       const perf = measurePerformance('Top Customers Query', () => {
         result = Modash.aggregate(orders, [
-        {
-          $group: {
-            _id: '$customerId',
-            totalSpent: { $sum: '$totalAmount' },
-            orderCount: { $sum: 1 },
-            avgOrderValue: { $avg: '$totalAmount' }
-          }
-        },
-        { $sort: { totalSpent: -1 } },
-        { $limit: 10 }
-      ]);
+          {
+            $group: {
+              _id: '$customerId',
+              totalSpent: { $sum: '$totalAmount' },
+              orderCount: { $sum: 1 },
+              avgOrderValue: { $avg: '$totalAmount' },
+            },
+          },
+          { $sort: { totalSpent: -1 } },
+          { $limit: 10 },
+        ]);
       });
       performanceResults.push(perf);
 
@@ -164,8 +176,8 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
             from: customers,
             localField: 'customerId',
             foreignField: '_id',
-            as: 'customerInfo'
-          }
+            as: 'customerInfo',
+          },
         },
         { $unwind: '$customerInfo' },
         {
@@ -174,15 +186,17 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
             customerName: '$customerInfo.name',
             customerTier: '$customerInfo.tier',
             orderAmount: '$totalAmount',
-            orderStatus: '$status'
-          }
-        }
+            orderStatus: '$status',
+          },
+        },
       ]);
 
       result.forEach(order => {
         expect(order).to.have.property('customerName');
         expect(order).to.have.property('customerTier');
-        expect(['bronze', 'silver', 'gold', 'platinum']).to.include(order.customerTier);
+        expect(['bronze', 'silver', 'gold', 'platinum']).to.include(
+          order.customerTier
+        );
       });
     });
   });
@@ -195,16 +209,18 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: '$items.category',
             itemsSold: { $sum: '$items.quantity' },
-            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            uniqueProducts: { $addToSet: '$items.name' }
-          }
+            revenue: {
+              $sum: { $multiply: ['$items.price', '$items.quantity'] },
+            },
+            uniqueProducts: { $addToSet: '$items.name' },
+          },
         },
         {
           $addFields: {
-            productVariety: { $size: '$uniqueProducts' }
-          }
+            productVariety: { $size: '$uniqueProducts' },
+          },
         },
-        { $sort: { revenue: -1 } }
+        { $sort: { revenue: -1 } },
       ]);
 
       result.forEach(category => {
@@ -220,18 +236,18 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
           $addFields: {
             basketSize: { $size: '$items' },
             basketValue: '$totalAmount',
-            avgItemPrice: { $divide: ['$totalAmount', { $size: '$items' }] }
-          }
+            avgItemPrice: { $divide: ['$totalAmount', { $size: '$items' }] },
+          },
         },
         {
           $group: {
             _id: '$basketSize',
             orderCount: { $sum: 1 },
             avgBasketValue: { $avg: '$basketValue' },
-            avgItemPrice: { $avg: '$avgItemPrice' }
-          }
+            avgItemPrice: { $avg: '$avgItemPrice' },
+          },
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: 1 } },
       ]);
 
       result.forEach(basket => {
@@ -249,15 +265,15 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
             _id: '$priority',
             orderCount: { $sum: 1 },
             avgOrderValue: { $avg: '$totalAmount' },
-            totalRevenue: { $sum: '$totalAmount' }
-          }
+            totalRevenue: { $sum: '$totalAmount' },
+          },
         },
         {
           $addFields: {
-            revenuePerOrder: { $divide: ['$totalRevenue', '$orderCount'] }
-          }
+            revenuePerOrder: { $divide: ['$totalRevenue', '$orderCount'] },
+          },
         },
-        { $sort: { revenuePerOrder: -1 } }
+        { $sort: { revenuePerOrder: -1 } },
       ]);
 
       const priorities = ['standard', 'express', 'overnight'];
@@ -273,14 +289,14 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: {
               country: '$shippingAddress.country',
-              state: '$shippingAddress.state'
+              state: '$shippingAddress.state',
             },
             orderCount: { $sum: 1 },
-            totalRevenue: { $sum: '$totalAmount' }
-          }
+            totalRevenue: { $sum: '$totalAmount' },
+          },
         },
         { $sort: { orderCount: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]);
 
       result.forEach(location => {
@@ -296,31 +312,39 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         {
           $group: {
             _id: null,
-            total: { $sum: '$totalAmount' }
-          }
-        }
+            total: { $sum: '$totalAmount' },
+          },
+        },
       ])[0].total;
 
       const groupedByStatus = Modash.aggregate(orders, [
         {
           $group: {
             _id: '$status',
-            revenue: { $sum: '$totalAmount' }
-          }
-        }
+            revenue: { $sum: '$totalAmount' },
+          },
+        },
       ]);
 
-      const groupedRevenue = groupedByStatus.reduce((sum, group) => sum + group.revenue, 0);
+      const groupedRevenue = groupedByStatus.reduce(
+        (sum, group) => sum + group.revenue,
+        0
+      );
 
       // Use reasonable tolerance for floating point arithmetic
-      assertCloseTo(totalRevenue, groupedRevenue, 0.1, 'Sum of grouped revenues should equal total revenue');
+      assertCloseTo(
+        totalRevenue,
+        groupedRevenue,
+        0.1,
+        'Sum of grouped revenues should equal total revenue'
+      );
     });
 
     it('should preserve order count across transformations', () => {
       const originalCount = orders.length;
 
       const afterFilter = Modash.aggregate(orders, [
-        { $match: { totalAmount: { $gte: 0 } } }
+        { $match: { totalAmount: { $gte: 0 } } },
       ]).length;
 
       const afterUnwindRegroup = Modash.aggregate(orders, [
@@ -328,9 +352,9 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         {
           $group: {
             _id: '$_id',
-            order: { $first: '$$ROOT' }
-          }
-        }
+            order: { $first: '$$ROOT' },
+          },
+        },
       ]).length;
 
       expect(afterFilter).to.equal(originalCount);
@@ -346,9 +370,9 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         {
           $group: {
             _id: '$status',
-            count: { $sum: 1 }
-          }
-        }
+            count: { $sum: 1 },
+          },
+        },
       ]);
 
       // Group then filter
@@ -356,21 +380,25 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         {
           $group: {
             _id: { status: '$status', orderId: '$_id' },
-            amount: { $first: '$totalAmount' }
-          }
+            amount: { $first: '$totalAmount' },
+          },
         },
         { $match: { amount: { $gte: threshold } } },
         {
           $group: {
             _id: '$_id.status',
-            count: { $sum: 1 }
-          }
-        }
+            count: { $sum: 1 },
+          },
+        },
       ]);
 
       // Convert to maps for comparison
-      const filterFirstMap = new Map(filterFirst.map(item => [item._id, item.count]));
-      const groupFirstMap = new Map(groupFirst.map(item => [item._id, item.count]));
+      const filterFirstMap = new Map(
+        filterFirst.map(item => [item._id, item.count])
+      );
+      const groupFirstMap = new Map(
+        groupFirst.map(item => [item._id, item.count])
+      );
 
       filterFirstMap.forEach((count, status) => {
         expect(groupFirstMap.get(status)).to.equal(count);
@@ -381,34 +409,39 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       const firstHalf = orders.slice(0, Math.floor(orders.length / 2));
       const secondHalf = orders.slice(Math.floor(orders.length / 2));
 
-      const firstHalfRevenue = Modash.aggregate(firstHalf, [
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalAmount' }
-          }
-        }
-      ])[0]?.total || 0;
+      const firstHalfRevenue =
+        Modash.aggregate(firstHalf, [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$totalAmount' },
+            },
+          },
+        ])[0]?.total || 0;
 
-      const secondHalfRevenue = Modash.aggregate(secondHalf, [
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalAmount' }
-          }
-        }
-      ])[0]?.total || 0;
+      const secondHalfRevenue =
+        Modash.aggregate(secondHalf, [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$totalAmount' },
+            },
+          },
+        ])[0]?.total || 0;
 
-      const totalRevenue = Modash.aggregate(orders, [
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalAmount' }
-          }
-        }
-      ])[0]?.total || 0;
+      const totalRevenue =
+        Modash.aggregate(orders, [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$totalAmount' },
+            },
+          },
+        ])[0]?.total || 0;
 
-      expect(Math.abs((firstHalfRevenue + secondHalfRevenue) - totalRevenue)).to.be.lessThan(0.01);
+      expect(
+        Math.abs(firstHalfRevenue + secondHalfRevenue - totalRevenue)
+      ).to.be.lessThan(0.01);
     });
   });
 
@@ -423,16 +456,16 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
             totalOrders: { $sum: 1 },
             totalSpent: { $sum: '$totalAmount' },
             avgOrderValue: { $avg: '$totalAmount' },
-            orderStatuses: { $push: '$status' }
-          }
+            orderStatuses: { $push: '$status' },
+          },
         },
         {
           $addFields: {
             customerLifetimeDays: {
               $divide: [
                 { $subtract: ['$lastOrder', '$firstOrder'] },
-                1000 * 60 * 60 * 24
-              ]
+                1000 * 60 * 60 * 24,
+              ],
             },
             hasReturned: { $gt: ['$totalOrders', 1] },
             cancelRate: {
@@ -441,17 +474,17 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
                   $size: {
                     $filter: {
                       input: '$orderStatuses',
-                      cond: { $eq: ['$$this', 'cancelled'] }
-                    }
-                  }
+                      cond: { $eq: ['$$this', 'cancelled'] },
+                    },
+                  },
                 },
-                '$totalOrders'
-              ]
-            }
-          }
+                '$totalOrders',
+              ],
+            },
+          },
         },
         { $sort: { totalSpent: -1 } },
-        { $limit: 20 }
+        { $limit: 20 },
       ]);
 
       result.forEach(customer => {
@@ -469,28 +502,28 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
           $group: {
             _id: {
               category1: '$items.category',
-              orderId: '$_id'
+              orderId: '$_id',
             },
-            categories: { $addToSet: '$items.category' }
-          }
+            categories: { $addToSet: '$items.category' },
+          },
         },
         { $unwind: '$categories' },
         {
           $match: {
-            $expr: { $ne: ['$_id.category1', '$categories'] }
-          }
+            $expr: { $ne: ['$_id.category1', '$categories'] },
+          },
         },
         {
           $group: {
             _id: {
               from: '$_id.category1',
-              to: '$categories'
+              to: '$categories',
             },
-            frequency: { $sum: 1 }
-          }
+            frequency: { $sum: 1 },
+          },
         },
         { $sort: { frequency: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]);
 
       result.forEach(pair => {
@@ -505,7 +538,13 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
 // Helper functions to generate test data if fixtures don't exist
 function generateOrdersFixture(count) {
-  const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+  const statuses = [
+    'pending',
+    'processing',
+    'shipped',
+    'delivered',
+    'cancelled',
+  ];
   const priorities = ['standard', 'express', 'overnight'];
   const paymentMethods = ['credit_card', 'debit_card', 'paypal', 'crypto'];
 
@@ -518,20 +557,25 @@ function generateOrdersFixture(count) {
       name: `Product ${Math.floor(Math.random() * 100)}`,
       price: Math.random() * 500 + 10,
       quantity: Math.floor(Math.random() * 5) + 1,
-      category: ['Electronics', 'Clothing', 'Books', 'Home'][Math.floor(Math.random() * 4)]
+      category: ['Electronics', 'Clothing', 'Books', 'Home'][
+        Math.floor(Math.random() * 4)
+      ],
     })),
     totalAmount: Math.random() * 1000 + 50,
     status: statuses[Math.floor(Math.random() * statuses.length)],
     orderDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
     shippingAddress: {
       street: `${Math.floor(Math.random() * 9999)} Main St`,
-      city: ['New York', 'Los Angeles', 'Chicago', 'Houston'][Math.floor(Math.random() * 4)],
+      city: ['New York', 'Los Angeles', 'Chicago', 'Houston'][
+        Math.floor(Math.random() * 4)
+      ],
       state: ['NY', 'CA', 'IL', 'TX'][Math.floor(Math.random() * 4)],
       country: 'USA',
-      zipCode: `${Math.floor(Math.random() * 90000) + 10000}`
+      zipCode: `${Math.floor(Math.random() * 90000) + 10000}`,
     },
-    paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-    priority: priorities[Math.floor(Math.random() * priorities.length)]
+    paymentMethod:
+      paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+    priority: priorities[Math.floor(Math.random() * priorities.length)],
   }));
 }
 
@@ -544,22 +588,26 @@ function generateCustomersFixture(count) {
     name: `Customer ${i + 1}`,
     email: `customer${i + 1}@example.com`,
     age: Math.floor(Math.random() * 50) + 20,
-    registrationDate: new Date(Date.now() - Math.random() * 365 * 3 * 24 * 60 * 60 * 1000),
+    registrationDate: new Date(
+      Date.now() - Math.random() * 365 * 3 * 24 * 60 * 60 * 1000
+    ),
     tier: tiers[Math.floor(Math.random() * tiers.length)],
     totalSpent: Math.random() * 10000,
     orderCount: Math.floor(Math.random() * 50),
     preferences: {
       newsletter: Math.random() > 0.5,
       notifications: Math.random() > 0.5,
-      language: ['en', 'es', 'fr', 'de'][Math.floor(Math.random() * 4)]
+      language: ['en', 'es', 'fr', 'de'][Math.floor(Math.random() * 4)],
     },
     address: {
       street: `${Math.floor(Math.random() * 9999)} Main St`,
-      city: ['New York', 'Los Angeles', 'Chicago', 'Houston'][Math.floor(Math.random() * 4)],
+      city: ['New York', 'Los Angeles', 'Chicago', 'Houston'][
+        Math.floor(Math.random() * 4)
+      ],
       state: ['NY', 'CA', 'IL', 'TX'][Math.floor(Math.random() * 4)],
       country: 'USA',
-      zipCode: `${Math.floor(Math.random() * 90000) + 10000}`
+      zipCode: `${Math.floor(Math.random() * 90000) + 10000}`,
     },
-    tags: []
+    tags: [],
   }));
 }

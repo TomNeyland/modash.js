@@ -420,8 +420,10 @@ function $unwind<T extends Document = Document>(
   // Parse unwind specification
   const fieldPath =
     typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
-  const options: { includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean } =
-    typeof unwindSpec === 'object' ? (unwindSpec as any) : {};
+  const options: {
+    includeArrayIndex?: string;
+    preserveNullAndEmptyArrays?: boolean;
+  } = typeof unwindSpec === 'object' ? (unwindSpec as any) : {};
 
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;

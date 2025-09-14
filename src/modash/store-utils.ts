@@ -12,4 +12,3 @@ export function getPhysicalDocument(
   }
   return null;
 }
-

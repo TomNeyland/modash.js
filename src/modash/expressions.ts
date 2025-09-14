@@ -143,7 +143,7 @@ function $expressionOperator(
   if (operator === '$switch') {
     const switchInput = args as any;
     const { branches, default: defaultValue } = switchInput;
-    
+
     // Iterate through branches and return first truthy case
     for (const branch of branches) {
       const caseResult = $expression(obj, branch.case, root, context);
@@ -151,37 +151,42 @@ function $expressionOperator(
         return $expression(obj, branch.then, root, context);
       }
     }
-    
+
     // Return default value if no cases match
-    return defaultValue !== undefined 
-      ? $expression(obj, defaultValue, root, context) 
+    return defaultValue !== undefined
+      ? $expression(obj, defaultValue, root, context)
       : null;
   }
 
   if (operator === '$reduce') {
     const reduceInput = args as any;
     const { input, initialValue, in: inExpression } = reduceInput;
-    
-    const arrayValue = $expression(obj, input, root, context) as DocumentValue[];
+
+    const arrayValue = $expression(
+      obj,
+      input,
+      root,
+      context
+    ) as DocumentValue[];
     if (!Array.isArray(arrayValue)) {
       return null;
     }
-    
+
     let accumulator = $expression(obj, initialValue, root, context);
-    
+
     // Iterate through array elements with $$value and $$this context
     for (const element of arrayValue) {
       // Create context with $$value (current accumulator) and $$this (current element)
       const reduceContext = {
         ...context,
         $$value: accumulator,
-        $$this: element
+        $$this: element,
       };
-      
+
       // Evaluate the expression with the context and update accumulator
       accumulator = $expression(obj, inExpression, root, reduceContext);
     }
-    
+
     return accumulator;
   }
 
@@ -224,7 +229,12 @@ function $expressionObject(
           result,
           headPath,
           (head as Document[]).map(subtarget =>
-            $expression(subtarget, { [pathParts.join('.')]: expression }, root, context)
+            $expression(
+              subtarget,
+              { [pathParts.join('.')]: expression },
+              root,
+              context
+            )
           )
         );
         Object.assign(result, setResult);
@@ -317,14 +327,20 @@ function $expressionObject(
           set(
             {},
             path,
-            target.map(subtarget => $expression(subtarget, expression, root, context))
+            target.map(subtarget =>
+              $expression(subtarget, expression, root, context)
+            )
           )
         );
         Object.assign(result, mergeResult);
       } else {
         const mergeResult = merge(
           result,
-          set({}, path, $expression(target as Document, expression, root, context))
+          set(
+            {},
+            path,
+            $expression(target as Document, expression, root, context)
+          )
         );
         Object.assign(result, mergeResult);
       }
@@ -346,7 +362,7 @@ function $systemVariable(
   const fieldPath = parts.slice(1).join('.');
 
   let baseValue: DocumentValue;
-  
+
   switch (baseVariable) {
     case '$$ROOT':
       // C) $$ROOT resolution: Ensure we always return the root document

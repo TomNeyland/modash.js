@@ -32,7 +32,9 @@ describe('CLI Fixture Queries', () => {
       }
 
       // Parse JSONL output
-      return output.trim().split('\n')
+      return output
+        .trim()
+        .split('\n')
         .filter(line => line && line.trim())
         .map(line => {
           try {
@@ -57,9 +59,9 @@ describe('CLI Fixture Queries', () => {
           $group: {
             _id: null,
             totalRevenue: { $sum: '$totalAmount' },
-            orderCount: { $sum: 1 }
-          }
-        }
+            orderCount: { $sum: 1 },
+          },
+        },
       ];
 
       const result = runCLI(pipeline, 'ecommerce-orders.jsonl');
@@ -77,18 +79,16 @@ describe('CLI Fixture Queries', () => {
         {
           $group: {
             _id: null,
-            avgAmount: { $avg: '$totalAmount' }
-          }
-        }
+            avgAmount: { $avg: '$totalAmount' },
+          },
+        },
       ];
 
       const avgResult = runCLI(avgPipeline, 'ecommerce-orders.jsonl');
       const avgAmount = avgResult[0].avgAmount;
 
       // Then filter above average - just count matching docs
-      const pipeline = [
-        { $match: { totalAmount: { $gte: avgAmount } } }
-      ];
+      const pipeline = [{ $match: { totalAmount: { $gte: avgAmount } } }];
 
       const result = runCLI(pipeline, 'ecommerce-orders.jsonl');
 
@@ -103,10 +103,10 @@ describe('CLI Fixture Queries', () => {
           $group: {
             _id: '$status',
             count: { $sum: 1 },
-            avgAmount: { $avg: '$totalAmount' }
-          }
+            avgAmount: { $avg: '$totalAmount' },
+          },
         },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
       ];
 
       const result = runCLI(pipeline, 'ecommerce-orders.jsonl');
@@ -118,7 +118,13 @@ describe('CLI Fixture Queries', () => {
         expect(group).to.have.property('_id');
         expect(group).to.have.property('count');
         expect(group).to.have.property('avgAmount');
-        expect(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).to.include(group._id);
+        expect([
+          'pending',
+          'processing',
+          'shipped',
+          'delivered',
+          'cancelled',
+        ]).to.include(group._id);
       });
     });
   });
@@ -129,7 +135,7 @@ describe('CLI Fixture Queries', () => {
         { $match: { status: 'published' } },
         { $sort: { views: -1 } },
         { $limit: 5 },
-        { $project: { title: 1, views: 1, likes: 1 } }
+        { $project: { title: 1, views: 1, likes: 1 } },
       ];
 
       const result = runCLI(pipeline, 'blog-posts.jsonl');
@@ -152,12 +158,12 @@ describe('CLI Fixture Queries', () => {
         { $match: { status: 'published', views: { $gt: 0 } } },
         {
           $addFields: {
-            engagementRate: { $divide: ['$likes', '$views'] }
-          }
+            engagementRate: { $divide: ['$likes', '$views'] },
+          },
         },
         { $sort: { engagementRate: -1 } },
         { $limit: 3 },
-        { $project: { title: 1, views: 1, likes: 1, engagementRate: 1 } }
+        { $project: { title: 1, views: 1, likes: 1, engagementRate: 1 } },
       ];
 
       const result = runCLI(pipeline, 'blog-posts.jsonl');
@@ -179,9 +185,9 @@ describe('CLI Fixture Queries', () => {
           $group: {
             _id: '$category',
             count: { $sum: 1 },
-            avgViews: { $avg: '$views' }
-          }
-        }
+            avgViews: { $avg: '$views' },
+          },
+        },
       ];
 
       const result = runCLI(pipeline, 'blog-posts.jsonl');
@@ -206,11 +212,11 @@ describe('CLI Fixture Queries', () => {
           $group: {
             _id: '$deviceId',
             avgBattery: { $avg: '$metadata.batteryLevel' },
-            readingCount: { $sum: 1 }
-          }
+            readingCount: { $sum: 1 },
+          },
         },
         { $sort: { avgBattery: 1 } },
-        { $limit: 5 }
+        { $limit: 5 },
       ];
 
       const result = runCLI(pipeline, 'iot-sensors.jsonl');
@@ -231,9 +237,9 @@ describe('CLI Fixture Queries', () => {
             avgTemp: { $avg: '$value' },
             minTemp: { $min: '$value' },
             maxTemp: { $max: '$value' },
-            readingCount: { $sum: 1 }
-          }
-        }
+            readingCount: { $sum: 1 },
+          },
+        },
       ];
 
       const result = runCLI(pipeline, 'iot-sensors.jsonl');
@@ -253,12 +259,9 @@ describe('CLI Fixture Queries', () => {
       const pipeline = [
         {
           $match: {
-            $or: [
-              { value: { $gt: 100 } },
-              { value: { $lt: -50 } }
-            ]
-          }
-        }
+            $or: [{ value: { $gt: 100 } }, { value: { $lt: -50 } }],
+          },
+        },
       ];
 
       const result = runCLI(pipeline, 'iot-sensors.jsonl');
@@ -275,12 +278,11 @@ describe('CLI Fixture Queries', () => {
 
   describe('CLI with Options', () => {
     it('should work with --pretty option', () => {
-      const pipeline = [
-        { $limit: 1 },
-        { $project: { _id: 1 } }
-      ];
+      const pipeline = [{ $limit: 1 }, { $project: { _id: 1 } }];
 
-      const output = runCLI(pipeline, 'ecommerce-orders.jsonl', { pretty: true });
+      const output = runCLI(pipeline, 'ecommerce-orders.jsonl', {
+        pretty: true,
+      });
 
       // Pretty output should be indented JSON
       expect(output).to.include('  ');
@@ -288,9 +290,7 @@ describe('CLI Fixture Queries', () => {
     });
 
     it('should work with --stats option', () => {
-      const pipeline = [
-        { $group: { _id: null, count: { $sum: 1 } } }
-      ];
+      const pipeline = [{ $group: { _id: null, count: { $sum: 1 } } }];
 
       const output = runCLI(pipeline, 'blog-posts.jsonl', { stats: true });
 
@@ -301,10 +301,7 @@ describe('CLI Fixture Queries', () => {
     });
 
     it('should work with --explain option', () => {
-      const pipeline = [
-        { $match: { status: 'published' } },
-        { $limit: 5 }
-      ];
+      const pipeline = [{ $match: { status: 'published' } }, { $limit: 5 }];
 
       const output = runCLI(pipeline, 'blog-posts.jsonl', { explain: true });
 
@@ -324,11 +321,13 @@ describe('CLI Fixture Queries', () => {
         {
           $group: {
             _id: '$items.category',
-            totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            itemCount: { $sum: '$items.quantity' }
-          }
+            totalRevenue: {
+              $sum: { $multiply: ['$items.price', '$items.quantity'] },
+            },
+            itemCount: { $sum: '$items.quantity' },
+          },
         },
-        { $sort: { totalRevenue: -1 } }
+        { $sort: { totalRevenue: -1 } },
       ];
 
       const result = runCLI(pipeline, 'ecommerce-orders.jsonl');

@@ -156,7 +156,6 @@ export class OptimizedMatchOperator implements IVMOperator {
 
     return Array.from(fields);
   }
-
 }
 
 /**
@@ -550,7 +549,8 @@ export class OptimizedSortOperator implements IVMOperator {
   ): Document | null => {
     // Get document from upstream stage if it was transformed
     return (
-      context.getEffectiveUpstreamDocument?.(rowId) || getPhysicalDocument(store, rowId)
+      context.getEffectiveUpstreamDocument?.(rowId) ||
+      getPhysicalDocument(store, rowId)
     );
   };
 
@@ -1233,7 +1233,8 @@ export class LookupOperator implements IVMOperator {
     context: IVMContext
   ): Document | null => {
     const doc =
-      context.getEffectiveUpstreamDocument?.(rowId) || getPhysicalDocument(store, rowId);
+      context.getEffectiveUpstreamDocument?.(rowId) ||
+      getPhysicalDocument(store, rowId);
     if (!doc) return null;
 
     const localValue = this.getFieldValue(doc, this.expr.localField);
