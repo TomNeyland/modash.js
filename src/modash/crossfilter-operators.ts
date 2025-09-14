@@ -317,19 +317,19 @@ export class GroupOperator implements IVMOperator {
     return Object.keys(this.groupExpr);
   }
 
-  private getEffectiveDocument(_rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
     // Check if there are projected documents from upstream stages
     // Look backwards through stages to find the most recent projection
     for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
       const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
       const projectedDocs = _context.tempState.get(projectedDocsKey);
-      if (projectedDocs && projectedDocs.has(_rowId)) {
-        return projectedDocs.get(_rowId);
+      if (projectedDocs && projectedDocs.has(rowId)) {
+        return projectedDocs.get(rowId);
       }
     }
     
     // Fallback to original document
-    return _store.documents[_rowId] || null;
+    return _store.documents[rowId] || null;
   }
 
   private extractGroupDimension(idExpr: any): string {

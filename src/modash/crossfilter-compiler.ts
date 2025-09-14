@@ -1716,9 +1716,16 @@ export class PerformanceEngineImpl implements PerformanceEngine {
   private extractGroupFields(groupExpr: any, dimensions: Set<string>): void {
     if (!groupExpr || typeof groupExpr !== 'object') return;
 
-    // Group by field
+    // Group by field - handle both simple strings and complex objects
     if (typeof groupExpr._id === 'string' && groupExpr._id.startsWith('$')) {
       dimensions.add(groupExpr._id.substring(1));
+    } else if (typeof groupExpr._id === 'object' && groupExpr._id !== null) {
+      // Handle complex _id like { category: '$category', month: '$month' }
+      for (const [_key, value] of Object.entries(groupExpr._id)) {
+        if (typeof value === 'string' && value.startsWith('$')) {
+          dimensions.add(value.substring(1));
+        }
+      }
     }
 
     // Accumulator fields
