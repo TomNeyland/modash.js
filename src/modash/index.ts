@@ -16,6 +16,7 @@ import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
 import { createStreamingCollection, StreamingCollection } from './streaming.js';
 import { hotPathAggregate } from './hot-path-aggregation.js';
+import { explain, benchmark, fromJSONL } from './api-enhancements.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -115,6 +116,10 @@ export {
   $lookup,
   $addFields,
   $set,
+  // Phase 6: Enhanced DX APIs
+  explain,
+  benchmark,
+  fromJSONL,
 };
 
 // Re-export basic types from local modules

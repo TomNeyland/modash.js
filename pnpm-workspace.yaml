@@ -1,0 +1,5 @@
+packages:
+  - 'packages/*'
+
+# Workspace configuration for modash.js ecosystem
+# Core package stays at root, extensions go in packages/

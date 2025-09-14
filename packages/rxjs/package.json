@@ -1,0 +1,38 @@
+{
+  "name": "@modash/rxjs",
+  "version": "0.1.0",
+  "description": "RxJS integration for modash.js - Observable-based aggregation pipelines",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "keywords": [
+    "modash",
+    "rxjs",
+    "observable",
+    "aggregation",
+    "streaming",
+    "reactive"
+  ],
+  "author": "Tom Neyland",
+  "license": "MIT",
+  "peerDependencies": {
+    "modash": "workspace:*",
+    "rxjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "rxjs": "^7.8.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src/",
+    "README.md"
+  ]
+}
