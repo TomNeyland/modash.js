@@ -607,7 +607,7 @@ export class LimitOperator implements IVMOperator {
     for (const rowId of _store.liveSet) {
       if (count >= this.limitValue) break;
 
-      const doc = _store.documents[rowId];
+      const doc = this.getEffectiveDocument(rowId, _store, _context);
       if (doc) {
         result.push(doc);
         count++;
@@ -627,6 +627,30 @@ export class LimitOperator implements IVMOperator {
 
   getOutputFields(): string[] {
     return [];
+  }
+
+  /**
+   * Get the effective document for a rowId, checking for projected documents from upstream stages
+   */
+  private getEffectiveDocument(
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null {
+    // Check if there are projected documents from upstream stages
+    if (_context && _context.tempState) {
+      // Look for projected documents from any previous stage
+      for (let i = _context.stageIndex - 1; i >= 0; i--) {
+        const projectedDocsKey = `projected_docs_stage_${i}`;
+        const projectedDocs = _context.tempState.get(projectedDocsKey) as Map<RowId, Document> | undefined;
+        if (projectedDocs?.has(rowId)) {
+          return projectedDocs.get(rowId);
+        }
+      }
+    }
+
+    // Fall back to original document
+    return _store.documents[rowId];
   }
 }
 
@@ -669,7 +693,7 @@ export class SkipOperator implements IVMOperator {
         continue;
       }
 
-      const doc = _store.documents[rowId];
+      const doc = this.getEffectiveDocument(rowId, _store, _context);
       if (doc) {
         result.push(doc);
       }
@@ -688,6 +712,30 @@ export class SkipOperator implements IVMOperator {
 
   getOutputFields(): string[] {
     return [];
+  }
+
+  /**
+   * Get the effective document for a rowId, checking for projected documents from upstream stages
+   */
+  private getEffectiveDocument(
+    rowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null {
+    // Check if there are projected documents from upstream stages
+    if (_context && _context.tempState) {
+      // Look for projected documents from any previous stage
+      for (let i = _context.stageIndex - 1; i >= 0; i--) {
+        const projectedDocsKey = `projected_docs_stage_${i}`;
+        const projectedDocs = _context.tempState.get(projectedDocsKey) as Map<RowId, Document> | undefined;
+        if (projectedDocs?.has(rowId)) {
+          return projectedDocs.get(rowId);
+        }
+      }
+    }
+
+    // Fall back to original document
+    return _store.documents[rowId];
   }
 }
 

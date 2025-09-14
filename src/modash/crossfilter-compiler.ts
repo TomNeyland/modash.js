@@ -1763,6 +1763,9 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       '$skip',
       '$addFields',
       '$set',
+      '$topK',  // TopK operator supports incremental updates
+      '$unwind',
+      '$lookup',
     ];
     return incrementalStages.includes(stageType);
   }
@@ -1781,6 +1784,9 @@ export class PerformanceEngineImpl implements PerformanceEngine {
       '$skip',
       '$addFields',
       '$set',
+      '$topK',  // TopK operator supports decremental updates
+      '$unwind',
+      '$lookup',
     ];
     return decrementalStages.includes(stageType);
   }
