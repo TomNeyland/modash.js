@@ -30,7 +30,7 @@ describe('Issue #41 Regression Tests', () => {
 
       const streaming = createStreamingCollection(testData);
       const result = streaming.stream(pipeline);
-      
+
       // This was throwing "TypeError: a._id.localeCompare is not a function" before the fix
       const sortByCategory = arr => {
         const cmpString = (a, b) => {
@@ -40,11 +40,11 @@ describe('Issue #41 Regression Tests', () => {
         };
         return [...arr].sort((a, b) => cmpString(a._id, b._id));
       };
-      
+
       expect(() => sortByCategory(result)).to.not.throw();
       expect(result).to.be.an('array');
       expect(result.length).to.be.greaterThan(0);
-      
+
       streaming.destroy();
     });
   });
@@ -52,7 +52,7 @@ describe('Issue #41 Regression Tests', () => {
   describe('Streaming Removal Consistency', () => {
     it('should maintain accurate count and average calculations during removal', () => {
       const streaming = createStreamingCollection([]);
-      
+
       const pipeline = [
         { $match: { active: true } },
         {
@@ -82,7 +82,7 @@ describe('Issue #41 Regression Tests', () => {
 
       let result = streaming.getStreamingResult(pipeline);
       const initialAGroup = result.find(r => r._id === 'A');
-      
+
       expect(initialAGroup.count).to.equal(2);
       expect(initialAGroup.avgBoosted).to.be.closeTo(93.5, 0.01); // (80*1.1 + 90*1.1) / 2
 
@@ -91,13 +91,13 @@ describe('Issue #41 Regression Tests', () => {
 
       result = streaming.getStreamingResult(pipeline);
       const finalAGroup = result.find(r => r._id === 'A');
-      
+
       // Verify the count decremented correctly
       expect(finalAGroup.count).to.equal(1);
-      
+
       // Verify the average is recalculated correctly using projected 'boosted' field
       expect(finalAGroup.avgBoosted).to.be.closeTo(88, 0.01); // 80*1.1 = 88
-      
+
       // Most importantly: verify it's NOT the broken value that was showing before
       expect(finalAGroup.avgBoosted).to.not.be.closeTo(187, 1);
 
@@ -106,7 +106,7 @@ describe('Issue #41 Regression Tests', () => {
 
     it('should handle double removal without negative counts', () => {
       const streaming = createStreamingCollection([]);
-      
+
       const pipeline = [
         {
           $group: {

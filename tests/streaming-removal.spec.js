@@ -364,16 +364,16 @@ describe('Streaming Collection - Record Removal', () => {
 
       result = streaming.getStreamingResult(pipeline);
       expect(result).to.have.length(2);
-      
+
       // Sort results for consistent comparison
       result.sort((a, b) => (a._id > b._id ? 1 : -1));
-      
+
       // Check category A
       expect(result[0]._id).to.equal('A');
       expect(result[0].count).to.equal(1);
       expect(result[0].avgBoosted).to.be.closeTo(88, 0.01); // 80*1.1 = 88
-      
-      // Check category B  
+
+      // Check category B
       expect(result[1]._id).to.equal('B');
       expect(result[1].count).to.equal(2);
       expect(result[1].avgBoosted).to.be.closeTo(90.75, 0.01); // (70*1.1 + 95*1.1) / 2 = 90.75

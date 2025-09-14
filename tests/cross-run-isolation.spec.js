@@ -1,6 +1,6 @@
 /**
  * Cross-Run State Leakage Prevention - Regression Tests
- * 
+ *
  * These tests validate that the hot-path/zero-alloc engine maintains
  * deterministic execution across multiple runs and prevents state contamination
  * between different pipeline executions.
@@ -9,14 +9,14 @@
 import { expect } from 'chai';
 import Modash from '../src/index.js';
 
-describe('Cross-Run State Leakage Prevention', function() {
-  
-  beforeEach(function() {
+describe('Cross-Run State Leakage Prevention', function () {
+  beforeEach(function () {
     // Clear any cached state before each test
     if (process.env.NODE_ENV === 'test') {
       // Reset any global engine state if available
       try {
-        const ZeroAllocEngine = require('../src/modash/zero-alloc-engine.js').ZeroAllocEngine;
+        const ZeroAllocEngine =
+          require('../src/modash/zero-alloc-engine.js').ZeroAllocEngine;
         if (ZeroAllocEngine.resetGlobalState) {
           ZeroAllocEngine.resetGlobalState();
         }
@@ -26,38 +26,43 @@ describe('Cross-Run State Leakage Prevention', function() {
     }
   });
 
-  describe('Back-to-Back Pipeline Isolation', function() {
-    
-    it('should not leak $group results into subsequent $unwind pipeline', function() {
+  describe('Back-to-Back Pipeline Isolation', function () {
+    it('should not leak $group results into subsequent $unwind pipeline', function () {
       const documents = [
         { _id: 1, category: 'A', items: ['x', 'y'] },
         { _id: 2, category: 'A', items: ['z'] },
-        { _id: 3, category: 'B', items: ['w'] }
+        { _id: 3, category: 'B', items: ['w'] },
       ];
 
       // First run: $group pipeline that produces grouped results
       const groupResults = Modash.aggregate(documents, [
-        { $group: { _id: '$category', count: { $sum: 1 } } }
+        { $group: { _id: '$category', count: { $sum: 1 } } },
       ]);
 
       expect(groupResults).to.have.lengthOf(2);
-      expect(groupResults.find(r => r._id === 'A')).to.have.property('count', 2);
-      expect(groupResults.find(r => r._id === 'B')).to.have.property('count', 1);
+      expect(groupResults.find(r => r._id === 'A')).to.have.property(
+        'count',
+        2
+      );
+      expect(groupResults.find(r => r._id === 'B')).to.have.property(
+        'count',
+        1
+      );
 
       // Second run: $unwind pipeline that should NOT return grouped results
       const unwindResults = Modash.aggregate(documents, [
-        { $unwind: '$items' }
+        { $unwind: '$items' },
       ]);
 
       // Critical test: unwind should return 4 documents (2+1+1), not grouped results
       expect(unwindResults).to.have.lengthOf(4);
-      
+
       // Verify structure is unwound documents, not group results
       expect(unwindResults[0]).to.have.property('_id');
       expect(unwindResults[0]).to.have.property('category');
       expect(unwindResults[0]).to.have.property('items');
       expect(typeof unwindResults[0].items).to.equal('string'); // unwound item, not array
-      
+
       // Ensure no grouped shape contamination
       expect(unwindResults[0]).to.not.have.property('count');
       for (const doc of unwindResults) {
@@ -66,11 +71,11 @@ describe('Cross-Run State Leakage Prevention', function() {
       }
     });
 
-    it('should maintain consistent results across repeated back-to-back executions', function() {
+    it('should maintain consistent results across repeated back-to-back executions', function () {
       const documents = [
         { _id: 1, status: 'active', tags: ['urgent', 'important'] },
         { _id: 2, status: 'inactive', tags: ['normal'] },
-        { _id: 3, status: 'active', tags: ['low'] }
+        { _id: 3, status: 'active', tags: ['low'] },
       ];
 
       const pipelineA = [{ $group: { _id: '$status', total: { $sum: 1 } } }];
@@ -82,15 +87,24 @@ describe('Cross-Run State Leakage Prevention', function() {
         const resultA1 = Modash.aggregate(documents, pipelineA);
         const resultB1 = Modash.aggregate(documents, pipelineB);
         const resultC1 = Modash.aggregate(documents, pipelineC);
-        
+
         const resultA2 = Modash.aggregate(documents, pipelineA);
         const resultB2 = Modash.aggregate(documents, pipelineB);
         const resultC2 = Modash.aggregate(documents, pipelineC);
 
         // Results should be identical across iterations
-        expect(resultA1).to.deep.equal(resultA2, `Pipeline A should be consistent in iteration ${iteration}`);
-        expect(resultB1).to.deep.equal(resultB2, `Pipeline B should be consistent in iteration ${iteration}`);
-        expect(resultC1).to.deep.equal(resultC2, `Pipeline C should be consistent in iteration ${iteration}`);
+        expect(resultA1).to.deep.equal(
+          resultA2,
+          `Pipeline A should be consistent in iteration ${iteration}`
+        );
+        expect(resultB1).to.deep.equal(
+          resultB2,
+          `Pipeline B should be consistent in iteration ${iteration}`
+        );
+        expect(resultC1).to.deep.equal(
+          resultC2,
+          `Pipeline C should be consistent in iteration ${iteration}`
+        );
 
         // Verify expected shapes and counts
         expect(resultA1).to.have.lengthOf(2); // 2 status groups
@@ -99,18 +113,14 @@ describe('Cross-Run State Leakage Prevention', function() {
       }
     });
 
-    it('should prevent virtual row map contamination across runs', function() {
-      const documentsSet1 = [
-        { _id: 1, categories: ['tech', 'news'] }
-      ];
-      
-      const documentsSet2 = [
-        { _id: 2, categories: ['sports'] }
-      ];
+    it('should prevent virtual row map contamination across runs', function () {
+      const documentsSet1 = [{ _id: 1, categories: ['tech', 'news'] }];
+
+      const documentsSet2 = [{ _id: 2, categories: ['sports'] }];
 
       // Run $unwind on first dataset
       const result1 = Modash.aggregate(documentsSet1, [
-        { $unwind: '$categories' }
+        { $unwind: '$categories' },
       ]);
 
       expect(result1).to.have.lengthOf(2);
@@ -118,7 +128,7 @@ describe('Cross-Run State Leakage Prevention', function() {
 
       // Run $unwind on second dataset - should not see first dataset's virtual rows
       const result2 = Modash.aggregate(documentsSet2, [
-        { $unwind: '$categories' }
+        { $unwind: '$categories' },
       ]);
 
       expect(result2).to.have.lengthOf(1);
@@ -127,29 +137,26 @@ describe('Cross-Run State Leakage Prevention', function() {
     });
   });
 
-  describe('Buffer Pool Reuse Safety', function() {
-    
-    it('should handle alternating pipelines with different row count patterns', function() {
-      const smallDataset = [
-        { _id: 1, tags: ['a'] }
-      ];
-      
+  describe('Buffer Pool Reuse Safety', function () {
+    it('should handle alternating pipelines with different row count patterns', function () {
+      const smallDataset = [{ _id: 1, tags: ['a'] }];
+
       const largeDataset = Array.from({ length: 100 }, (_, i) => ({
         _id: i + 1,
-        tags: ['tag1', 'tag2', 'tag3'] // Will expand to 300 documents
+        tags: ['tag1', 'tag2', 'tag3'], // Will expand to 300 documents
       }));
 
       // Alternate between small and large datasets to test buffer reuse
       for (let i = 0; i < 3; i++) {
         // Large expansion
         const largeResult = Modash.aggregate(largeDataset, [
-          { $unwind: '$tags' }
+          { $unwind: '$tags' },
         ]);
         expect(largeResult).to.have.lengthOf(300);
 
         // Small dataset - should not be contaminated by large buffers
         const smallResult = Modash.aggregate(smallDataset, [
-          { $unwind: '$tags' }
+          { $unwind: '$tags' },
         ]);
         expect(smallResult).to.have.lengthOf(1);
         expect(smallResult[0]._id).to.equal(1);
@@ -158,17 +165,16 @@ describe('Cross-Run State Leakage Prevention', function() {
     });
   });
 
-  describe('Plan Cache Immutability', function() {
-    
-    it('should not mutate cached pipeline plans across runs', function() {
+  describe('Plan Cache Immutability', function () {
+    it('should not mutate cached pipeline plans across runs', function () {
       const documents = [
         { _id: 1, value: 10 },
-        { _id: 2, value: 20 }
+        { _id: 2, value: 20 },
       ];
 
       const pipeline = [
         { $match: { value: { $gte: 15 } } },
-        { $project: { _id: 1, value: 1 } }
+        { $project: { _id: 1, value: 1 } },
       ];
 
       // Run pipeline multiple times
@@ -179,7 +185,7 @@ describe('Cross-Run State Leakage Prevention', function() {
       // All results should be identical
       expect(result1).to.deep.equal(result2);
       expect(result2).to.deep.equal(result3);
-      
+
       // Verify expected results
       expect(result1).to.have.lengthOf(1);
       expect(result1[0]._id).to.equal(2);
@@ -187,33 +193,30 @@ describe('Cross-Run State Leakage Prevention', function() {
     });
   });
 
-  describe('Context State Reset Validation', function() {
-    
-    it('should clear all context state between runs', function() {
+  describe('Context State Reset Validation', function () {
+    it('should clear all context state between runs', function () {
       const documents = [
         { _id: 1, category: 'A', items: [1, 2] },
-        { _id: 2, category: 'B', items: [3] }
+        { _id: 2, category: 'B', items: [3] },
       ];
 
       // Pipeline with $group that stores state in context
       const groupResult = Modash.aggregate(documents, [
-        { $group: { _id: '$category', total: { $sum: 1 } } }
+        { $group: { _id: '$category', total: { $sum: 1 } } },
       ]);
       expect(groupResult).to.have.lengthOf(2);
 
       // Pipeline with $project that stores projection spec
       const projectResult = Modash.aggregate(documents, [
-        { $project: { _id: 1, category: 1 } }
+        { $project: { _id: 1, category: 1 } },
       ]);
       expect(projectResult).to.have.lengthOf(2);
       expect(projectResult[0]).to.not.have.property('items');
 
       // Pipeline with $unwind that should not be affected by previous state
-      const unwindResult = Modash.aggregate(documents, [
-        { $unwind: '$items' }
-      ]);
+      const unwindResult = Modash.aggregate(documents, [{ $unwind: '$items' }]);
       expect(unwindResult).to.have.lengthOf(3); // 2 + 1 unwound items
-      
+
       // Verify unwind result structure
       for (const doc of unwindResult) {
         expect(doc).to.have.property('_id');
@@ -224,15 +227,14 @@ describe('Cross-Run State Leakage Prevention', function() {
     });
   });
 
-  describe('DEBUG_IVM Logging Validation', function() {
-    
-    it('should log run IDs and state transitions when DEBUG_IVM is enabled', function() {
+  describe('DEBUG_IVM Logging Validation', function () {
+    it('should log run IDs and state transitions when DEBUG_IVM is enabled', function () {
       if (!process.env.DEBUG_IVM) {
         this.skip(); // Skip if DEBUG_IVM is not enabled
       }
 
       const documents = [{ _id: 1, value: 'test' }];
-      
+
       // Capture console output
       const originalLog = console.log;
       const logs = [];
@@ -243,11 +245,12 @@ describe('Cross-Run State Leakage Prevention', function() {
 
       try {
         Modash.aggregate(documents, [{ $match: { value: 'test' } }]);
-        
+
         // Check for expected log patterns
-        const runIdLogs = logs.filter(log => log.includes('[IVM DEBUG]') && log.includes('Starting run'));
+        const runIdLogs = logs.filter(
+          log => log.includes('[IVM DEBUG]') && log.includes('Starting run')
+        );
         expect(runIdLogs).to.have.lengthOf.greaterThan(0);
-        
       } finally {
         console.log = originalLog;
       }
