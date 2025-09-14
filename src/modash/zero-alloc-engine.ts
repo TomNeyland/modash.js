@@ -9,6 +9,7 @@
  */
 
 import type { Collection, Document, DocumentValue } from './expressions.js';
+import { $expressionObject } from './expressions.js';
 import type { Pipeline } from '../index.js';
 import { highPerformanceGroup, canUseHighPerformanceGroup } from './high-performance-group.js';
 
@@ -83,7 +84,15 @@ export class ZeroAllocEngine {
       const result: Document[] = new Array(context.activeCount);
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
-        result[i] = this.getEffectiveDocument(context, rowId);
+        let doc = this.getEffectiveDocument(context, rowId);
+        
+        // Apply projection if it exists
+        const projectionSpec = (context as any)._projectionSpec;
+        if (projectionSpec) {
+          doc = this.applyProjection(doc, projectionSpec);
+        }
+        
+        result[i] = doc;
       }
       
       return result as Collection;
@@ -201,12 +210,14 @@ export class ZeroAllocEngine {
 
   /**
    * Compile $project stage to hot path function
+   * Store projection spec for final materialization
    */
   private compileProject(spec: any): CompiledStage {
-    // Project stages must materialize documents, which breaks zero-alloc
-    // For P0, we'll include all rows and handle projection at the end
     return (context: HotPathContext): number => {
-      // Copy all active row IDs to scratch buffer
+      // Store projection spec for later materialization
+      (context as any)._projectionSpec = spec;
+      
+      // Copy all active row IDs to scratch buffer (no filtering at this stage)
       for (let i = 0; i < context.activeCount; i++) {
         context.scratchBuffer[i] = context.activeRowIds[i];
       }
@@ -305,8 +316,15 @@ export class ZeroAllocEngine {
   private compileFusedMatchProject(matchExpr: any, projectSpec: any): CompiledStage {
     const matchFn = this.compileMatch(matchExpr);
     
-    // For P0, just apply match and pass through row IDs
-    return matchFn;
+    return (context: HotPathContext): number => {
+      // Apply match filtering first
+      const matchedCount = matchFn(context);
+      
+      // Store projection spec for final materialization
+      (context as any)._projectionSpec = projectSpec;
+      
+      return matchedCount;
+    };
   }
 
   /**
@@ -681,8 +699,17 @@ export class ZeroAllocEngine {
   }
   
   /**
-   * Get effective document for a row ID (handles virtual rows from $unwind)
+   * Apply projection specification to document
    */
+  private applyProjection(doc: Document, projectionSpec: any): Document {
+    // Apply default _id inclusion if not specified
+    const specs = { ...projectionSpec };
+    if (!('_id' in specs)) {
+      specs._id = 1;
+    }
+    
+    return $expressionObject(doc, specs, doc);
+  }
   private getEffectiveDocument(context: HotPathContext, rowId: number): Document {
     // Check if this is a virtual row ID
     const virtualRows = (context as any)._virtualRows;
