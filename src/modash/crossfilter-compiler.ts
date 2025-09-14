@@ -319,7 +319,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           // eslint-disable-next-line no-new-func
           return new Function(
             'doc',
-            'rowId',
+            '_rowId',
             `
             ${this.generateFieldAccessors()}
             return ${checkCode};
@@ -342,7 +342,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
-          'rowId',
+          '_rowId',
           `
           ${this.generateFieldAccessors()}
           return ${fieldAccess} === ${JSON.stringify(condition)};
@@ -414,7 +414,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       // eslint-disable-next-line no-new-func
       return new Function(
         'doc',
-        'rowId',
+        '_rowId',
         `
         ${this.generateFieldAccessors()}
         ${functionBody}
@@ -439,7 +439,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
-          'rowId',
+          '_rowId',
           `
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
@@ -456,7 +456,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
-          'rowId',
+          '_rowId',
           `
           ${this.generateFieldAccessors()}
           return ${exprCode};
@@ -484,7 +484,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // eslint-disable-next-line no-new-func
         return new Function(
           'doc',
-          'rowId',
+          '_rowId',
           `
           ${this.generateFieldAccessors()}
           return ${fieldAccess};
@@ -1143,6 +1143,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           const evaluated = this.evaluateExpression(projection, doc);
           result[field] = evaluated;
         }
+      } else if (typeof projection === 'string' && projection.startsWith('$')) {
+        // Field reference
+        const evaluated = this.evaluateExpression(projection, doc);
+        result[field] = evaluated;
       } else {
         result[field] = projection;
       }
