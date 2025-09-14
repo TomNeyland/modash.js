@@ -52,7 +52,7 @@ export class ZeroAllocEngine {
     }
 
     // Get context from pool
-    const context = this.getContext(documents);
+    const context = this.getContext(documents, pipeline);
     
     try {
       // Execute each compiled stage in sequence
@@ -82,7 +82,8 @@ export class ZeroAllocEngine {
       
       const result: Document[] = new Array(context.activeCount);
       for (let i = 0; i < context.activeCount; i++) {
-        result[i] = context.documents[context.activeRowIds[i]];
+        const rowId = context.activeRowIds[i];
+        result[i] = this.getEffectiveDocument(context, rowId);
       }
       
       return result as Collection;
@@ -153,7 +154,7 @@ export class ZeroAllocEngine {
           let count = 0;
           for (let i = 0; i < context.activeCount; i++) {
             const rowId = context.activeRowIds[i];
-            const doc = context.documents[rowId];
+            const doc = this.getEffectiveDocument(context, rowId);
             if (doc[field] === value) {
               context.scratchBuffer[count++] = rowId;
             }
@@ -166,7 +167,7 @@ export class ZeroAllocEngine {
           let count = 0;
           for (let i = 0; i < context.activeCount; i++) {
             const rowId = context.activeRowIds[i];
-            const doc = context.documents[rowId];
+            const doc = this.getEffectiveDocument(context, rowId);
             let matches = true;
             for (const [field, expectedValue] of entries) {
               if (doc[field] !== expectedValue) {
@@ -189,7 +190,7 @@ export class ZeroAllocEngine {
       let count = 0;
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
-        const doc = context.documents[rowId];
+        const doc = this.getEffectiveDocument(context, rowId);
         if (compiledExpr(doc)) {
           context.scratchBuffer[count++] = rowId;
         }
@@ -223,11 +224,11 @@ export class ZeroAllocEngine {
     }
     
     return (context: HotPathContext): number => {
-      // Materialize active documents for grouping
+      // Materialize active documents for grouping using effective document resolution
       const activeDocuments = [];
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
-        activeDocuments.push(context.documents[rowId]);
+        activeDocuments.push(this.getEffectiveDocument(context, rowId));
       }
       
       // Use high-performance group engine
@@ -363,9 +364,41 @@ export class ZeroAllocEngine {
   }
 
   /**
+   * Estimate buffer size needed for pipeline
+   * $unwind can expand results, so we need larger buffers
+   */
+  private estimateBufferSize(documents: Document[], pipeline: Pipeline): number {
+    let estimatedSize = documents.length;
+    
+    // Check for $unwind operations that can expand results
+    for (const stage of pipeline) {
+      if ('$unwind' in stage) {
+        const path = typeof stage.$unwind === 'string' ? stage.$unwind : stage.$unwind.path;
+        const fieldName = path.startsWith('$') ? path.slice(1) : path;
+        
+        // Estimate expansion factor by examining array lengths
+        let totalExpansion = 0;
+        for (const doc of documents) {
+          const arrayValue = doc[fieldName];
+          if (Array.isArray(arrayValue)) {
+            totalExpansion += arrayValue.length;
+          } else if (arrayValue != null) {
+            totalExpansion += 1;
+          }
+          // null/undefined values are skipped in $unwind
+        }
+        estimatedSize = totalExpansion;
+      }
+    }
+    
+    // Add some buffer for safety
+    return Math.max(estimatedSize * 1.2, 16);
+  }
+
+  /**
    * Get context from pool or create new one
    */
-  private getContext(documents: Document[]): HotPathContext {
+  private getContext(documents: Document[], pipeline: Pipeline): HotPathContext {
     let context = this.contextPool.pop();
     if (!context) {
       context = {
@@ -379,15 +412,16 @@ export class ZeroAllocEngine {
 
     // Update context for current operation
     context.documents = documents as Document[];
-    const size = documents.length;
+    const estimatedSize = this.estimateBufferSize(documents, pipeline);
     
-    if (context.activeRowIds.length < size) {
-      context.activeRowIds = this.getActiveRowIds(size);
-      context.scratchBuffer = this.getScratchBuffer(size);
+    if (context.activeRowIds.length < estimatedSize) {
+      context.activeRowIds = this.getActiveRowIds(estimatedSize);
+      context.scratchBuffer = this.getScratchBuffer(estimatedSize);
     }
 
     // Initialize active row IDs (0, 1, 2, ...)
-    for (let i = 0; i < size; i++) {
+    const initialSize = documents.length;
+    for (let i = 0; i < initialSize; i++) {
       context.activeRowIds[i] = i;
     }
     
@@ -583,7 +617,8 @@ export class ZeroAllocEngine {
   }
 
   /**
-   * Phase 3: Compile $unwind stage
+   * Phase 3: Compile $unwind stage with virtual row IDs
+   * Following zero-allocation invariants: no document mutations, virtual IDs only
    */
   private compileUnwind(unwindSpec: any): CompiledStage {
     const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
@@ -591,42 +626,80 @@ export class ZeroAllocEngine {
     
     return (context: HotPathContext): number => {
       let count = 0;
-      const unwoundDocs: Document[] = [];
       
-      // Unwind arrays and create new documents
+      // Generate virtual row IDs for unwound elements
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
         const doc = context.documents[rowId];
         const arrayValue = doc[fieldName];
         
-        if (Array.isArray(arrayValue)) {
-          for (const element of arrayValue) {
-            const unwoundDoc = { ...doc, [fieldName]: element };
-            unwoundDocs.push(unwoundDoc);
+        if (Array.isArray(arrayValue) && arrayValue.length > 0) {
+          // Generate virtual IDs for each array element
+          for (let elemIdx = 0; elemIdx < arrayValue.length; elemIdx++) {
             if (count < context.scratchBuffer.length) {
-              context.scratchBuffer[count] = unwoundDocs.length - 1;
-              count++;
+              // Create virtual row ID: "parentRowId:fieldName:elemIdx"
+              const virtualRowId = `${rowId}:${fieldName}:${elemIdx}`;
+              // Store as number by hashing for efficient lookup
+              const virtualId = this.hashVirtualRowId(virtualRowId);
+              context.scratchBuffer[count++] = virtualId;
+              
+              // Store virtual row mapping for getValue resolution
+              if (!(context as any)._virtualRows) {
+                (context as any)._virtualRows = new Map();
+              }
+              (context as any)._virtualRows.set(virtualId, {
+                parentRowId: rowId,
+                fieldName,
+                elemIdx
+              });
             }
           }
         } else if (arrayValue != null) {
-          // Non-array value, keep as-is
+          // Non-array value, keep original row ID
           if (count < context.scratchBuffer.length) {
-            context.scratchBuffer[count] = rowId;
-            count++;
+            context.scratchBuffer[count++] = rowId;
           }
         }
-      }
-      
-      // Store unwound documents in context for next stage
-      if (unwoundDocs.length > 0) {
-        (context as any)._unwoundDocuments = [
-          ...(context.documents || []),
-          ...unwoundDocs
-        ];
+        // Skip if arrayValue is null/undefined (MongoDB behavior)
       }
       
       return count;
     };
+  }
+
+  /**
+   * Hash virtual row ID to number for efficient storage
+   */
+  private hashVirtualRowId(virtualRowId: string): number {
+    let hash = 0;
+    for (let i = 0; i < virtualRowId.length; i++) {
+      const char = virtualRowId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  }
+  
+  /**
+   * Get effective document for a row ID (handles virtual rows from $unwind)
+   */
+  private getEffectiveDocument(context: HotPathContext, rowId: number): Document {
+    // Check if this is a virtual row ID
+    const virtualRows = (context as any)._virtualRows;
+    if (virtualRows && virtualRows.has(rowId)) {
+      const virtualInfo = virtualRows.get(rowId);
+      const parentDoc = context.documents[virtualInfo.parentRowId];
+      const arrayValue = parentDoc[virtualInfo.fieldName];
+      
+      // Create unwound document view
+      return {
+        ...parentDoc,
+        [virtualInfo.fieldName]: arrayValue[virtualInfo.elemIdx]
+      };
+    }
+    
+    // Regular row ID
+    return context.documents[rowId];
   }
 
   /**
