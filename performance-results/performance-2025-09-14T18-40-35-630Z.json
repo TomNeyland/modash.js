@@ -1,0 +1,471 @@
+{
+  "timestamp": "2025-09-14T18:40:35.926Z",
+  "testTimestamp": "2025-09-14T18-40-35-630Z",
+  "nodeVersion": "v24.6.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "results": {
+    "100": {
+      "simpleFilter": {
+        "name": "simpleFilter (100)",
+        "avg": 0.15,
+        "min": 0.04,
+        "max": 0.59,
+        "median": 0.04,
+        "stdDev": 0.22,
+        "iterations": 5,
+        "memoryDelta": 0.61,
+        "rawTimes": [
+          0.585791,
+          0.056459,
+          0.042792,
+          0.043583,
+          0.041584
+        ],
+        "deltaFromFirst": {
+          "avg": -0.06,
+          "percentChange": -28.57
+        },
+        "deltaFromPrevious": {
+          "avg": -0.65,
+          "percentChange": -81.25
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (100)",
+        "avg": 0.41,
+        "min": 0.18,
+        "max": 0.98,
+        "median": 0.25,
+        "stdDev": 0.3,
+        "iterations": 5,
+        "memoryDelta": -0.16,
+        "rawTimes": [
+          0.978125,
+          0.251584,
+          0.218,
+          0.437583,
+          0.175083
+        ],
+        "deltaFromFirst": {
+          "avg": -0.7,
+          "percentChange": -63.06
+        },
+        "deltaFromPrevious": {
+          "avg": -0.69,
+          "percentChange": -62.73
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (100)",
+        "avg": 0.57,
+        "min": 0.37,
+        "max": 1.23,
+        "median": 0.42,
+        "stdDev": 0.33,
+        "iterations": 5,
+        "memoryDelta": 2.71,
+        "rawTimes": [
+          1.228333,
+          0.425458,
+          0.421959,
+          0.4035,
+          0.372166
+        ],
+        "deltaFromFirst": {
+          "avg": -3.93,
+          "percentChange": -87.33
+        },
+        "deltaFromPrevious": {
+          "avg": -0.57,
+          "percentChange": -50
+        }
+      }
+    },
+    "500": {
+      "simpleFilter": {
+        "name": "simpleFilter (500)",
+        "avg": 0.17,
+        "min": 0.1,
+        "max": 0.38,
+        "median": 0.13,
+        "stdDev": 0.1,
+        "iterations": 5,
+        "memoryDelta": -1.8,
+        "rawTimes": [
+          0.146458,
+          0.37875,
+          0.127917,
+          0.107791,
+          0.100833
+        ],
+        "deltaFromFirst": {
+          "avg": -1.2,
+          "percentChange": -87.59
+        },
+        "deltaFromPrevious": {
+          "avg": -0.44,
+          "percentChange": -72.13
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (500)",
+        "avg": 0.46,
+        "min": 0.39,
+        "max": 0.53,
+        "median": 0.45,
+        "stdDev": 0.05,
+        "iterations": 5,
+        "memoryDelta": 2.02,
+        "rawTimes": [
+          0.511208,
+          0.391708,
+          0.526708,
+          0.451875,
+          0.413208
+        ],
+        "deltaFromFirst": {
+          "avg": -0.49,
+          "percentChange": -51.58
+        },
+        "deltaFromPrevious": {
+          "avg": -2.18,
+          "percentChange": -82.58
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (500)",
+        "avg": 1.36,
+        "min": 1.16,
+        "max": 1.64,
+        "median": 1.3,
+        "stdDev": 0.17,
+        "iterations": 5,
+        "memoryDelta": -0.63,
+        "rawTimes": [
+          1.642792,
+          1.444417,
+          1.242542,
+          1.295125,
+          1.158583
+        ],
+        "deltaFromFirst": {
+          "avg": -0.09,
+          "percentChange": -6.21
+        },
+        "deltaFromPrevious": {
+          "avg": -0.86,
+          "percentChange": -38.74
+        }
+      }
+    },
+    "1000": {
+      "simpleFilter": {
+        "name": "simpleFilter (1000)",
+        "avg": 0.13,
+        "min": 0.08,
+        "max": 0.28,
+        "median": 0.1,
+        "stdDev": 0.08,
+        "iterations": 5,
+        "memoryDelta": -2.25,
+        "rawTimes": [
+          0.104458,
+          0.282834,
+          0.083833,
+          0.102792,
+          0.083375
+        ],
+        "deltaFromFirst": {
+          "avg": -0.06,
+          "percentChange": -31.58
+        },
+        "deltaFromPrevious": {
+          "avg": -0.74,
+          "percentChange": -85.06
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (1000)",
+        "avg": 0.6,
+        "min": 0.53,
+        "max": 0.86,
+        "median": 0.54,
+        "stdDev": 0.13,
+        "iterations": 5,
+        "memoryDelta": 1.8,
+        "rawTimes": [
+          0.547375,
+          0.533958,
+          0.858334,
+          0.54125,
+          0.537333
+        ],
+        "deltaFromFirst": {
+          "avg": -0.32,
+          "percentChange": -34.78
+        },
+        "deltaFromPrevious": {
+          "avg": -4.6,
+          "percentChange": -88.46
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (1000)",
+        "avg": 2.12,
+        "min": 2.09,
+        "max": 2.15,
+        "median": 2.13,
+        "stdDev": 0.03,
+        "iterations": 5,
+        "memoryDelta": -1.03,
+        "rawTimes": [
+          2.151542,
+          2.129167,
+          2.087125,
+          2.100209,
+          2.14525
+        ],
+        "deltaFromFirst": {
+          "avg": 0.03,
+          "percentChange": 1.44
+        },
+        "deltaFromPrevious": {
+          "avg": -1.82,
+          "percentChange": -46.19
+        }
+      }
+    },
+    "2500": {
+      "simpleFilter": {
+        "name": "simpleFilter (2500)",
+        "avg": 0.42,
+        "min": 0.2,
+        "max": 0.84,
+        "median": 0.21,
+        "stdDev": 0.28,
+        "iterations": 5,
+        "memoryDelta": -2.45,
+        "rawTimes": [
+          0.662209,
+          0.195417,
+          0.20725,
+          0.19875,
+          0.843209
+        ],
+        "deltaFromFirst": {
+          "avg": -0.61,
+          "percentChange": -59.22
+        },
+        "deltaFromPrevious": {
+          "avg": -2.13,
+          "percentChange": -83.53
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (2500)",
+        "avg": 1.57,
+        "min": 1.28,
+        "max": 2.53,
+        "median": 1.34,
+        "stdDev": 0.48,
+        "iterations": 5,
+        "memoryDelta": 4.89,
+        "rawTimes": [
+          1.338875,
+          1.336167,
+          2.529208,
+          1.376625,
+          1.275208
+        ],
+        "deltaFromFirst": {
+          "avg": 0.06,
+          "percentChange": 3.97
+        },
+        "deltaFromPrevious": {
+          "avg": -19.42,
+          "percentChange": -92.52
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (2500)",
+        "avg": 5.98,
+        "min": 5.57,
+        "max": 7.2,
+        "median": 5.72,
+        "stdDev": 0.62,
+        "iterations": 5,
+        "memoryDelta": -1.63,
+        "rawTimes": [
+          7.204042,
+          5.573125,
+          5.722709,
+          5.59225,
+          5.802
+        ],
+        "deltaFromFirst": {
+          "avg": 1.67,
+          "percentChange": 38.75
+        },
+        "deltaFromPrevious": {
+          "avg": -3.28,
+          "percentChange": -35.42
+        }
+      }
+    },
+    "5000": {
+      "simpleFilter": {
+        "name": "simpleFilter (5000)",
+        "avg": 0.36,
+        "min": 0.27,
+        "max": 0.64,
+        "median": 0.3,
+        "stdDev": 0.14,
+        "iterations": 5,
+        "memoryDelta": 0.05,
+        "rawTimes": [
+          0.639416,
+          0.312416,
+          0.298458,
+          0.269209,
+          0.276917
+        ],
+        "deltaFromFirst": {
+          "avg": -0.13,
+          "percentChange": -26.53
+        },
+        "deltaFromPrevious": {
+          "avg": -3.55,
+          "percentChange": -90.79
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (5000)",
+        "avg": 2.87,
+        "min": 2.25,
+        "max": 3.83,
+        "median": 2.4,
+        "stdDev": 0.65,
+        "iterations": 5,
+        "memoryDelta": 2.68,
+        "rawTimes": [
+          3.479375,
+          3.827042,
+          2.370042,
+          2.4015,
+          2.253084
+        ],
+        "deltaFromFirst": {
+          "avg": 1.44,
+          "percentChange": 100.7
+        },
+        "deltaFromPrevious": {
+          "avg": -52.7,
+          "percentChange": -94.84
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (5000)",
+        "avg": 10.51,
+        "min": 10.13,
+        "max": 10.88,
+        "median": 10.44,
+        "stdDev": 0.32,
+        "iterations": 5,
+        "memoryDelta": -4.43,
+        "rawTimes": [
+          10.4385,
+          10.134625,
+          10.869125,
+          10.883,
+          10.218292
+        ],
+        "deltaFromFirst": {
+          "avg": 5.18,
+          "percentChange": 97.19
+        },
+        "deltaFromPrevious": {
+          "avg": -7.56,
+          "percentChange": -41.84
+        }
+      }
+    },
+    "10000": {
+      "simpleFilter": {
+        "name": "simpleFilter (10000)",
+        "avg": 0.72,
+        "min": 0.52,
+        "max": 1.43,
+        "median": 0.55,
+        "stdDev": 0.36,
+        "iterations": 5,
+        "memoryDelta": 0.08,
+        "rawTimes": [
+          1.433375,
+          0.571209,
+          0.52025,
+          0.546375,
+          0.516333
+        ],
+        "deltaFromFirst": {
+          "avg": 0.34,
+          "percentChange": 89.47
+        },
+        "deltaFromPrevious": {
+          "avg": -6.98,
+          "percentChange": -90.65
+        }
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (10000)",
+        "avg": 5.32,
+        "min": 4.28,
+        "max": 7.51,
+        "median": 4.64,
+        "stdDev": 1.23,
+        "iterations": 5,
+        "memoryDelta": -8.96,
+        "rawTimes": [
+          5.840625,
+          4.322209,
+          7.510917,
+          4.279833,
+          4.643041
+        ],
+        "deltaFromFirst": {
+          "avg": 0.43,
+          "percentChange": 8.79
+        },
+        "deltaFromPrevious": {
+          "avg": -197.78,
+          "percentChange": -97.38
+        }
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (10000)",
+        "avg": 20.33,
+        "min": 18.99,
+        "max": 21.89,
+        "median": 20.09,
+        "stdDev": 0.96,
+        "iterations": 5,
+        "memoryDelta": 23.35,
+        "rawTimes": [
+          21.887625,
+          20.748708,
+          20.090959,
+          19.919417,
+          18.994042
+        ],
+        "deltaFromFirst": {
+          "avg": 10.58,
+          "percentChange": 108.51
+        },
+        "deltaFromPrevious": {
+          "avg": -12.84,
+          "percentChange": -38.71
+        }
+      }
+    }
+  }
+}

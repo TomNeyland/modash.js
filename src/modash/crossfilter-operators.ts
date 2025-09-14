@@ -86,8 +86,13 @@ export class OptimizedMatchOperator implements IVMOperator {
   snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
-    // Use upstream active IDs if available, otherwise use all live documents
-    const sourceIds = _context.upstreamActiveIds || Array.from(_store.liveSet);
+    // Enforce no liveSet scan in snapshots
+    const sourceIds = _context.upstreamActiveIds;
+    if (!sourceIds) {
+      throw new Error(
+        '[IVM INVARIANT] Match.snapshot missing upstreamActiveIds'
+      );
+    }
 
     // Hot path: batch process for better cache locality
     for (const rowId of sourceIds) {
@@ -110,9 +115,13 @@ export class OptimizedMatchOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    return (
-      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
-    );
+    const upstream = context.getEffectiveUpstreamDocument?.(rowId) || null;
+    if (!upstream && process.env.DEBUG_IVM === '1' && context.stageIndex > 0) {
+      throw new Error(
+        '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
+      );
+    }
+    return upstream || store.documents[rowId] || null;
   };
 
   estimateComplexity(): string {
@@ -201,6 +210,11 @@ export class GroupOperator implements IVMOperator {
     this.groupsKey = `group_${JSON.stringify(groupExpr)}`;
   }
 
+  private serializeGroupKey(key: any): string {
+    // Ensure we always have a stable string key for Map indexing
+    return key === undefined ? '__modash_undefined__' : JSON.stringify(key);
+  }
+
   onAdd(
     _delta: Delta,
     _store: CrossfilterStore,
@@ -218,7 +232,14 @@ export class GroupOperator implements IVMOperator {
     const groupKey = this.compiledGroup.getGroupKey(doc, _delta.rowId);
 
     // Serialize group key for consistent Map indexing
-    const groupKeyStr = JSON.stringify(groupKey);
+    const groupKeyStr = this.serializeGroupKey(groupKey);
+    if (process.env.DEBUG_GROUP_KEYS === '1') {
+      console.log('[GROUP_KEY]', {
+        raw: groupKey,
+        serialized: groupKeyStr,
+        dimension: this.dimensionKey,
+      });
+    }
 
     // Ensure dimension exists
     this.ensureDimension(_store);
@@ -268,7 +289,7 @@ export class GroupOperator implements IVMOperator {
 
     // Get group key for this document
     const groupKey = this.compiledGroup.getGroupKey(doc, _delta.rowId);
-    const groupKeyStr = JSON.stringify(groupKey);
+    const groupKeyStr = this.serializeGroupKey(groupKey);
 
     // Update dimension
     const dimension = _store.dimensions.get(this.dimensionKey);
@@ -310,16 +331,24 @@ export class GroupOperator implements IVMOperator {
       return [];
     }
 
-    const activeGroupIds: RowId[] = [];
-
-    // Return the group key strings as virtual RowIds
+    // Collect active groups with their original keys, then sort deterministically
+    const activeEntries: Array<[string, any]> = [];
     for (const [groupKeyStr, groupState] of groupsMap.entries()) {
       if (groupState.count > 0) {
-        activeGroupIds.push(groupKeyStr); // Use serialized group key as virtual RowId
+        activeEntries.push([groupKeyStr, groupState]);
       }
     }
 
-    return activeGroupIds;
+    // Deterministic ordering to match traditional $group behavior
+    // Sort by the JSON string of the original group key
+    activeEntries.sort((a, b) => {
+      const aKey = JSON.stringify(a[1].groupKey);
+      const bKey = JSON.stringify(b[1].groupKey);
+      return aKey.localeCompare(bKey);
+    });
+
+    // Return the serialized keys in sorted order as virtual RowIds
+    return activeEntries.map(([groupKeyStr]) => groupKeyStr);
   }
 
   /**
@@ -459,19 +488,27 @@ export class OptimizedSortOperator implements IVMOperator {
 
   snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Use upstreamActiveIds from context
-    const sourceRowIds = _context.upstreamActiveIds || [];
-    if (sourceRowIds.length === 0) return [];
+    const sourceRowIds = _context.upstreamActiveIds;
+    if (!sourceRowIds) {
+      throw new Error(
+        '[IVM INVARIANT] Sort.snapshot missing upstreamActiveIds'
+      );
+    }
 
     // Collect documents with their rowIds for sorting
     const docsWithIds: Array<{ rowId: RowId; doc: Document }> = [];
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc =
-        _context.getEffectiveUpstreamDocument?.(rowId) ||
-        _store.documents[rowId];
-      if (doc) {
-        docsWithIds.push({ rowId, doc });
+      const doc = _context.getEffectiveUpstreamDocument?.(rowId) || null;
+      if (!doc && process.env.DEBUG_IVM === '1' && _context.stageIndex > 0) {
+        throw new Error(
+          '[IVM INVARIANT] $sort attempted store fallback beyond stage 0'
+        );
+      }
+      const eff = doc || _store.documents[rowId];
+      if (eff) {
+        docsWithIds.push({ rowId, doc: eff });
       }
     }
 
@@ -633,7 +670,15 @@ export class ProjectOperator implements IVMOperator {
     const result: RowId[] = [];
 
     // Use upstreamActiveIds from context, not store.liveSet
-    const sourceRowIds = _context.upstreamActiveIds || [];
+    const sourceRowIds = _context.upstreamActiveIds;
+    if (!sourceRowIds) {
+      if (process.env.DEBUG_IVM === '1') {
+        throw new Error(
+          '[IVM INVARIANT] Project.snapshot missing upstreamActiveIds'
+        );
+      }
+      return result;
+    }
 
     if (process.env.DEBUG_IVM) {
       console.log(
@@ -780,7 +825,12 @@ export class LimitOperator implements IVMOperator {
 
   snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Pure rowId slicer - just take first N from upstream
-    const sourceRowIds = _context.upstreamActiveIds || [];
+    const sourceRowIds = _context.upstreamActiveIds;
+    if (!sourceRowIds) {
+      throw new Error(
+        '[IVM INVARIANT] Limit.snapshot missing upstreamActiveIds'
+      );
+    }
     return sourceRowIds.slice(0, this.limitValue);
   }
 
@@ -790,9 +840,13 @@ export class LimitOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
-    return (
-      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
-    );
+    const upstream = context.getEffectiveUpstreamDocument?.(rowId) || null;
+    if (!upstream && process.env.DEBUG_IVM === '1' && context.stageIndex > 0) {
+      throw new Error(
+        '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
+      );
+    }
+    return upstream || store.documents[rowId] || null;
   };
 
   estimateComplexity(): string {
@@ -836,7 +890,12 @@ export class SkipOperator implements IVMOperator {
 
   snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     // Pure rowId slicer - skip first N from upstream
-    const sourceRowIds = _context.upstreamActiveIds || [];
+    const sourceRowIds = _context.upstreamActiveIds;
+    if (!sourceRowIds) {
+      throw new Error(
+        '[IVM INVARIANT] Skip.snapshot missing upstreamActiveIds'
+      );
+    }
     return sourceRowIds.slice(this.skipValue);
   }
 

@@ -16,6 +16,7 @@ import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
 import { createStreamingCollection, StreamingCollection } from './streaming.js';
 import { hotPathAggregate } from './hot-path-aggregation.js';
+import { explain, benchmark, fromJSONL } from './api-enhancements.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -38,6 +39,12 @@ const optimizedAggregate = <T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline
 ): Collection<Document> => {
+  // D) Pipeline Input Validation - Check pipeline before routing to hot path
+  if (!Array.isArray(pipeline)) {
+    // Let the underlying aggregate handle single stages and invalid inputs
+    return originalAggregate(collection, pipeline as any);
+  }
+
   // Route to hot path for maximum performance
   return hotPathAggregate(collection, pipeline);
 };
@@ -109,6 +116,10 @@ export {
   $lookup,
   $addFields,
   $set,
+  // Phase 6: Enhanced DX APIs
+  explain,
+  benchmark,
+  fromJSONL,
 };
 
 // Re-export basic types from local modules

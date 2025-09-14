@@ -338,7 +338,9 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
         { $limit: 5 },
       ];
 
-      // Time both approaches
+      // Warm and time both approaches (avoid first-run compile/setup cost)
+      // Warm array/hot-path
+      Modash.aggregate(largeDataset, complexPipeline);
       const startNonStreaming = performance.now();
       const nonStreamingResult = Modash.aggregate(
         largeDataset,
@@ -347,6 +349,8 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
       const endNonStreaming = performance.now();
 
       const streamingCollection = createStreamingCollection(largeDataset);
+      // Warm streaming hot-path
+      streamingCollection.stream(complexPipeline);
       const startStreaming = performance.now();
       const streamingResult = streamingCollection.stream(complexPipeline);
       const endStreaming = performance.now();

@@ -79,9 +79,14 @@ function $project<T extends Document = Document>(
     specs._id = 1;
   }
 
-  return collection.map(obj =>
-    $expressionObject(obj, specs, obj)
-  ) as Collection<T>;
+  return collection.map(obj => {
+    const projected = $expressionObject(obj, specs, obj) as any;
+    // Align behavior with compiled project: omit _id when it's undefined
+    if (projected && projected._id === undefined) {
+      delete projected._id;
+    }
+    return projected as T;
+  }) as Collection<T>;
 }
 
 /**
@@ -537,9 +542,16 @@ function $group<T extends Document = Document>(
     groupsMap.get(key)!.push(obj);
   }
 
-  // Process groups
+  // Process groups - A) Stable ordering: sort groups by deterministic JSON-stable key
   const results: Document[] = [];
-  for (const members of groupsMap.values()) {
+  const sortedGroupEntries = Array.from(groupsMap.entries()).sort(
+    ([keyA], [keyB]) => {
+      // Sort by the JSON string representation for deterministic ordering
+      return keyA.localeCompare(keyB);
+    }
+  );
+
+  for (const [groupKey, members] of sortedGroupEntries) {
     const result: GroupResult = {};
     for (const [field, fieldSpec] of Object.entries(specifications)) {
       if (field === '_id') {
@@ -629,8 +641,17 @@ function aggregate<T extends Document = Document>(
     return [] as Collection<T>;
   }
 
+  // D) Pipeline Input Validation - Handle null/undefined/invalid pipelines
+  if (pipeline == null) {
+    return collection; // Return collection unchanged for null/undefined pipeline
+  }
+
   let stages: PipelineStage[];
   if (!Array.isArray(pipeline)) {
+    // Handle single stage - but ensure it's a valid object
+    if (typeof pipeline !== 'object') {
+      return collection; // Return unchanged for invalid single stage
+    }
     stages = [pipeline as PipelineStage];
   } else {
     stages = pipeline;

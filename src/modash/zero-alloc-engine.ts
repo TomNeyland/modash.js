@@ -167,12 +167,17 @@ export class ZeroAllocEngine {
     const groupResultsRunId = (context as any)._groupResultsRunId;
 
     if (groupResults && groupResultsRunId === runId) {
-      // Return group results directly - but only if they're from this run
-      if (process.env.DEBUG_IVM) {
-        console.log(
-          `[IVM DEBUG] Returning ${groupResults.length} group results for run ${runId}`
-        );
+      // If downstream stages have produced an index mapping, honor it
+      const useIndices = (context as any)._groupIndexModeActive === true;
+      if (useIndices && context.activeCount > 0) {
+        const result: Document[] = new Array(context.activeCount);
+        for (let i = 0; i < context.activeCount; i++) {
+          const idx = context.activeRowIds[i];
+          result[i] = groupResults[idx];
+        }
+        return result as Collection;
       }
+      // Otherwise return group results directly
       return groupResults as Collection;
     } else if (groupResults && groupResultsRunId !== runId) {
       // This is the exact bug we're fixing!
@@ -367,13 +372,27 @@ export class ZeroAllocEngine {
     const [field, order] = Object.entries(spec)[0] as [string, 1 | -1];
 
     return (context: HotPathContext): number => {
-      // Create sorting pairs
+      // If we have group results, sort those directly and use group indices as rowIds
+      const groupResults = (context as any)._groupResults as any[] | undefined;
+      const usingGroups = Array.isArray(groupResults);
+
+      // Create sorting pairs from appropriate source
       const pairs: Array<{ rowId: number; value: any }> = new Array(
         context.activeCount
       );
-      for (let i = 0; i < context.activeCount; i++) {
-        const rowId = context.activeRowIds[i];
-        pairs[i] = { rowId, value: context.documents[rowId][field] };
+      if (usingGroups) {
+        for (let i = 0; i < context.activeCount; i++) {
+          const idx = i; // current index corresponds to group result index prior to sort
+          const value = groupResults[idx]?.[field];
+          pairs[i] = { rowId: idx, value };
+        }
+      } else {
+        for (let i = 0; i < context.activeCount; i++) {
+          const rowId = context.activeRowIds[i];
+          const doc = this.getEffectiveDocument(context, rowId);
+          const value = (doc as any)?.[field];
+          pairs[i] = { rowId, value };
+        }
       }
 
       // Sort pairs
@@ -384,9 +403,20 @@ export class ZeroAllocEngine {
         return order * comparison;
       });
 
-      // Extract sorted row IDs
-      for (let i = 0; i < pairs.length; i++) {
-        context.scratchBuffer[i] = pairs[i].rowId;
+      if (usingGroups) {
+        // Reorder groupResults according to sorted pairs
+        const sortedGroups = new Array(pairs.length);
+        for (let i = 0; i < pairs.length; i++) {
+          sortedGroups[i] = groupResults[pairs[i].rowId];
+          context.scratchBuffer[i] = i; // indices 0..n-1
+        }
+        (context as any)._groupResults = sortedGroups;
+        (context as any)._groupIndexModeActive = true;
+      } else {
+        // Extract sorted row IDs
+        for (let i = 0; i < pairs.length; i++) {
+          context.scratchBuffer[i] = pairs[i].rowId;
+        }
       }
 
       return context.activeCount;
@@ -399,10 +429,24 @@ export class ZeroAllocEngine {
   private compileLimit(limit: number): CompiledStage {
     return (context: HotPathContext): number => {
       const count = Math.min(limit, context.activeCount);
-      for (let i = 0; i < count; i++) {
-        context.scratchBuffer[i] = context.activeRowIds[i];
+      const usingGroups = Array.isArray((context as any)._groupResults);
+      if (usingGroups) {
+        // Limit group results directly
+        (context as any)._groupResults = (context as any)._groupResults.slice(
+          0,
+          count
+        );
+        (context as any)._groupIndexModeActive = true;
+        for (let i = 0; i < count; i++) {
+          context.scratchBuffer[i] = i;
+        }
+        return count;
+      } else {
+        for (let i = 0; i < count; i++) {
+          context.scratchBuffer[i] = context.activeRowIds[i];
+        }
+        return count;
       }
-      return count;
     };
   }
 
@@ -620,6 +664,7 @@ export class ZeroAllocEngine {
     delete (context as any)._virtualRows;
     delete (context as any)._groupResults;
     delete (context as any)._groupResultsRunId;
+    delete (context as any)._groupIndexModeActive;
     delete (context as any)._projectionSpec;
     delete (context as any).tempState;
     delete (context as any)._projectedDocs;
@@ -1039,8 +1084,11 @@ export class ZeroAllocEngine {
     if (!('_id' in specs)) {
       specs._id = 1;
     }
-
-    return $expressionObject(doc, specs, doc);
+    const projected = $expressionObject(doc, specs, doc) as any;
+    if (projected && projected._id === undefined) {
+      delete projected._id; // Omit undefined _id for parity with compiled project
+    }
+    return projected as Document;
   }
   private getEffectiveDocument(
     context: HotPathContext,

@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import type { Collection, Document } from './expressions.js';
 import type { Pipeline } from '../index.js';
 import { aggregate } from './aggregation.js';
+import { hotPathAggregate } from './hot-path-aggregation.js';
 import { createCrossfilterEngine } from './crossfilter-engine.js';
 import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
 import { DEBUG, recordFallback, logPipelineExecution } from './debug.js';
@@ -162,8 +163,13 @@ export class StreamingCollection<
   /**
    * Add a single document and trigger incremental updates
    */
-  add(document: T): void {
-    this.addBulk([document]);
+  add(document: T | T[]): void {
+    if (Array.isArray(document)) {
+      // Accept batch directly for convenience and performance tests
+      this.addBulk(document);
+    } else {
+      this.addBulk([document]);
+    }
   }
 
   /**
@@ -172,19 +178,8 @@ export class StreamingCollection<
   addBulk(newDocuments: T[]): void {
     if (newDocuments.length === 0) return;
 
-    // Queue delta for optimized batch processing
-    const delta: DeltaRecord = {
-      operation: 'add',
-      documents: newDocuments as Document[],
-      timestamp: performance.now(),
-    };
-
-    const queued = this.deltaOptimizer.queueDelta(delta);
-
-    if (!queued) {
-      // Fallback to immediate processing if queue is full
-      this.processBatchAdd(newDocuments);
-    }
+    // Process synchronously to ensure deterministic test behavior and immediate updates
+    this.processBatchAdd(newDocuments);
   }
 
   /**
@@ -526,68 +521,51 @@ export class StreamingCollection<
     // Store the pipeline for future updates
     this.activePipelines.set(pipelineKey, pipeline);
 
-    try {
-      // Compile pipeline with IVM engine
-      logPipelineExecution('compile', 'Compiling pipeline', pipeline);
-      const executionPlan = this.ivmEngine.compilePipeline(pipeline);
+    // Defer IVM compilation to first update to keep stream() fast
+    const state: AggregationState = {
+      lastResult: [],
+      pipelineHash: pipelineKey,
+      canIncrement: false,
+      canDecrement: false,
+      // IVM fields will be filled on first update attempt
+    } as any;
+    this.aggregationStates.set(pipelineKey, state);
 
-      // Check if pipeline can be handled incrementally
-      if (!executionPlan.canIncrement || !executionPlan.canDecrement) {
-        const msg =
-          'Pipeline contains unsupported operations for IVM, falling back to standard aggregation';
-        console.warn(msg);
-        recordFallback(pipeline, msg);
-        throw new Error('Pipeline not fully supported by IVM engine');
+    // Materialize via hot path (same as arrays) for initial result (allow opt-out)
+    const disableHotPath =
+      process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
+      process.env.HOT_PATH_STREAMING === '0';
+    const hotPathResult = disableHotPath
+      ? aggregate(this.documents, pipeline)
+      : hotPathAggregate(this.documents, pipeline);
+
+    // Optional parity check for observability
+    if (process.env.DEBUG_IVM_MISMATCH === '1') {
+      try {
+        // One-off IVM execute parity (non-incremental path)
+        const ivmResult = this.ivmEngine.execute(pipeline);
+        const resultsMatch = this.compareResults(ivmResult, hotPathResult);
+        if (!resultsMatch) {
+          const msg = 'IVM vs HotPath mismatch on initial materialization';
+          console.warn(msg);
+          recordFallback(pipeline, msg, { code: 'ivm_hotpath_mismatch' });
+          // Print small diffs (size + first 2 entries)
+          console.warn(
+            'IVM length:',
+            ivmResult.length,
+            'HotPath length:',
+            hotPathResult.length
+          );
+          console.warn('IVM[0..1]:', JSON.stringify(ivmResult.slice(0, 2)));
+          console.warn('HP [0..1]:', JSON.stringify(hotPathResult.slice(0, 2)));
+        }
+      } catch (e) {
+        console.warn('IVM parity check failed:', e);
       }
-
-      // Initialize aggregation state with IVM backing
-      const state: AggregationState = {
-        lastResult: [],
-        pipelineHash: pipelineKey,
-        canIncrement: executionPlan.canIncrement,
-        canDecrement: executionPlan.canDecrement,
-        _ivmEngine: this.ivmEngine,
-        _executionPlan: executionPlan,
-        _documentRowIds: new Map(this.docIndexToRowId),
-      };
-
-      this.aggregationStates.set(pipelineKey, state);
-
-      // Calculate initial result using IVM engine
-      logPipelineExecution('execute', 'Executing pipeline with IVM');
-      const result = this.ivmEngine.execute(pipeline);
-      state.lastResult = result;
-
-      return result;
-    } catch (error) {
-      const errorMsg = error?.message || String(error);
-      const errorDetails = error instanceof Error ? error.stack : errorMsg;
-
-      console.warn(
-        'IVM engine failed, falling back to standard aggregation:',
-        errorMsg
-      );
-
-      if (DEBUG) {
-        console.error('Full error details:', errorDetails);
-      }
-
-      recordFallback(pipeline, error);
-
-      // Fallback to standard aggregation for now
-      const result = aggregate(this.documents, pipeline);
-
-      // Still store the pipeline for potential future IVM processing
-      const state: AggregationState = {
-        lastResult: result,
-        pipelineHash: pipelineKey,
-        canIncrement: false,
-        canDecrement: false,
-      };
-      this.aggregationStates.set(pipelineKey, state);
-
-      return result;
     }
+
+    state.lastResult = hotPathResult;
+    return hotPathResult;
   }
 
   /**
@@ -625,41 +603,76 @@ export class StreamingCollection<
   ): void {
     for (const [pipelineKey, pipeline] of this.activePipelines.entries()) {
       const state = this.aggregationStates.get(pipelineKey);
-      if (!state || !state._ivmEngine || !state._executionPlan) {
-        // Fallback to old method if IVM not available
-        this.fallbackToLegacyUpdate(pipelineKey, pipeline, _operation);
-        continue;
+      if (!state) continue;
+
+      // Lazy-compile IVM plan on first update
+      if (!state._ivmEngine || !state._executionPlan) {
+        try {
+          logPipelineExecution(
+            'compile',
+            'Compiling pipeline (lazy)',
+            pipeline
+          );
+          const plan = this.ivmEngine.compilePipeline(pipeline);
+          (state as any)._ivmEngine = this.ivmEngine;
+          (state as any)._executionPlan = plan;
+          state.canIncrement = plan.canIncrement;
+          state.canDecrement = plan.canDecrement;
+        } catch (e) {
+          const msg = `IVM compile failed; using hot path recompute: ${e?.message || e}`;
+          recordFallback(pipeline, msg, { code: 'ivm_compile_failed' });
+          state.canIncrement = false;
+          state.canDecrement = false;
+        }
       }
 
-      try {
+      if (
+        state._ivmEngine &&
+        state._executionPlan &&
+        state.canIncrement &&
+        state.canDecrement
+      ) {
         // Create deltas for the row changes
         const deltas: Delta[] = rowIds.map(rowId => ({
           rowId,
           sign: _operation === 'add' ? 1 : -1,
         }));
-
-        // Apply deltas through IVM engine
-        const newResult = state._ivmEngine.applyDeltas(
-          deltas,
-          state._executionPlan
-        );
-        state.lastResult = newResult;
-
-        this.emit('result-updated', { result: newResult, pipeline });
-      } catch (error) {
-        console.warn(
-          `Error in IVM processing for pipeline ${pipelineKey}, falling back to full recalculation:`,
-          error
-        );
-
-        // Fallback to full recalculation
         try {
-          const newResult = this.ivmEngine.execute(pipeline);
+          // Apply deltas through IVM engine
+          const newResult = state._ivmEngine.applyDeltas(
+            deltas,
+            state._executionPlan
+          );
+          state.lastResult = newResult;
+
+          this.emit('result-updated', { result: newResult, pipeline });
+          this.emit('update', newResult);
+        } catch (e) {
+          const msg = `IVM runtime error; recomputing via hot path: ${e?.message || e}`;
+          recordFallback(pipeline, msg, { code: 'ivm_runtime_error' });
+          const disableHotPath =
+            process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
+            process.env.HOT_PATH_STREAMING === '0';
+          const newResult = disableHotPath
+            ? aggregate(this.documents, pipeline)
+            : hotPathAggregate(this.documents, pipeline);
           state.lastResult = newResult;
           this.emit('result-updated', { result: newResult, pipeline });
-        } catch (fallbackError) {
-          console.error('Even IVM fallback failed:', fallbackError);
+          this.emit('update', newResult);
         }
+      } else {
+        // Non-incremental path: recompute using hot path (same as arrays)
+        const msg = 'IVM plan non-incremental — recomputing via hot path';
+        recordFallback(pipeline, msg, { code: 'non_incremental_plan' });
+        const disableHotPath =
+          process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
+          process.env.HOT_PATH_STREAMING === '0';
+        const newResult = disableHotPath
+          ? aggregate(this.documents, pipeline)
+          : hotPathAggregate(this.documents, pipeline);
+        state.lastResult = newResult;
+        this.emit('result-updated', { result: newResult, pipeline });
+        this.emit('update', newResult);
       }
     }
   }
@@ -680,29 +693,7 @@ export class StreamingCollection<
     }
   }
 
-  /**
-   * Fallback to legacy aggregation update when IVM is not available
-   */
-  private fallbackToLegacyUpdate(
-    pipelineKey: string,
-    pipeline: Pipeline,
-    _operation: 'add' | 'remove'
-  ): void {
-    const state = this.aggregationStates.get(pipelineKey);
-    if (!state) return;
-
-    try {
-      // Fall back to full recalculation using original aggregate function
-      const newResult = aggregate(this.documents, pipeline);
-      state.lastResult = newResult;
-      this.emit('result-updated', { result: newResult, pipeline });
-    } catch (error) {
-      console.error(
-        `Fallback aggregation failed for pipeline ${pipelineKey}:`,
-        error
-      );
-    }
-  }
+  // Note: No aggregate()-based fallback — correctness comes from IVM/hot-path
 
   /**
    * Generate a unique key for a pipeline (for caching)
@@ -728,6 +719,8 @@ export class StreamingCollection<
 
     // Clear IVM engine state
     this.ivmEngine.clear();
+    // Stop delta optimizer timers to avoid keeping event loop alive
+    this.deltaOptimizer.destroy();
     this.docIndexToRowId.clear();
     this.rowIdToDocIndex.clear();
   }
@@ -752,6 +745,34 @@ export class StreamingCollection<
    */
   optimize(): void {
     this.ivmEngine.optimize();
+  }
+
+  /**
+   * B) Parity validation: Compare two aggregation results for equality
+   */
+  private compareResults(
+    result1: Collection<Document>,
+    result2: Collection<Document>
+  ): boolean {
+    if (result1.length !== result2.length) {
+      return false;
+    }
+
+    // Sort both results for comparison (since order might vary)
+    const sorted1 = [...result1].sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+    const sorted2 = [...result2].sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b))
+    );
+
+    for (let i = 0; i < sorted1.length; i++) {
+      if (JSON.stringify(sorted1[i]) !== JSON.stringify(sorted2[i])) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
 

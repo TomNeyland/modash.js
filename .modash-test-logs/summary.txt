@@ -1,0 +1,54 @@
+===== RUNNING tests/aggregation.spec.js =====
+FAILED: tests/aggregation.spec.js (exit 2, 0s)
+
+===== RUNNING tests/count.spec.js =====
+PASSED: tests/count.spec.js (0s)
+
+===== RUNNING tests/cross-run-isolation.spec.js =====
+PASSED: tests/cross-run-isolation.spec.js (0s)
+
+===== RUNNING tests/documentation-examples.spec.js =====
+PASSED: tests/documentation-examples.spec.js (0s)
+
+===== RUNNING tests/enhanced-operators.spec.js =====
+PASSED: tests/enhanced-operators.spec.js (1s)
+
+===== RUNNING tests/issue-41-regression.spec.js =====
+PASSED: tests/issue-41-regression.spec.js (0s)
+
+===== RUNNING tests/ivm-context-chaining.spec.js =====
+PASSED: tests/ivm-context-chaining.spec.js (0s)
+
+===== RUNNING tests/ivm-regression.spec.js =====
+PASSED: tests/ivm-regression.spec.js (0s)
+
+===== RUNNING tests/modash.spec.js =====
+PASSED: tests/modash.spec.js (1s)
+
+===== RUNNING tests/new-operators.spec.js =====
+PASSED: tests/new-operators.spec.js (0s)
+
+===== RUNNING tests/operators.spec.js =====
+PASSED: tests/operators.spec.js (0s)
+
+===== RUNNING tests/phase3-optimization.spec.js =====
+FAILED: tests/phase3-optimization.spec.js (exit 1, 60s)
+
+===== RUNNING tests/phase3.5-text-regex.spec.js =====
+PASSED: tests/phase3.5-text-regex.spec.js (1s)
+
+===== RUNNING tests/streaming-comparison.spec.js =====
+FAILED: tests/streaming-comparison.spec.js (exit 4, 0s)
+
+===== RUNNING tests/streaming-removal.spec.js =====
+FAILED: tests/streaming-removal.spec.js (exit 2, 0s)
+
+===== RUNNING tests/streaming.spec.js =====
+FAILED: tests/streaming.spec.js (exit 2, 61s)
+
+===== RUNNING tests/transparent-streaming.spec.js =====
+FAILED: tests/transparent-streaming.spec.js (exit 1, 0s)
+
+===== RUNNING tests/unwind-hardening.spec.js =====
+PASSED: tests/unwind-hardening.spec.js (0s)
+
