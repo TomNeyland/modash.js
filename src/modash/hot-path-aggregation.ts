@@ -93,20 +93,33 @@ export function resetOptimizerRejections(): void {
  * Determine if pipeline can use hot path (zero-alloc engine)
  */
 function canUseHotPath(pipeline: Pipeline): boolean {
-  // Hot path criteria for P0:
-  // 1. Pipeline length ≤ 4 stages (complexity limit)
-  // 2. Only supported operations: $match, $project, $sort, $limit, $skip
-  // 3. No complex expressions (nested objects, arrays, etc.)
-  // 4. No $lookup, $unwind, complex $group operations
+  // Phase 3 hot path criteria:
+  // 1. Extended pipeline length support for complex combinations (≤ 6 stages)
+  // 2. Enhanced $group + $project + $sort pipeline support
+  // 3. $unwind + $group optimization patterns
+  // 4. Vectorized accumulator operations ($addToSet, $push)
+  // 5. Operator fusion detection for multi-stage optimization
   
   if (pipeline.length === 0) {
     recordOptimizerRejection(pipeline, 'Empty pipeline');
     return false;
   }
   
-  if (pipeline.length > 4) {
-    recordOptimizerRejection(pipeline, `Pipeline too long (${pipeline.length} stages, max 4)`);
+  if (pipeline.length > 6) {
+    recordOptimizerRejection(pipeline, `Pipeline too long (${pipeline.length} stages, max 6)`);
     return false;
+  }
+
+  // Check for complex pipeline patterns that are now supported
+  const hasGroup = pipeline.some(stage => '$group' in stage);
+  const hasUnwind = pipeline.some(stage => '$unwind' in stage);
+  
+  // Phase 3: Support $unwind + $group patterns with optimization
+  if (hasUnwind && hasGroup) {
+    if (!canOptimizeUnwindGroup(pipeline)) {
+      recordOptimizerRejection(pipeline, '$unwind + $group pattern not optimizable');
+      return false;
+    }
   }
 
   for (let i = 0; i < pipeline.length; i++) {
@@ -121,8 +134,10 @@ function canUseHotPath(pipeline: Pipeline): boolean {
         }
         break;
       case '$project':
-        if (!isSimpleProject(stage.$project)) {
-          recordOptimizerRejection(pipeline, 'Complex $project with computed fields not supported in hot path', i, stageType);
+        // Phase 3: Allow computed fields after $group operations
+        const isAfterGroup = pipeline.slice(0, i).some(s => '$group' in s);
+        if (!isSimpleProject(stage.$project, isAfterGroup)) {
+          recordOptimizerRejection(pipeline, 'Complex $project with unsupported computed fields', i, stageType);
           return false;
         }
         break;
@@ -139,6 +154,13 @@ function canUseHotPath(pipeline: Pipeline): boolean {
       case '$group':
         if (!isSimpleGroup(stage.$group)) {
           recordOptimizerRejection(pipeline, 'Complex $group operations not supported in hot path', i, stageType);
+          return false;
+        }
+        break;
+      case '$unwind':
+        // Phase 3: Support $unwind in combination with $group
+        if (!isSimpleUnwind(stage.$unwind)) {
+          recordOptimizerRejection(pipeline, 'Complex $unwind operations not supported in hot path', i, stageType);
           return false;
         }
         break;
@@ -197,15 +219,24 @@ function isSimpleMatch(matchExpr: any): boolean {
 
 /**
  * Check if $project is simple enough for hot path
+ * Phase 3: Allow computed fields after $group operations
  */
-function isSimpleProject(projectSpec: any): boolean {
-  // For P0, only support simple inclusion/exclusion
-  // No computed fields for maximum performance
+function isSimpleProject(projectSpec: any, isAfterGroup = false): boolean {
   for (const [field, spec] of Object.entries(projectSpec)) {
-    if (spec !== 0 && spec !== 1 && spec !== true && spec !== false) {
-      // Has computed fields - not suitable for hot path
-      return false;
+    if (spec === 0 || spec === 1 || spec === true || spec === false) {
+      // Simple inclusion/exclusion always supported
+      continue;
     }
+    
+    if (isAfterGroup && typeof spec === 'object' && spec !== null) {
+      // Phase 3: Allow simple computed fields after $group
+      if (isSimpleExpression(spec)) {
+        continue;
+      }
+    }
+    
+    // Complex computed fields not supported in hot path
+    return false;
   }
   return true;
 }
@@ -221,9 +252,9 @@ function isSimpleSort(sortSpec: any): boolean {
 
 /**
  * Check if $group is simple enough for hot path
+ * Phase 3: Enhanced support with vectorized accumulators
  */
 function isSimpleGroup(groupSpec: any): boolean {
-  // Enhanced P0+ support with high-performance group engine
   const { _id } = groupSpec;
   
   // Support null _id (single group)
@@ -238,10 +269,16 @@ function isSimpleGroup(groupSpec: any): boolean {
   
   // Support object-based grouping (compound keys)
   if (typeof _id === 'object' && _id !== null) {
+    // Ensure all grouping fields are simple field references
+    for (const [key, value] of Object.entries(_id)) {
+      if (typeof value !== 'string' || !value.startsWith('$')) {
+        return false; // Complex grouping expressions not supported
+      }
+    }
     return true;
   }
 
-  // Check accumulators - now support all major operators
+  // Check accumulators - Phase 3: support vectorized operations
   for (const [field, accumulator] of Object.entries(groupSpec)) {
     if (field === '_id') continue;
     
@@ -251,11 +288,148 @@ function isSimpleGroup(groupSpec: any): boolean {
     if (ops.length !== 1) return false;
     
     const [op, value] = ops[0];
-    const supportedOps = ['$sum', '$avg', '$min', '$max', '$first', '$last', '$push', '$addToSet'];
+    // Phase 3: Enhanced accumulator support including vectorized $addToSet and $push
+    const supportedOps = [
+      '$sum', '$avg', '$min', '$max', '$first', '$last', 
+      '$push', '$addToSet', '$count' // Vectorized operations
+    ];
     if (!supportedOps.includes(op)) return false;
+    
+    // Validate accumulator expression
+    if (!isSimpleAccumulatorExpression(value)) return false;
   }
 
   return true;
+}
+
+/**
+ * Check if accumulator expression is simple enough for vectorized processing
+ */
+function isSimpleAccumulatorExpression(expr: any): boolean {
+  // Simple field references
+  if (typeof expr === 'string' && expr.startsWith('$')) {
+    return true;
+  }
+  
+  // Literals and constants
+  if (typeof expr === 'number' || typeof expr === 'string' || expr === 1) {
+    return true;
+  }
+  
+  // Simple arithmetic expressions for $sum
+  if (typeof expr === 'object' && expr !== null) {
+    const keys = Object.keys(expr);
+    if (keys.length === 1) {
+      const op = keys[0];
+      if (['$multiply', '$add', '$subtract', '$divide'].includes(op)) {
+        const operands = expr[op];
+        if (Array.isArray(operands) && operands.length <= 2) {
+          return operands.every(isSimpleAccumulatorExpression);
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Check if $unwind is simple enough for hot path
+ * Phase 3: Support basic $unwind operations
+ */
+function isSimpleUnwind(unwindSpec: any): boolean {
+  // Simple string path
+  if (typeof unwindSpec === 'string') {
+    return true;
+  }
+  
+  // Object form with path only (no complex options)
+  if (typeof unwindSpec === 'object' && unwindSpec !== null) {
+    const { path, includeArrayIndex, preserveNullAndEmptyArrays } = unwindSpec;
+    
+    // Must have path
+    if (!path || typeof path !== 'string') return false;
+    
+    // Phase 3: Basic support without complex options for now
+    if (includeArrayIndex || preserveNullAndEmptyArrays) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if $unwind + $group pattern can be optimized
+ * Phase 3: Avoid repeated materialization
+ */
+function canOptimizeUnwindGroup(pipeline: Pipeline): boolean {
+  // Find $unwind and $group stages
+  let unwindIndex = -1;
+  let groupIndex = -1;
+  
+  for (let i = 0; i < pipeline.length; i++) {
+    const stage = pipeline[i];
+    if ('$unwind' in stage) {
+      unwindIndex = i;
+    } else if ('$group' in stage) {
+      groupIndex = i;
+      break; // First $group after $unwind
+    }
+  }
+  
+  if (unwindIndex === -1 || groupIndex === -1 || unwindIndex >= groupIndex) {
+    return false; // No valid $unwind + $group pattern
+  }
+  
+  // Check if stages between $unwind and $group are compatible
+  for (let i = unwindIndex + 1; i < groupIndex; i++) {
+    const stage = pipeline[i];
+    const stageType = Object.keys(stage)[0];
+    
+    // Only allow $match, $project between $unwind and $group
+    if (!['$match', '$project'].includes(stageType)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Check if expression is simple enough for hot path
+ */
+function isSimpleExpression(expr: any): boolean {
+  // Field references
+  if (typeof expr === 'string' && expr.startsWith('$')) {
+    return true;
+  }
+  
+  // Literals
+  if (typeof expr === 'number' || typeof expr === 'string' || typeof expr === 'boolean') {
+    return true;
+  }
+  
+  // Simple object expressions
+  if (typeof expr === 'object' && expr !== null && !Array.isArray(expr)) {
+    const keys = Object.keys(expr);
+    if (keys.length === 1) {
+      const op = keys[0];
+      const supportedOps = ['$multiply', '$add', '$subtract', '$divide', '$concat', '$toString'];
+      if (supportedOps.includes(op)) {
+        const operands = expr[op];
+        if (Array.isArray(operands)) {
+          return operands.every(isSimpleExpression);
+        } else {
+          return isSimpleExpression(operands);
+        }
+      }
+    }
+  }
+  
+  return false;
 }
 
 /**
