@@ -16,6 +16,10 @@ import {
   canUsePerformanceAggregation 
 } from './performance-aggregation.js';
 
+// Import ultra-fast implementations for critical operations
+import { fastMatch } from './fast-match.js';
+import { fastGroup, canUseFastGroup } from './fast-group.js';
+
 // Import complex types from main index for now
 import type {
   Pipeline,
@@ -87,15 +91,14 @@ function $project<T extends Document = Document>(
 /**
  * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
+ * Now uses ultra-fast implementation for better performance.
  */
 function $match<T extends Document = Document>(
   collection: Collection<T>,
   query: QueryExpression
 ): Collection<T> {
-  if (!Array.isArray(collection)) {
-    return [];
-  }
-  return collection.filter(item => matchDocument(item, query));
+  // Use fast match implementation for all queries
+  return fastMatch(collection, query);
 }
 
 /**
@@ -355,11 +358,18 @@ function $unwind<T extends Document = Document>(
 /**
  * Groups input documents by a specified identifier expression and applies the
  * accumulator expression(s), if specified, to each group.
+ * Now uses ultra-fast implementation for supported operations.
  */
 function $group<T extends Document = Document>(
   collection: Collection<T>,
   specifications: GroupStage['$group'] = { _id: null }
 ): Collection<T> {
+  // Use fast group implementation when possible
+  if (canUseFastGroup(specifications)) {
+    return fastGroup(collection, specifications);
+  }
+  
+  // Fall back to original implementation for unsupported operations
   const _idSpec = specifications._id;
 
   // Group by using native JavaScript

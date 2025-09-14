@@ -1,0 +1,942 @@
+{
+  "results": {
+    "1000": {
+      "simpleFilter": {
+        "name": "simpleFilter (1000)",
+        "avg": 0.08,
+        "min": 0.06,
+        "max": 0.1,
+        "median": 0.09,
+        "stdDev": 0.01,
+        "iterations": 5,
+        "memoryDelta": 0.07,
+        "rawTimes": [
+          0.092422,
+          0.066935,
+          0.064089,
+          0.086672,
+          0.099775
+        ],
+        "docsPerSec": 12499999.999999998,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 1000
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (1000)",
+        "avg": 1.12,
+        "min": 0.83,
+        "max": 1.58,
+        "median": 0.99,
+        "stdDev": 0.29,
+        "iterations": 5,
+        "memoryDelta": -0.82,
+        "rawTimes": [
+          1.325522,
+          1.577632,
+          0.830689,
+          0.994154,
+          0.860535
+        ],
+        "docsPerSec": 892857.1428571427,
+        "counters": {
+          "adds": 1005,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.991044776119403,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.3125,
+          "averageProbeLength": 0.2
+        },
+        "size": 1000
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (1000)",
+        "avg": 1.44,
+        "min": 0.89,
+        "max": 2.16,
+        "median": 1.05,
+        "stdDev": 0.58,
+        "iterations": 5,
+        "memoryDelta": 0.36,
+        "rawTimes": [
+          2.156572,
+          2.12853,
+          0.956234,
+          1.052633,
+          0.886183
+        ],
+        "docsPerSec": 694444.4444444445,
+        "counters": {
+          "adds": 2387,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.5555555555555556,
+          "fallbacks": 3,
+          "hashTableLoadFactor": 0.0625,
+          "averageProbeLength": 0
+        },
+        "size": 1000
+      },
+      "match_project_fusion": {
+        "name": "match_project_fusion (1000)",
+        "avg": 0.21,
+        "min": 0.15,
+        "max": 0.41,
+        "median": 0.15,
+        "stdDev": 0.1,
+        "iterations": 5,
+        "memoryDelta": 0.98,
+        "rawTimes": [
+          0.414122,
+          0.163856,
+          0.153987,
+          0.148657,
+          0.146673
+        ],
+        "docsPerSec": 4761904.761904762,
+        "counters": {
+          "adds": 1135,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.16666666666666666,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 1000
+      },
+      "topK_heap": {
+        "name": "topK_heap (1000)",
+        "avg": 0.42,
+        "min": 0.28,
+        "max": 0.5,
+        "median": 0.48,
+        "stdDev": 0.09,
+        "iterations": 5,
+        "memoryDelta": 1.67,
+        "rawTimes": [
+          0.502677,
+          0.475717,
+          0.498961,
+          0.363838,
+          0.277187
+        ],
+        "docsPerSec": 2380952.380952381,
+        "counters": {
+          "adds": 1002,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 1000
+      },
+      "group_sort_limit": {
+        "name": "group_sort_limit (1000)",
+        "avg": 0.23,
+        "min": 0.17,
+        "max": 0.38,
+        "median": 0.2,
+        "stdDev": 0.08,
+        "iterations": 5,
+        "memoryDelta": -2.64,
+        "rawTimes": [
+          0.200063,
+          0.377294,
+          0.170267,
+          0.174556,
+          0.220201
+        ],
+        "docsPerSec": 4347826.0869565215,
+        "counters": {
+          "adds": 1007,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.3125,
+          "averageProbeLength": 0.2
+        },
+        "size": 1000
+      },
+      "unwind_group": {
+        "name": "unwind_group (1000)",
+        "avg": 1.23,
+        "min": 0.65,
+        "max": 1.81,
+        "median": 1.34,
+        "stdDev": 0.5,
+        "iterations": 5,
+        "memoryDelta": 0.73,
+        "rawTimes": [
+          1.686666,
+          1.806068,
+          1.342734,
+          0.645204,
+          0.64887
+        ],
+        "docsPerSec": 813008.1300813009,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 1000
+      }
+    },
+    "5000": {
+      "simpleFilter": {
+        "name": "simpleFilter (5000)",
+        "avg": 0.18,
+        "min": 0.17,
+        "max": 0.2,
+        "median": 0.17,
+        "stdDev": 0.01,
+        "iterations": 5,
+        "memoryDelta": 0.09,
+        "rawTimes": [
+          0.169055,
+          0.170447,
+          0.201826,
+          0.169255,
+          0.169426
+        ],
+        "docsPerSec": 27777777.77777778,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (5000)",
+        "avg": 2.02,
+        "min": 1.24,
+        "max": 2.45,
+        "median": 2.4,
+        "stdDev": 0.51,
+        "iterations": 5,
+        "memoryDelta": 2.37,
+        "rawTimes": [
+          2.398524,
+          2.452123,
+          2.409243,
+          1.576674,
+          1.242498
+        ],
+        "docsPerSec": 2475247.5247524753,
+        "counters": {
+          "adds": 5005,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.9982017982017982,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.0390625,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (5000)",
+        "avg": 1.4,
+        "min": 1.25,
+        "max": 1.65,
+        "median": 1.35,
+        "stdDev": 0.15,
+        "iterations": 5,
+        "memoryDelta": -0.61,
+        "rawTimes": [
+          1.253117,
+          1.647372,
+          1.265871,
+          1.350348,
+          1.465072
+        ],
+        "docsPerSec": 3571428.5714285714,
+        "counters": {
+          "adds": 11933,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.5555555555555556,
+          "fallbacks": 3,
+          "hashTableLoadFactor": 0.0625,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      },
+      "match_project_fusion": {
+        "name": "match_project_fusion (5000)",
+        "avg": 0.34,
+        "min": 0.29,
+        "max": 0.52,
+        "median": 0.3,
+        "stdDev": 0.09,
+        "iterations": 5,
+        "memoryDelta": -4.23,
+        "rawTimes": [
+          0.292426,
+          0.298647,
+          0.285742,
+          0.522254,
+          0.317843
+        ],
+        "docsPerSec": 14705882.352941176,
+        "counters": {
+          "adds": 5691,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.16666666666666666,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      },
+      "topK_heap": {
+        "name": "topK_heap (5000)",
+        "avg": 0.38,
+        "min": 0.37,
+        "max": 0.4,
+        "median": 0.38,
+        "stdDev": 0.01,
+        "iterations": 5,
+        "memoryDelta": 6.74,
+        "rawTimes": [
+          0.384126,
+          0.39657,
+          0.370942,
+          0.382464,
+          0.371212
+        ],
+        "docsPerSec": 13157894.736842105,
+        "counters": {
+          "adds": 5002,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      },
+      "group_sort_limit": {
+        "name": "group_sort_limit (5000)",
+        "avg": 0.32,
+        "min": 0.27,
+        "max": 0.45,
+        "median": 0.29,
+        "stdDev": 0.07,
+        "iterations": 5,
+        "memoryDelta": -2.26,
+        "rawTimes": [
+          0.285963,
+          0.307193,
+          0.447394,
+          0.277558,
+          0.271025
+        ],
+        "docsPerSec": 15624999.999999998,
+        "counters": {
+          "adds": 5007,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.3125,
+          "averageProbeLength": 0.2
+        },
+        "size": 5000
+      },
+      "unwind_group": {
+        "name": "unwind_group (5000)",
+        "avg": 1.74,
+        "min": 1.7,
+        "max": 1.81,
+        "median": 1.72,
+        "stdDev": 0.04,
+        "iterations": 5,
+        "memoryDelta": -2.55,
+        "rawTimes": [
+          1.811379,
+          1.713336,
+          1.71569,
+          1.777345,
+          1.703227
+        ],
+        "docsPerSec": 2873563.2183908047,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 5000
+      }
+    },
+    "10000": {
+      "simpleFilter": {
+        "name": "simpleFilter (10000)",
+        "avg": 0.22,
+        "min": 0.21,
+        "max": 0.22,
+        "median": 0.21,
+        "stdDev": 0,
+        "iterations": 5,
+        "memoryDelta": 0.22,
+        "rawTimes": [
+          0.215632,
+          0.223968,
+          0.212406,
+          0.212095,
+          0.212236
+        ],
+        "docsPerSec": 45454545.45454545,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (10000)",
+        "avg": 2.67,
+        "min": 2.43,
+        "max": 3.05,
+        "median": 2.56,
+        "stdDev": 0.24,
+        "iterations": 5,
+        "memoryDelta": 4.89,
+        "rawTimes": [
+          2.431866,
+          2.462823,
+          2.556589,
+          2.830269,
+          3.049367
+        ],
+        "docsPerSec": 3745318.352059925,
+        "counters": {
+          "adds": 10005,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.9991004497751125,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.01953125,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (10000)",
+        "avg": 2.66,
+        "min": 2.43,
+        "max": 3.17,
+        "median": 2.46,
+        "stdDev": 0.29,
+        "iterations": 5,
+        "memoryDelta": -0.59,
+        "rawTimes": [
+          3.165303,
+          2.458425,
+          2.42854,
+          2.828195,
+          2.429431
+        ],
+        "docsPerSec": 3759398.4962406014,
+        "counters": {
+          "adds": 24137,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.5555555555555556,
+          "fallbacks": 3,
+          "hashTableLoadFactor": 0.0625,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      },
+      "match_project_fusion": {
+        "name": "match_project_fusion (10000)",
+        "avg": 0.57,
+        "min": 0.56,
+        "max": 0.6,
+        "median": 0.57,
+        "stdDev": 0.01,
+        "iterations": 5,
+        "memoryDelta": 7.11,
+        "rawTimes": [
+          0.600991,
+          0.576705,
+          0.559102,
+          0.570574,
+          0.564212
+        ],
+        "docsPerSec": 17543859.649122808,
+        "counters": {
+          "adds": 11437,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.16666666666666666,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      },
+      "topK_heap": {
+        "name": "topK_heap (10000)",
+        "avg": 1.01,
+        "min": 0.65,
+        "max": 1.43,
+        "median": 1.11,
+        "stdDev": 0.29,
+        "iterations": 5,
+        "memoryDelta": -2.6,
+        "rawTimes": [
+          0.653279,
+          0.711587,
+          1.112044,
+          1.427673,
+          1.137552
+        ],
+        "docsPerSec": 9900990.099009901,
+        "counters": {
+          "adds": 10002,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      },
+      "group_sort_limit": {
+        "name": "group_sort_limit (10000)",
+        "avg": 0.87,
+        "min": 0.76,
+        "max": 0.91,
+        "median": 0.89,
+        "stdDev": 0.06,
+        "iterations": 5,
+        "memoryDelta": -4.6,
+        "rawTimes": [
+          0.759386,
+          0.902643,
+          0.907914,
+          0.88492,
+          0.893426
+        ],
+        "docsPerSec": 11494252.873563219,
+        "counters": {
+          "adds": 10007,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.3125,
+          "averageProbeLength": 0.2
+        },
+        "size": 10000
+      },
+      "unwind_group": {
+        "name": "unwind_group (10000)",
+        "avg": 3.62,
+        "min": 3.55,
+        "max": 3.85,
+        "median": 3.57,
+        "stdDev": 0.12,
+        "iterations": 5,
+        "memoryDelta": 10.89,
+        "rawTimes": [
+          3.550252,
+          3.565159,
+          3.851774,
+          3.561809,
+          3.5707
+        ],
+        "docsPerSec": 2762430.9392265193,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 10000
+      }
+    },
+    "25000": {
+      "simpleFilter": {
+        "name": "simpleFilter (25000)",
+        "avg": 0.45,
+        "min": 0.44,
+        "max": 0.46,
+        "median": 0.44,
+        "stdDev": 0.01,
+        "iterations": 3,
+        "memoryDelta": 0.31,
+        "rawTimes": [
+          0.441935,
+          0.46137,
+          0.439209
+        ],
+        "docsPerSec": 55555555.55555556,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      },
+      "groupAndAggregate": {
+        "name": "groupAndAggregate (25000)",
+        "avg": 6.6,
+        "min": 6.54,
+        "max": 6.71,
+        "median": 6.55,
+        "stdDev": 0.08,
+        "iterations": 3,
+        "memoryDelta": 6.95,
+        "rawTimes": [
+          6.536522,
+          6.547151,
+          6.708021
+        ],
+        "docsPerSec": 3787878.787878788,
+        "counters": {
+          "adds": 25005,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.9996400719856029,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.009765625,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      },
+      "complexPipeline": {
+        "name": "complexPipeline (25000)",
+        "avg": 6.98,
+        "min": 6.87,
+        "max": 7.1,
+        "median": 6.96,
+        "stdDev": 0.09,
+        "iterations": 3,
+        "memoryDelta": -0.73,
+        "rawTimes": [
+          7.096696,
+          6.874682,
+          6.95941
+        ],
+        "docsPerSec": 3581661.8911174783,
+        "counters": {
+          "adds": 59931,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.5555555555555556,
+          "fallbacks": 3,
+          "hashTableLoadFactor": 0.0625,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      },
+      "match_project_fusion": {
+        "name": "match_project_fusion (25000)",
+        "avg": 1.54,
+        "min": 1.43,
+        "max": 1.75,
+        "median": 1.44,
+        "stdDev": 0.15,
+        "iterations": 3,
+        "memoryDelta": -4.79,
+        "rawTimes": [
+          1.43676,
+          1.750295,
+          1.432672
+        ],
+        "docsPerSec": 16233766.233766232,
+        "counters": {
+          "adds": 28498,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0.16666666666666666,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      },
+      "topK_heap": {
+        "name": "topK_heap (25000)",
+        "avg": 1.43,
+        "min": 1.39,
+        "max": 1.51,
+        "median": 1.4,
+        "stdDev": 0.05,
+        "iterations": 3,
+        "memoryDelta": 3.52,
+        "rawTimes": [
+          1.395864,
+          1.508303,
+          1.391705
+        ],
+        "docsPerSec": 17482517.482517485,
+        "counters": {
+          "adds": 25002,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      },
+      "group_sort_limit": {
+        "name": "group_sort_limit (25000)",
+        "avg": 1.25,
+        "min": 1.21,
+        "max": 1.33,
+        "median": 1.22,
+        "stdDev": 0.05,
+        "iterations": 3,
+        "memoryDelta": 0.9,
+        "rawTimes": [
+          1.223382,
+          1.33002,
+          1.205879
+        ],
+        "docsPerSec": 20000000,
+        "counters": {
+          "adds": 25007,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0.3125,
+          "averageProbeLength": 0.2
+        },
+        "size": 25000
+      },
+      "unwind_group": {
+        "name": "unwind_group (25000)",
+        "avg": 11.26,
+        "min": 10.74,
+        "max": 12.07,
+        "median": 10.97,
+        "stdDev": 0.58,
+        "iterations": 3,
+        "memoryDelta": 3.55,
+        "rawTimes": [
+          10.965602,
+          10.742753,
+          12.070582
+        ],
+        "docsPerSec": 2220248.6678507994,
+        "counters": {
+          "adds": 0,
+          "removes": 0,
+          "drops": 0,
+          "allocations": 0,
+          "bytesAllocated": 0,
+          "allocsPerRow": 0,
+          "bytesPerRow": 0,
+          "cacheHitRatio": 0,
+          "fallbacks": 0,
+          "hashTableLoadFactor": 0,
+          "averageProbeLength": 0
+        },
+        "size": 25000
+      }
+    }
+  },
+  "targetViolations": [
+    {
+      "pipeline": "complexPipeline",
+      "metric": "fallbacks",
+      "actual": 3,
+      "target": 0,
+      "severity": "critical"
+    },
+    {
+      "pipeline": "complexPipeline",
+      "metric": "fallbacks",
+      "actual": 3,
+      "target": 0,
+      "severity": "critical"
+    },
+    {
+      "pipeline": "complexPipeline",
+      "metric": "fallbacks",
+      "actual": 3,
+      "target": 0,
+      "severity": "critical"
+    },
+    {
+      "pipeline": "complexPipeline",
+      "metric": "fallbacks",
+      "actual": 3,
+      "target": 0,
+      "severity": "critical"
+    }
+  ],
+  "targets": {
+    "simpleFilter": {
+      "minDocsPerSec": 1000000,
+      "maxAllocsPerRow": 0.05,
+      "description": "Simple filter operations"
+    },
+    "groupAndAggregate": {
+      "minDocsPerSec": 250000,
+      "maxAllocsPerRow": 0.05,
+      "description": "Group and aggregate operations"
+    },
+    "complexPipeline": {
+      "minDocsPerSec": 150000,
+      "maxAllocsPerRow": 0.05,
+      "description": "Complex multi-stage pipelines"
+    }
+  },
+  "timestamp": "2025-09-14T06:10:36.847Z"
+}

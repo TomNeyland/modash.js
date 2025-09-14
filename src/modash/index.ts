@@ -31,19 +31,27 @@ import type {
 } from '../index.js';
 
 /**
- * Fully transparent aggregation function that creates streaming collections
- * for all operations, providing unified incremental capabilities
+ * Performance-optimized aggregation function that uses fast paths when possible
+ * and falls back to streaming collections when needed
  */
-const transparentAggregate = <T extends Document = Document>(
+const optimizedAggregate = <T extends Document = Document>(
   collection: Collection<T> | StreamingCollection<T>,
   pipeline: Pipeline
 ): Collection<Document> => {
-  // Always use streaming collections - create one if needed
-  if (!(collection instanceof StreamingCollection)) {
+  // If it's already a streaming collection, use streaming
+  if (collection instanceof StreamingCollection) {
+    return collection.stream(pipeline);
+  }
+  
+  // For regular arrays, try performance-optimized path first
+  try {
+    // Use the optimized aggregation from aggregation.ts which includes fast implementations
+    return originalAggregate(collection, pipeline);
+  } catch (error) {
+    // Fall back to streaming if optimization fails
     const streamingCollection = createStreamingCollection(collection);
     return streamingCollection.stream(pipeline);
   }
-  return collection.stream(pipeline);
 };
 
 /**
@@ -56,7 +64,7 @@ const transparentAggregate = <T extends Document = Document>(
  * work with both regular arrays and streaming collections.
  */
 const Modash: ModashStatic = {
-  aggregate: transparentAggregate,
+  aggregate: optimizedAggregate,
   count,
   $expression,
   $group,
@@ -77,7 +85,7 @@ export default Modash;
 export {
   // Export the original aggregate for backwards compatibility if needed
   originalAggregate as aggregateOriginal,
-  transparentAggregate as aggregate,
+  optimizedAggregate as aggregate,
   count,
   $expression,
   $group,
