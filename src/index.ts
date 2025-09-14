@@ -384,3 +384,45 @@ export type {
   EventTransform,
   EventConsumerConfig,
 } from './modash/streaming.js';
+
+// Phase 3.5: Export text and regex search capabilities
+export {
+  $text,
+  getTextSearchStats,
+  resetTextSearchStats,
+  configureTextSearch,
+  clearTextSearchIndex,
+} from './modash/text-search.js';
+
+export {
+  enhancedRegexMatch,
+  getRegexSearchStats,
+  resetRegexSearchStats,
+  analyzeRegexPattern,
+  configureRegexSearch,
+  clearRegexSearchIndex,
+} from './modash/regex-search.js';
+
+export {
+  BloomFilter,
+  TextSearchBloomFilter,
+  RegexSearchBloomFilter,
+  extractTokens,
+  extractTrigrams,
+  extractLiteralsFromRegex,
+} from './modash/bloom-filter.js';
+
+// Phase 3.5: Export enhanced search types
+export type {
+  TextSearchStats,
+  TextSearchConfig,
+} from './modash/text-search.js';
+
+export type {
+  RegexSearchStats,
+  RegexSearchConfig,
+} from './modash/regex-search.js';
+
+export type {
+  BloomFilterStats,
+} from './modash/bloom-filter.js';
