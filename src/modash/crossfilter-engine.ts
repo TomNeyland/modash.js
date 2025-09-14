@@ -15,7 +15,12 @@ import type { Document, Collection } from './expressions.js';
 import type { Pipeline } from '../index.js';
 
 import { LiveSetImpl, DimensionImpl } from './crossfilter-impl.js';
-import { DEBUG, wrapOperator, wrapOperatorSnapshot, logPipelineExecution } from './debug.js';
+import {
+  DEBUG,
+  wrapOperator,
+  wrapOperatorSnapshot,
+  logPipelineExecution,
+} from './debug.js';
 import {
   ExpressionCompilerImpl,
   PerformanceEngineImpl,
@@ -130,8 +135,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       }
 
       // Wrap operator with debug tracing if DEBUG is enabled
-      let wrappedOperator = DEBUG ? wrapOperator(stage.type, operator) : operator;
-      wrappedOperator = DEBUG ? wrapOperatorSnapshot(wrappedOperator, DEBUG) : wrappedOperator;
+      let wrappedOperator = DEBUG
+        ? wrapOperator(stage.type, operator)
+        : operator;
+      wrappedOperator = DEBUG
+        ? wrapOperatorSnapshot(wrappedOperator, DEBUG)
+        : wrappedOperator;
       operators.push(wrappedOperator);
     }
 
@@ -260,7 +269,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   }
 
   execute(pipeline: Pipeline): Collection<Document> {
-    logPipelineExecution('execute', 'Starting execution', { pipelineLength: pipeline.length });
+    logPipelineExecution('execute', 'Starting execution', {
+      pipelineLength: pipeline.length,
+    });
 
     const plan = this.compilePipeline(pipeline);
 
@@ -279,7 +290,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       return this.snapshotPipeline(newOperators, plan);
     }
 
-    logPipelineExecution('execute', 'Executing snapshot with operators', { operatorCount: operators.length });
+    logPipelineExecution('execute', 'Executing snapshot with operators', {
+      operatorCount: operators.length,
+    });
     return this.snapshotPipeline(operators, plan);
   }
 
@@ -392,7 +405,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       // Update context for current stage (but keep persistent tempState)
       persistentContext.stageIndex = i;
       persistentContext.compiledStage = stage;
-      
+
       // Set up upstream document access for this stage
       persistentContext.getEffectiveUpstreamDocument = (rowId: RowId) => {
         // Get document from immediate upstream stage (i-1)
@@ -401,13 +414,19 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           if (upstreamOperator.getEffectiveDocument) {
             // Create context for the upstream operator
             const upstreamContext: IVMContext = {
-              pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+              pipeline: plan.stages.map(s => ({
+                [s.type]: s.stageData,
+              })) as Pipeline,
               stageIndex: i - 1,
               compiledStage: plan.stages[i - 1],
               executionPlan: plan,
               tempState: persistentContext.tempState, // Share the same tempState
             };
-            return upstreamOperator.getEffectiveDocument(rowId, this.store, upstreamContext);
+            return upstreamOperator.getEffectiveDocument(
+              rowId,
+              this.store,
+              upstreamContext
+            );
           }
         }
         // Fallback to raw store document
@@ -420,9 +439,17 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         let stageDeltas: Delta[];
 
         if (currentDelta.sign === 1) {
-          stageDeltas = operator.onAdd(currentDelta, this.store, persistentContext);
+          stageDeltas = operator.onAdd(
+            currentDelta,
+            this.store,
+            persistentContext
+          );
         } else {
-          stageDeltas = operator.onRemove(currentDelta, this.store, persistentContext);
+          stageDeltas = operator.onRemove(
+            currentDelta,
+            this.store,
+            persistentContext
+          );
         }
 
         nextDeltas.push(...stageDeltas);
@@ -478,41 +505,68 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         upstreamActiveIds: activeIds,
         tempState: persistentTempState,
         getEffectiveUpstreamDocument: (rowId: RowId) => {
-          // Get document from immediate upstream stage (i-1), not from end
-          if (i > 0) {
-            const upstreamOperator = operators[i - 1];
-            if (upstreamOperator.getEffectiveDocument) {
-              // Create context for the upstream operator
-              const upstreamContext: IVMContext = {
-                pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
-                stageIndex: i - 1,
-                compiledStage: plan.stages[i - 1],
-                executionPlan: plan,
-                upstreamActiveIds: activeIds, // This would be the IDs that went INTO stage i-1
-                tempState: persistentTempState,
-              };
-              return upstreamOperator.getEffectiveDocument(rowId, this.store, upstreamContext);
+          // Create a recursive function to chain through all upstream stages
+          const getEffectiveDocumentFromStage = (
+            stageIndex: number,
+            rowId: RowId
+          ): Document | null => {
+            if (stageIndex < 0) {
+              return this.store.documents[rowId];
             }
-          }
-          return this.store.documents[rowId];
-        }
+
+            const operator = operators[stageIndex];
+            if (operator.getEffectiveDocument) {
+              const stageContext: IVMContext = {
+                pipeline: plan.stages.map(s => ({
+                  [s.type]: s.stageData,
+                })) as Pipeline,
+                stageIndex,
+                compiledStage: plan.stages[stageIndex],
+                executionPlan: plan,
+                upstreamActiveIds: activeIds,
+                tempState: persistentTempState,
+                getEffectiveUpstreamDocument: (upstreamRowId: RowId) => {
+                  return getEffectiveDocumentFromStage(
+                    stageIndex - 1,
+                    upstreamRowId
+                  );
+                },
+              };
+              return operator.getEffectiveDocument(
+                rowId,
+                this.store,
+                stageContext
+              );
+            }
+
+            return getEffectiveDocumentFromStage(stageIndex - 1, rowId);
+          };
+
+          return getEffectiveDocumentFromStage(i - 1, rowId);
+        },
       };
 
       // Get active IDs after this stage
       if (process.env.DEBUG_IVM) {
-        console.log(`[Engine] Calling snapshot on ${operator.type}#${(operator as any).__id}`);
+        console.log(
+          `[Engine] Calling snapshot on ${operator.type}#${(operator as any).__id}`
+        );
       }
       activeIds = operator.snapshot(this.store, context);
 
       // INVARIANT: snapshot must return RowId[]
       if (process.env.DEBUG_IVM) {
         if (!Array.isArray(activeIds)) {
-          throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[], got ${typeof activeIds}`);
+          throw new Error(
+            `[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[], got ${typeof activeIds}`
+          );
         }
         if (activeIds.length > 0) {
           const firstId = activeIds[0];
           if (typeof firstId !== 'number' && typeof firstId !== 'string') {
-            throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() returned invalid RowId type: ${typeof firstId}. Expected number or string.`);
+            throw new Error(
+              `[INVARIANT VIOLATION] ${operator.type}.snapshot() returned invalid RowId type: ${typeof firstId}. Expected number or string.`
+            );
           }
         }
       }
@@ -521,12 +575,26 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     // Materialize final documents from the LAST stage's view
     const lastOperator = operators[operators.length - 1];
     if (process.env.DEBUG_IVM) {
-      console.log(`[Engine] Materializing from lastOperator ${lastOperator.type}#${(lastOperator as any).__id}`);
+      console.log(
+        `[Engine] Materializing from lastOperator ${lastOperator.type}#${(lastOperator as any).__id}`
+      );
 
       // INVARIANT: Transforming operators must have getEffectiveDocument
-      const transformingOps = ['$project', '$addFields', '$set', '$group', '$unwind', '$lookup'];
-      if (transformingOps.includes(lastOperator.type) && !lastOperator.getEffectiveDocument) {
-        throw new Error(`[INVARIANT VIOLATION] ${lastOperator.type} must implement getEffectiveDocument`);
+      const transformingOps = [
+        '$project',
+        '$addFields',
+        '$set',
+        '$group',
+        '$unwind',
+        '$lookup',
+      ];
+      if (
+        transformingOps.includes(lastOperator.type) &&
+        !lastOperator.getEffectiveDocument
+      ) {
+        throw new Error(
+          `[INVARIANT VIOLATION] ${lastOperator.type} must implement getEffectiveDocument`
+        );
       }
     }
     const result: Document[] = [];
@@ -542,21 +610,46 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         upstreamActiveIds: activeIds,
         tempState: persistentTempState,
         getEffectiveUpstreamDocument: (rowId: RowId) => {
-          // Get document from the second-to-last stage if it exists
+          // Create a recursive function to chain through all upstream stages
+          const getEffectiveDocumentFromStage = (
+            stageIndex: number,
+            rowId: RowId
+          ): Document | null => {
+            if (stageIndex < 0) {
+              return this.store.documents[rowId];
+            }
+
+            const operator = operators[stageIndex];
+            if (operator.getEffectiveDocument) {
+              const stageContext: IVMContext = {
+                pipeline: plan.stages.map(s => ({
+                  [s.type]: s.stageData,
+                })) as Pipeline,
+                stageIndex,
+                compiledStage: plan.stages[stageIndex],
+                executionPlan: plan,
+                upstreamActiveIds: activeIds,
+                tempState: persistentTempState,
+                getEffectiveUpstreamDocument: (upstreamRowId: RowId) => {
+                  return getEffectiveDocumentFromStage(
+                    stageIndex - 1,
+                    upstreamRowId
+                  );
+                },
+              };
+              return operator.getEffectiveDocument(
+                rowId,
+                this.store,
+                stageContext
+              );
+            }
+
+            return getEffectiveDocumentFromStage(stageIndex - 1, rowId);
+          };
+
           const lastIndex = operators.length - 1;
-          if (lastIndex > 0 && operators[lastIndex - 1].getEffectiveDocument) {
-            const prevContext: IVMContext = {
-              pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
-              stageIndex: lastIndex - 1,
-              compiledStage: plan.stages[lastIndex - 1],
-              executionPlan: plan,
-              upstreamActiveIds: activeIds,
-              tempState: persistentTempState,
-            };
-            return operators[lastIndex - 1].getEffectiveDocument(rowId, this.store, prevContext);
-          }
-          return this.store.documents[rowId];
-        }
+          return getEffectiveDocumentFromStage(lastIndex - 1, rowId);
+        },
       };
 
       // Materialize each document from the last operator's transformed view
@@ -564,27 +657,52 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         let doc: Document | null = null;
 
         if (process.env.DEBUG_IVM) {
-          console.log(`[Materializing] rowId ${rowId}, lastOperator.type: ${lastOperator.type}, has getEffectiveDocument: ${!!lastOperator.getEffectiveDocument}`);
+          console.log(
+            `[Materializing] rowId ${rowId}, lastOperator.type: ${lastOperator.type}, has getEffectiveDocument: ${!!lastOperator.getEffectiveDocument}`
+          );
         }
 
         if (lastOperator.getEffectiveDocument) {
           if (process.env.DEBUG_IVM) {
-            console.log(`[Materializing] About to call ${lastOperator.type}.getEffectiveDocument for rowId ${rowId}`);
-            console.log(`[Materializing] lastOperator type check:`, typeof lastOperator.getEffectiveDocument);
-            console.log(`[Materializing] lastOperator keys:`, Object.keys(lastOperator));
-            console.log(`[Materializing] lastOperator constructor:`, lastOperator.constructor.name);
-            console.log(`[Materializing] lastOperator proto:`, Object.getPrototypeOf(lastOperator).constructor.name);
+            console.log(
+              `[Materializing] About to call ${lastOperator.type}.getEffectiveDocument for rowId ${rowId}`
+            );
+            console.log(
+              `[Materializing] lastOperator type check:`,
+              typeof lastOperator.getEffectiveDocument
+            );
+            console.log(
+              `[Materializing] lastOperator keys:`,
+              Object.keys(lastOperator)
+            );
+            console.log(
+              `[Materializing] lastOperator constructor:`,
+              lastOperator.constructor.name
+            );
+            console.log(
+              `[Materializing] lastOperator proto:`,
+              Object.getPrototypeOf(lastOperator).constructor.name
+            );
           }
 
-          doc = lastOperator.getEffectiveDocument(rowId, this.store, finalContext);
+          doc = lastOperator.getEffectiveDocument(
+            rowId,
+            this.store,
+            finalContext
+          );
 
           if (process.env.DEBUG_IVM) {
-            console.log(`[Materializing] Got doc from ${lastOperator.type}.getEffectiveDocument:`, doc);
+            console.log(
+              `[Materializing] Got doc from ${lastOperator.type}.getEffectiveDocument:`,
+              doc
+            );
           }
 
           // DEBUG: In development, warn if a transforming operator returns null
           if (!doc && process.env.DEBUG_IVM) {
-            console.warn(`[DEBUG] Operator ${lastOperator.type} returned null for rowId ${rowId}`);
+            console.warn(
+              `[DEBUG] Operator ${lastOperator.type} returned null for rowId ${rowId}`
+            );
           }
         }
 
@@ -592,7 +710,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         if (!doc && !lastOperator.getEffectiveDocument) {
           doc = this.store.documents[rowId];
           if (process.env.DEBUG_IVM) {
-            console.log(`[Materializing] Falling back to store document for rowId ${rowId}`);
+            console.log(
+              `[Materializing] Falling back to store document for rowId ${rowId}`
+            );
           }
         }
 

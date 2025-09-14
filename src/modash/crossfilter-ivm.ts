@@ -224,10 +224,7 @@ export interface IVMOperator {
   ): Delta[];
 
   // Result materialization - returns active rowIds after this stage
-  snapshot(
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): RowId[];
+  snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[];
 
   // Optional: Get the effective document for a rowId after this stage's transformations
   getEffectiveDocument?(

@@ -387,7 +387,8 @@ export class StreamingCollection<
 
       // Check if pipeline can be handled incrementally
       if (!executionPlan.canIncrement || !executionPlan.canDecrement) {
-        const msg = 'Pipeline contains unsupported operations for IVM, falling back to standard aggregation';
+        const msg =
+          'Pipeline contains unsupported operations for IVM, falling back to standard aggregation';
         console.warn(msg);
         recordFallback(pipeline, msg);
         throw new Error('Pipeline not fully supported by IVM engine');

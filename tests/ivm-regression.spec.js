@@ -6,7 +6,10 @@
 
 import { expect } from 'chai';
 import Modash from '../src/modash/index.js';
-import { getFallbackCount, resetFallbackTracking } from '../src/modash/debug.js';
+import {
+  getFallbackCount,
+  resetFallbackTracking,
+} from '../src/modash/debug.js';
 
 describe('IVM Regression Tests', () => {
   beforeEach(() => {
@@ -16,9 +19,24 @@ describe('IVM Regression Tests', () => {
   describe('Cross-stage field resolution', () => {
     it('should handle $project creating fields used by $group', () => {
       const data = [
-        { _id: 1, category: 'electronics', price: 100, date: new Date(2023, 4, 15) },
-        { _id: 2, category: 'electronics', price: 200, date: new Date(2023, 3, 10) },
-        { _id: 3, category: 'furniture', price: 300, date: new Date(2023, 4, 20) },
+        {
+          _id: 1,
+          category: 'electronics',
+          price: 100,
+          date: new Date(2023, 4, 15),
+        },
+        {
+          _id: 2,
+          category: 'electronics',
+          price: 200,
+          date: new Date(2023, 3, 10),
+        },
+        {
+          _id: 3,
+          category: 'furniture',
+          price: 300,
+          date: new Date(2023, 4, 20),
+        },
       ];
 
       const pipeline = [
@@ -186,10 +204,7 @@ describe('IVM Regression Tests', () => {
         value: Math.floor(Math.random() * 100),
       }));
 
-      const pipeline = [
-        { $sort: { value: -1 } },
-        { $limit: 10 },
-      ];
+      const pipeline = [{ $sort: { value: -1 } }, { $limit: 10 }];
 
       const result = Modash.aggregate(data, pipeline);
 
@@ -207,7 +222,7 @@ describe('IVM Regression Tests', () => {
         _id: i,
         item: ['laptop', 'mouse', 'keyboard'][i % 3],
         category: ['electronics', 'furniture'][i % 2],
-        price: 50 + (i * 10),
+        price: 50 + i * 10,
         quantity: (i % 5) + 1,
         active: i % 3 !== 0,
         date: new Date(2023, i % 12, (i % 28) + 1),
