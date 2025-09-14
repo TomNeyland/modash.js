@@ -392,6 +392,27 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       // Update context for current stage (but keep persistent tempState)
       persistentContext.stageIndex = i;
       persistentContext.compiledStage = stage;
+      
+      // Set up upstream document access for this stage
+      persistentContext.getEffectiveUpstreamDocument = (rowId: RowId) => {
+        // Get document from immediate upstream stage (i-1)
+        if (i > 0) {
+          const upstreamOperator = operators[i - 1];
+          if (upstreamOperator.getEffectiveDocument) {
+            // Create context for the upstream operator
+            const upstreamContext: IVMContext = {
+              pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+              stageIndex: i - 1,
+              compiledStage: plan.stages[i - 1],
+              executionPlan: plan,
+              tempState: persistentContext.tempState, // Share the same tempState
+            };
+            return upstreamOperator.getEffectiveDocument(rowId, this.store, upstreamContext);
+          }
+        }
+        // Fallback to raw store document
+        return this.store.documents[rowId] || null;
+      };
 
       const nextDeltas: Delta[] = [];
 
