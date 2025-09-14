@@ -602,6 +602,18 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             const expVal = Number(evalExpr(exp, doc)) || 0;
             return Math.pow(baseVal, expVal);
           }
+          if (expr.$round && Array.isArray(expr.$round)) {
+            if (expr.$round.length === 1) {
+              const val = Number(evalExpr(expr.$round[0], doc)) || 0;
+              return Math.round(val);
+            } else if (expr.$round.length === 2) {
+              const val = Number(evalExpr(expr.$round[0], doc)) || 0;
+              const places = Number(evalExpr(expr.$round[1], doc)) || 0;
+              const multiplier = Math.pow(10, places);
+              return Math.round(val * multiplier) / multiplier;
+            }
+            return 0;
+          }
           
           // String operators
           if (expr.$substr && Array.isArray(expr.$substr) && expr.$substr.length === 3) {
@@ -644,7 +656,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             const arr = evalExpr(arrayExpr, doc);
             const index = Number(evalExpr(indexExpr, doc)) || 0;
             if (Array.isArray(arr)) {
-              return index >= 0 ? arr[index] : arr[arr.length + index];
+              const actualIndex = index >= 0 ? index : arr.length + index;
+              return actualIndex >= 0 && actualIndex < arr.length ? arr[actualIndex] : null;
             }
             return null;
           }
@@ -1586,12 +1599,18 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     // Analyze which fields are actually used in downstream stages
     const usedFields = this.analyzeFieldUsage(stages);
 
-    for (const stage of stages) {
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
       if ('$project' in stage) {
-        for (const field of Object.keys(stage.$project)) {
-          if (!usedFields.has(field) && field !== '_id') {
-            delete stage.$project[field];
-            changed = true;
+        // Don't prune fields from the final projection stage - these are the user's requested output fields
+        const isFinalStage = i === stages.length - 1;
+        
+        if (!isFinalStage) {
+          for (const field of Object.keys(stage.$project)) {
+            if (!usedFields.has(field) && field !== '_id') {
+              delete stage.$project[field];
+              changed = true;
+            }
           }
         }
       }
