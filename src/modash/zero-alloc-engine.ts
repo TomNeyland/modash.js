@@ -25,6 +25,7 @@ interface HotPathContext {
   activeCount: number;
   scratchBuffer: Uint32Array;
   scratchCount: number;
+  runId?: number; // Track run ID to prevent cross-run contamination
 }
 
 /**
@@ -42,22 +43,47 @@ export class ZeroAllocEngine {
   private contextPool: HotPathContext[] = [];
   private activeRowIdsPool: Uint32Array[] = [];
   private scratchBufferPool: Uint32Array[] = [];
+  private static globalRunId = 0;
 
   /**
    * Execute pipeline with zero allocations in hot path
    */
   execute(documents: Collection, pipeline: Pipeline): Collection {
-    const pipelineKey = JSON.stringify(pipeline);
+    // Generate unique run ID to prevent cross-run contamination
+    const runId = ++ZeroAllocEngine.globalRunId;
+    
+    if (process.env.DEBUG_IVM) {
+      console.log(`[IVM DEBUG] Starting run ${runId} with pipeline:`, JSON.stringify(pipeline));
+    }
+
+    // Deep clone pipeline to prevent mutation of cached plans
+    const immutablePipeline = JSON.parse(JSON.stringify(pipeline));
+    const pipelineKey = JSON.stringify(immutablePipeline);
 
     // Get or compile pipeline
     let compiledStages = this.compiledPipelines.get(pipelineKey);
     if (!compiledStages) {
-      compiledStages = this.compilePipeline(pipeline);
+      if (process.env.DEBUG_IVM) {
+        console.log(`[IVM DEBUG] Compiling new pipeline for run ${runId}`);
+      }
+      compiledStages = this.compilePipeline(immutablePipeline);
       this.compiledPipelines.set(pipelineKey, compiledStages);
+    } else if (process.env.DEBUG_IVM) {
+      console.log(`[IVM DEBUG] Using cached pipeline for run ${runId}`);
     }
 
     // Get context from pool
-    const context = this.getContext(documents, pipeline);
+    const context = this.getContext(documents, immutablePipeline);
+    context.runId = runId;
+
+    if (process.env.DEBUG_IVM) {
+      console.log(`[IVM DEBUG] Context initialized for run ${runId}:`, {
+        activeCount: context.activeCount,
+        hasGroupResults: !!(context as any)._groupResults,
+        hasVirtualRows: !!(context as any)._virtualRows,
+        hasProjectionSpec: !!(context as any)._projectionSpec
+      });
+    }
 
     try {
       // Execute each compiled stage in sequence
@@ -81,6 +107,13 @@ export class ZeroAllocEngine {
 
         // Add DEBUG_IVM invariant checks
         this.checkBufferBounds(context, stageName);
+        
+        // Verify run ID consistency in DEBUG mode
+        if (process.env.DEBUG_IVM && context.runId !== runId) {
+          throw new Error(
+            `[IVM INVARIANT VIOLATION] Run ID mismatch in ${stageName}: expected ${runId}, got ${context.runId}`
+          );
+        }
 
         // Swap buffers for next stage
         [context.activeRowIds, context.scratchBuffer] = [
@@ -93,35 +126,67 @@ export class ZeroAllocEngine {
         if (context.activeCount === 0) break;
       }
 
-      // Materialize final result from row IDs
-      // Check if we have group results stored in context
-      if ((context as any)._groupResults) {
-        // Return group results directly
-        const groupResults = (context as any)._groupResults;
-        return groupResults as Collection;
-      }
-
-      const result: Document[] = new Array(context.activeCount);
-      for (let i = 0; i < context.activeCount; i++) {
-        const rowId = context.activeRowIds[i];
-        let doc = this.getEffectiveDocument(context, rowId);
-
-        // Apply projection if it exists
-        const projectionSpec = (context as any)._projectionSpec;
-        if (projectionSpec) {
-          doc = this.applyProjection(doc, projectionSpec);
-        }
-
-        result[i] = doc;
-      }
-
-      return result as Collection;
+      // Materialize final result from row IDs - ALWAYS use last operator's view
+      return this.materializeFinalResult(context, runId);
     } finally {
       // Return context to pool
       this.returnContext(context);
     }
   }
 
+  /**
+   * Materialize final result ensuring deterministic source selection
+   */
+  private materializeFinalResult(context: HotPathContext, runId: number): Collection {
+    if (process.env.DEBUG_IVM) {
+      console.log(`[IVM DEBUG] Materializing final result for run ${runId}:`, {
+        activeCount: context.activeCount,
+        hasGroupResults: !!(context as any)._groupResults,
+        groupResultsRunId: (context as any)._groupResultsRunId,
+        hasVirtualRows: !!(context as any)._virtualRows,
+        hasProjectionSpec: !!(context as any)._projectionSpec,
+        materializationSource: (context as any)._groupResults && (context as any)._groupResultsRunId === runId ? 'groupResults' : 'lastOperatorView'
+      });
+    }
+
+    // Check if we have group results stored in context AND they belong to this run
+    const groupResults = (context as any)._groupResults;
+    const groupResultsRunId = (context as any)._groupResultsRunId;
+    
+    if (groupResults && groupResultsRunId === runId) {
+      // Return group results directly - but only if they're from this run
+      if (process.env.DEBUG_IVM) {
+        console.log(`[IVM DEBUG] Returning ${groupResults.length} group results for run ${runId}`);
+      }
+      return groupResults as Collection;
+    } else if (groupResults && groupResultsRunId !== runId) {
+      // This is the exact bug we're fixing!
+      if (process.env.DEBUG_IVM) {
+        console.error(`[IVM ERROR] Found stale group results from run ${groupResultsRunId} in run ${runId}! Using row IDs instead.`);
+      }
+    }
+
+    // Materialize from last operator's view (row IDs)
+    const result: Document[] = new Array(context.activeCount);
+    for (let i = 0; i < context.activeCount; i++) {
+      const rowId = context.activeRowIds[i];
+      let doc = this.getEffectiveDocument(context, rowId);
+
+      // Apply projection if it exists
+      const projectionSpec = (context as any)._projectionSpec;
+      if (projectionSpec) {
+        doc = this.applyProjection(doc, projectionSpec);
+      }
+
+      result[i] = doc;
+    }
+
+    if (process.env.DEBUG_IVM) {
+      console.log(`[IVM DEBUG] Materialized ${result.length} documents from row IDs for run ${runId}`);
+    }
+
+    return result as Collection;
+  }
   /**
    * Compile pipeline to optimized stages
    * Phase 3: Enhanced fusion and $unwind support
@@ -268,8 +333,9 @@ export class ZeroAllocEngine {
       // Use high-performance group engine
       const groupResults = highPerformanceGroup(activeDocuments, spec);
 
-      // Store results in context for materialization
+      // Store results in context for materialization with run ID tagging
       (context as any)._groupResults = groupResults;
+      (context as any)._groupResultsRunId = context.runId;
 
       return groupResults.length;
     };
@@ -498,9 +564,8 @@ export class ZeroAllocEngine {
       };
     }
 
-    // Clear any stale data from previous executions
-    delete (context as any)._virtualRows;
-    delete (context as any)._groupResults;
+    // CRITICAL: Hard reset all per-run state to prevent cross-run contamination
+    this.resetContextState(context);
 
     // Update context for current operation
     context.documents = documents as Document[];
@@ -514,20 +579,66 @@ export class ZeroAllocEngine {
     // Initialize active row IDs (0, 1, 2, ...)
     const initialSize = documents.length;
     context.activeCount = initialSize;
+    context.scratchCount = 0;
+    
+    // Zero out any residual data in buffers
     for (let i = 0; i < initialSize; i++) {
       context.activeRowIds[i] = i;
+    }
+    // Clear remaining buffer to prevent accessing stale row IDs
+    for (let i = initialSize; i < context.activeRowIds.length; i++) {
+      context.activeRowIds[i] = 0;
     }
 
     return context;
   }
 
   /**
-   * Return context to pool
+   * Hard reset all context state to ensure no cross-run contamination
+   */
+  private resetContextState(context: HotPathContext): void {
+    // Clear all possible state from previous runs
+    delete (context as any)._virtualRows;
+    delete (context as any)._groupResults;
+    delete (context as any)._groupResultsRunId;
+    delete (context as any)._projectionSpec;
+    delete (context as any).tempState;
+    delete (context as any)._projectedDocs;
+    
+    // Clear any stage-specific state that might exist
+    const keys = Object.keys(context);
+    for (const key of keys) {
+      if (key.startsWith('active_rowids_stage_') || key.startsWith('_temp_') || key.startsWith('_stage_')) {
+        delete (context as any)[key];
+      }
+    }
+    
+    // Reset counters
+    context.activeCount = 0;
+    context.scratchCount = 0;
+    delete context.runId;
+  }
+
+  /**
+   * Return context to pool with thorough cleanup
    */
   private returnContext(context: HotPathContext): void {
+    // Thorough cleanup before returning to pool
+    this.resetContextState(context);
+    
+    // Return buffers to their respective pools
     this.returnActiveRowIds(context.activeRowIds);
     this.returnScratchBuffer(context.scratchBuffer);
-    this.contextPool.push(context);
+    
+    // Reset buffer references to prevent accidental reuse
+    (context as any).activeRowIds = new Uint32Array(0);
+    (context as any).scratchBuffer = new Uint32Array(0);
+    (context as any).documents = [];
+    
+    // Return to pool only if pool isn't too large (prevent memory leaks)
+    if (this.contextPool.length < 10) {
+      this.contextPool.push(context);
+    }
   }
 
   /**
@@ -541,6 +652,8 @@ export class ZeroAllocEngine {
       const buffer = this.activeRowIdsPool[i];
       if (buffer.length >= optimalSize) {
         this.activeRowIdsPool.splice(i, 1);
+        // Zero out the buffer to prevent stale data
+        buffer.fill(0);
         return buffer;
       }
     }
@@ -596,6 +709,8 @@ export class ZeroAllocEngine {
    */
   private returnActiveRowIds(buffer: Uint32Array): void {
     if (this.activeRowIdsPool.length < 10) {
+      // Zero out before returning to pool
+      buffer.fill(0);
       this.activeRowIdsPool.push(buffer);
     }
   }
@@ -611,6 +726,8 @@ export class ZeroAllocEngine {
       const buffer = this.scratchBufferPool[i];
       if (buffer.length >= optimalSize) {
         this.scratchBufferPool.splice(i, 1);
+        // Zero out the buffer to prevent stale data
+        buffer.fill(0);
         return buffer;
       }
     }
@@ -622,8 +739,28 @@ export class ZeroAllocEngine {
    */
   private returnScratchBuffer(buffer: Uint32Array): void {
     if (this.scratchBufferPool.length < 10) {
+      // Zero out before returning to pool
+      buffer.fill(0);
       this.scratchBufferPool.push(buffer);
     }
+  }
+
+  /**
+   * Add static method to reset global state (for testing)
+   */
+  static resetGlobalState(): void {
+    ZeroAllocEngine.globalRunId = 0;
+  }
+
+  /**
+   * Clear all caches and pools (for testing)
+   */
+  clearCaches(): void {
+    this.compiledPipelines.clear();
+    this.stageMetadata.clear();
+    this.contextPool.length = 0;
+    this.activeRowIdsPool.length = 0;
+    this.scratchBufferPool.length = 0;
   }
 
   /**

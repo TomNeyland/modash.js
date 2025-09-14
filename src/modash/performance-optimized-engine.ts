@@ -37,6 +37,18 @@ class BufferPool {
     if (pool.length > 0) {
       const buffer = pool.pop()!;
       buffer.length = 0; // Clear without deallocating
+      
+      // If this is a complex buffer that might contain Maps/Sets, ensure they're cleared
+      if (Array.isArray(buffer)) {
+        for (let i = 0; i < buffer.length; i++) {
+          if (buffer[i] instanceof Map) {
+            (buffer[i] as Map<any, any>).clear();
+          } else if (buffer[i] instanceof Set) {
+            (buffer[i] as Set<any>).clear();
+          }
+        }
+      }
+      
       return buffer as T[];
     }
 
@@ -55,6 +67,17 @@ class BufferPool {
     }
 
     if (pool.length < this.maxPoolSize) {
+      // Clear Maps/Sets in buffer before returning to pool
+      if (Array.isArray(buffer)) {
+        for (let i = 0; i < buffer.length; i++) {
+          if (buffer[i] instanceof Map) {
+            (buffer[i] as Map<any, any>).clear();
+          } else if (buffer[i] instanceof Set) {
+            (buffer[i] as Set<any>).clear();
+          }
+        }
+      }
+      
       buffer.length = 0; // Clear content but keep allocation
       pool.push(buffer);
     }
