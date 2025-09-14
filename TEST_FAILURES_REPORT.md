@@ -100,4 +100,3 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
 - Quick summary: `.modash-test-logs/summary.txt`
 
 No code changes were made; this report only documents observed failures and likely root causes based on log analysis.
-
