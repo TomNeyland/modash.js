@@ -558,11 +558,8 @@ export class ProjectOperator implements IVMOperator {
     _store: CrossfilterStore,
     _context: IVMContext
   ): Delta[] {
-    // Remove cached projected document
-    if (_delta.sign === -1) {
-      this.cache.delete(_delta.rowId);
-    }
-
+    // Don't immediately remove cached projected document - downstream operators may need it
+    // The cache will be cleaned up during the next snapshot or when the document is truly no longer needed
     return [_delta];
   }
 
