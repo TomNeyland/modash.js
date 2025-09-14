@@ -40,7 +40,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "npm run test:fast && npm run test:performance",
+    "test": "npm run test:units && npm run test:performance",
     "test:fast": "mocha --import=tsx/esm --exit tests/count.spec.js tests/modash.spec.js tests/documentation-examples.spec.js tests/operators.spec.js tests/issue-41-regression.spec.js tests/ivm-regression.spec.js tests/ivm-context-chaining.spec.js",
     "test:units": "mocha --import=tsx/esm --exit --recursive tests/",
     "test:core": "mocha --import=tsx/esm --exit tests/count.spec.js tests/modash.spec.js tests/documentation-examples.spec.js tests/operators.spec.js tests/new-operators.spec.js tests/issue-41-regression.spec.js tests/ivm-regression.spec.js tests/ivm-context-chaining.spec.js tests/enhanced-operators.spec.js tests/phase3-optimization.spec.js",
