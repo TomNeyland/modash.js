@@ -13,12 +13,13 @@ import type {
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl';
+import { getPhysicalDocument } from './store-utils';
 import { ExpressionCompilerImpl } from './crossfilter-compiler';
 import {
   OptimizedExpressionCompiler,
   FusedMatchProjectOperator,
 } from './performance-optimized-engine';
-import { optimizedSortLimit } from './topk-heap';
+// import { optimizedSortLimit } from './topk-heap'; // TODO: Use for optimization
 
 /**
  * Performance-optimized $match operator with hot path compilation
@@ -53,7 +54,7 @@ export class OptimizedMatchOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Hot path: use compiled expression
@@ -71,7 +72,7 @@ export class OptimizedMatchOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== -1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Hot path: use compiled expression
@@ -98,7 +99,7 @@ export class OptimizedMatchOperator implements IVMOperator {
       // Get effective document from upstream or store
       const doc = _context.getEffectiveUpstreamDocument
         ? _context.getEffectiveUpstreamDocument(rowId)
-        : ( _store.documents as any)[rowId];
+        : getPhysicalDocument(_store, rowId);
 
       if (doc && this.compiledExpr(doc, rowId)) {
         result.push(rowId);
@@ -120,7 +121,7 @@ export class OptimizedMatchOperator implements IVMOperator {
         '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
       );
     }
-    return upstream || (store.documents as any)[rowId] || null;
+    return upstream || getPhysicalDocument(store, rowId);
   };
 
   estimateComplexity(): string {
@@ -156,28 +157,6 @@ export class OptimizedMatchOperator implements IVMOperator {
     return Array.from(fields);
   }
 
-  private _getEffectiveDocument(
-    rowId: RowId,
-    _store: CrossfilterStore,
-    _context: IVMContext
-  ): Document | null {
-    // Check if there are projected documents from upstream stages
-    // Look backwards through stages to find the most recent projection
-    for (
-      let stageIndex = _context.stageIndex - 1;
-      stageIndex >= 0;
-      stageIndex--
-    ) {
-      const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
-      const projectedDocs = _context.tempState.get(projectedDocsKey);
-      if (projectedDocs && projectedDocs.has(rowId)) {
-        return projectedDocs.get(rowId);
-      }
-    }
-
-    // Fallback to original document
-    return (_store.documents as any)[rowId] || null;
-  }
 }
 
 /**
@@ -202,7 +181,7 @@ export class GroupOperator implements IVMOperator {
 
   constructor(
     private groupExpr: any,
-    private compiler: ExpressionCompilerImpl
+    compiler: ExpressionCompilerImpl
   ) {
     this.compiledGroup = compiler.compileGroupExpr(groupExpr);
     this.dimensionKey = this.extractGroupDimension(groupExpr._id);
@@ -331,7 +310,7 @@ export class GroupOperator implements IVMOperator {
     }
 
     // Collect active groups with their original keys, then sort deterministically
-    const activeEntries: Array<[string, any]> = [];
+    const activeEntries: Array<[DocumentValue, any]> = [];
     for (const [groupKeyStr, groupState] of groupsMap.entries()) {
       if (groupState.count > 0) {
         activeEntries.push([groupKeyStr, groupState]);
@@ -347,7 +326,7 @@ export class GroupOperator implements IVMOperator {
     });
 
     // Return the serialized keys in sorted order as virtual RowIds
-    return activeEntries.map(([groupKeyStr]) => groupKeyStr);
+    return activeEntries.map(([groupKeyStr]) => groupKeyStr as RowId);
   }
 
   /**
@@ -427,7 +406,7 @@ export class GroupOperator implements IVMOperator {
     }
 
     // Fallback to original document
-    return (_store.documents as any)[rowId] || null;
+    return getPhysicalDocument(_store, rowId);
   }
 
   private extractGroupDimension(idExpr: any): string {
@@ -462,7 +441,9 @@ export class OptimizedSortOperator implements IVMOperator {
     private sortExpr: any,
     limit?: number
   ) {
-    this.limit = limit;
+    if (limit !== undefined) {
+      this.limit = limit;
+    }
     // Use Top-K heap when limit is specified and beneficial
     this.useTopKHeap = limit !== undefined && limit <= 1000;
   }
@@ -505,7 +486,7 @@ export class OptimizedSortOperator implements IVMOperator {
           '[IVM INVARIANT] $sort attempted store fallback beyond stage 0'
         );
       }
-      const eff = doc || ( _store.documents as any)[rowId];
+      const eff = doc || getPhysicalDocument(_store, rowId);
       if (eff) {
         docsWithIds.push({ rowId, doc: eff });
       }
@@ -513,14 +494,7 @@ export class OptimizedSortOperator implements IVMOperator {
 
     // Use Top-K heap optimization when beneficial
     if (this.useTopKHeap && this.limit && docsWithIds.length > 1000) {
-      const documents = docsWithIds.map(item => item.doc);
-      const sortedDocs = optimizedSortLimit(
-        documents,
-        this.sortExpr,
-        this.limit
-      );
-
-      // Map back to rowIds (this is the limitation - need to find original rowIds)
+      // TODO: Use optimizedSortLimit for better performance
       // For now, fallback to regular sort with limit
       docsWithIds.sort((a, b) => this.compareDocuments(a.doc, b.doc));
       return docsWithIds.slice(0, this.limit).map(item => item.rowId);
@@ -576,7 +550,7 @@ export class OptimizedSortOperator implements IVMOperator {
   ): Document | null => {
     // Get document from upstream stage if it was transformed
     return (
-      context.getEffectiveUpstreamDocument?.(rowId) || (store.documents as any)[rowId]
+      context.getEffectiveUpstreamDocument?.(rowId) || getPhysicalDocument(store, rowId)
     );
   };
 
@@ -628,7 +602,7 @@ export class ProjectOperator implements IVMOperator {
 
   constructor(
     private projectExpr: any,
-    private compiler: ExpressionCompilerImpl
+    compiler: ExpressionCompilerImpl
   ) {
     this.compiledExpr = compiler.compileProjectExpr(projectExpr);
     if (process.env.DEBUG_IVM) {
@@ -645,7 +619,9 @@ export class ProjectOperator implements IVMOperator {
     if (_delta.sign === 1) {
       const doc =
         _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-        _store.documents[_delta.rowId];
+        // Only physical rowIds should fall back to store
+        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        getPhysicalDocument(_store, _delta.rowId);
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, _delta.rowId);
         this.cache.set(_delta.rowId, projectedDoc);
@@ -692,7 +668,9 @@ export class ProjectOperator implements IVMOperator {
       // Get document from upstream stage if it was transformed
       const doc =
         _context.getEffectiveUpstreamDocument?.(rowId) ||
-        _store.documents[rowId];
+        // Only physical rowIds should fall back to store
+        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        getPhysicalDocument(_store, rowId);
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, rowId);
         this.cache.set(rowId, projectedDoc);
@@ -824,7 +802,9 @@ export class LimitOperator implements IVMOperator {
         '[IVM INVARIANT] Store fallback in getEffectiveDocument beyond stage 0'
       );
     }
-    return upstream || store.documents[rowId] || null;
+    // Only physical rowIds should fall back to store
+    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+    return upstream || getPhysicalDocument(store, rowId) || null;
   };
 
   estimateComplexity(): string {
@@ -883,8 +863,11 @@ export class SkipOperator implements IVMOperator {
     store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
+    // Only physical rowIds should fall back to store
+    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
     return (
-      context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId]
+      context.getEffectiveUpstreamDocument?.(rowId) ||
+      getPhysicalDocument(store, rowId)
     );
   };
 
@@ -911,7 +894,8 @@ export class UnwindOperator implements IVMOperator {
 
   private parentToChildren = new Map<RowId, RowId[]>();
   private childToParent = new Map<RowId, RowId>();
-  private nextChildId = 1000000; // Start child IDs from high numbers to avoid conflicts
+  private childDocs = new Map<RowId, Document>();
+  private readonly __id = ++OP_ID_COUNTER;
 
   constructor(
     private path: string,
@@ -933,7 +917,7 @@ export class UnwindOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     const arrayValue = this.getFieldValue(doc, this.path);
@@ -944,7 +928,8 @@ export class UnwindOperator implements IVMOperator {
       const childIds: RowId[] = [];
 
       arrayValue.forEach((element, index) => {
-        const childId = this.nextChildId++;
+        // Create a stable virtual row ID (string)
+        const childId: RowId = `unwind:${this.__id}:${_delta.rowId}:${index}`;
         const childDoc = { ...doc };
 
         // Set the unwound field to the array element
@@ -955,8 +940,8 @@ export class UnwindOperator implements IVMOperator {
           childDoc[this.options.includeArrayIndex] = index;
         }
 
-        // Store the child document (virtual row, not part of LiveSet)
-        (_store.documents as any)[childId] = childDoc;
+        // Store the child document internally (virtual row)
+        this.childDocs.set(childId, childDoc);
 
         childIds.push(childId);
         this.childToParent.set(childId, _delta.rowId);
@@ -975,8 +960,8 @@ export class UnwindOperator implements IVMOperator {
         childDoc[this.options.includeArrayIndex] = null;
       }
 
-      const childId = this.nextChildId++;
-      (_store.documents as any)[childId] = childDoc;
+      const childId: RowId = `unwind:${this.__id}:${_delta.rowId}:null`;
+      this.childDocs.set(childId, childDoc);
 
       this.parentToChildren.set(_delta.rowId, [childId]);
       this.childToParent.set(childId, _delta.rowId);
@@ -1001,8 +986,8 @@ export class UnwindOperator implements IVMOperator {
 
     // Remove all child documents
     childIds.forEach(childId => {
-      // Virtual rows are not tracked in LiveSet; just remove stored doc
-      delete (_store.documents as any)[childId];
+      // Remove virtual doc from internal store
+      this.childDocs.delete(childId);
       this.childToParent.delete(childId);
       deltas.push({ rowId: childId, sign: -1 });
     });
@@ -1031,7 +1016,7 @@ export class UnwindOperator implements IVMOperator {
     const existingChildIds = this.parentToChildren.get(parentRowId);
     if (existingChildIds) {
       existingChildIds.forEach(childId => {
-          delete (_store.documents as any)[childId];
+        this.childDocs.delete(childId);
         this.childToParent.delete(childId);
         deltas.push({ rowId: childId, sign: -1 });
       });
@@ -1043,7 +1028,7 @@ export class UnwindOperator implements IVMOperator {
       const childIds: RowId[] = [];
 
       newArrayValue.forEach((element, index) => {
-        const childId = this.nextChildId++;
+        const childId: RowId = `unwind:${this.__id}:${parentRowId}:${index}`;
         const childDoc = { ...newDoc };
 
         // Set the unwound field to the array element
@@ -1055,7 +1040,7 @@ export class UnwindOperator implements IVMOperator {
         }
 
         // Store the child document (virtual row)
-        (_store.documents as any)[childId] = childDoc;
+        this.childDocs.set(childId, childDoc);
 
         childIds.push(childId);
         this.childToParent.set(childId, parentRowId);
@@ -1074,8 +1059,8 @@ export class UnwindOperator implements IVMOperator {
         childDoc[this.options.includeArrayIndex] = null;
       }
 
-      const childId = this.nextChildId++;
-      (_store.documents as any)[childId] = childDoc;
+      const childId: RowId = `unwind:${this.__id}:${parentRowId}:null`;
+      this.childDocs.set(childId, childDoc);
 
       this.parentToChildren.set(parentRowId, [childId]);
       this.childToParent.set(childId, parentRowId);
@@ -1108,12 +1093,14 @@ export class UnwindOperator implements IVMOperator {
    */
   getEffectiveDocument = (
     rowId: RowId,
-    store: CrossfilterStore,
+    _store: CrossfilterStore,
     _context: IVMContext
   ): Document | null => {
     // For $unwind, rowId refers to the child document (virtual row)
-    // that was created and stored in store.documents during onAdd
-    return (store.documents as any)[rowId] || null;
+    // stored internally by this operator
+    // Only return from our internal map; never fall back to store
+    const doc = this.childDocs.get(rowId);
+    return doc || null;
   };
 
   estimateComplexity(): string {
@@ -1149,7 +1136,7 @@ export class UnwindOperator implements IVMOperator {
 
   private setFieldValue(doc: Document, fieldPath: string, value: any): void {
     const parts = fieldPath.split('.');
-    let current = doc;
+    let current: any = doc;
 
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
@@ -1172,10 +1159,8 @@ export class LookupOperator implements IVMOperator {
   readonly canDecrement = true;
 
   private sideIndex: Map<DocumentValue, Document[]> = new Map();
-  private joinResultsKey: string;
 
   constructor(private expr: any) {
-    this.joinResultsKey = `lookup_${JSON.stringify(expr)}`;
     this.buildSideIndex();
   }
 
@@ -1201,7 +1186,7 @@ export class LookupOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Perform lookup join
@@ -1215,7 +1200,8 @@ export class LookupOperator implements IVMOperator {
     };
 
     // Update the document in store
-    (_store.documents as any)[_delta.rowId] = joinedDoc;
+    // TODO(types): rowId here should always be physical; assert/narrow as needed
+    _store.documents[_delta.rowId as number] = joinedDoc;
 
     return [_delta]; // Propagate the joined document
   }
@@ -1247,7 +1233,7 @@ export class LookupOperator implements IVMOperator {
     context: IVMContext
   ): Document | null => {
     const doc =
-      context.getEffectiveUpstreamDocument?.(rowId) || (store.documents as any)[rowId];
+      context.getEffectiveUpstreamDocument?.(rowId) || getPhysicalDocument(store, rowId);
     if (!doc) return null;
 
     const localValue = this.getFieldValue(doc, this.expr.localField);
@@ -1465,7 +1451,7 @@ export class FusedOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Apply fused match + project in single pass
@@ -1493,7 +1479,7 @@ export class FusedOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== -1) return [];
 
-    const doc = (_store.documents as any)[_delta.rowId];
+    const doc = getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Check if document would have matched
@@ -1524,7 +1510,7 @@ export class FusedOperator implements IVMOperator {
     for (const rowId of sourceIds) {
       const doc = _context.getEffectiveUpstreamDocument
         ? _context.getEffectiveUpstreamDocument(rowId)
-        : ( _store.documents as any)[rowId];
+        : getPhysicalDocument(_store, rowId);
 
       if (doc) {
         const projectedDoc = this.fusedFunction.apply(doc, rowId);
@@ -1540,7 +1526,7 @@ export class FusedOperator implements IVMOperator {
 
   getEffectiveDocument = (
     rowId: RowId,
-    store: CrossfilterStore,
+    _store: CrossfilterStore,
     context: IVMContext
   ): Document | null => {
     const projectedDocsKey = `projected_docs_stage_${context.stageIndex}`;
@@ -1648,7 +1634,9 @@ export class AddFieldsOperator implements IVMOperator {
     if (_delta.sign === 1) {
       const doc =
         _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-        (_store.documents as any)[_delta.rowId];
+        // Only physical rowIds should fall back to store
+        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        getPhysicalDocument(_store, _delta.rowId);
       if (doc) {
         // Compute new fields
         const newFields = this.compiledExpr(doc, _delta.rowId);
@@ -1695,7 +1683,7 @@ export class AddFieldsOperator implements IVMOperator {
       // Get document from upstream stage if it was transformed
       const doc =
         _context.getEffectiveUpstreamDocument?.(rowId) ||
-        ( _store.documents as any)[rowId];
+        getPhysicalDocument(_store, rowId);
       if (doc) {
         // Compute new fields and merge
         const newFields = this.compiledExpr(doc, rowId);
@@ -1734,7 +1722,7 @@ export class TopKOperator implements IVMOperator {
   private limit: number;
   private results: Array<{ doc: Document; rowId: RowId }> = [];
 
-  constructor(private expr: any) {
+  constructor(expr: any) {
     // Parse sort expression
     const sortExpr = expr.sort || {};
     for (const [field, direction] of Object.entries(sortExpr)) {
@@ -1757,7 +1745,9 @@ export class TopKOperator implements IVMOperator {
     // Get effective document from upstream stages
     const doc =
       _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-      (_store.documents as any)[_delta.rowId];
+      // Only physical rowIds should fall back to store
+      // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+      getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
     // Insert into sorted results maintaining top-k
@@ -1826,7 +1816,7 @@ export class TopKOperator implements IVMOperator {
     // Always delegate to upstream for the actual document content
     return (
       _context.getEffectiveUpstreamDocument?.(rowId) ||
-      (_store.documents as any)[rowId] ||
+      getPhysicalDocument(_store, rowId) ||
       null
     );
   };

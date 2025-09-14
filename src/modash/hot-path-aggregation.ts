@@ -283,7 +283,7 @@ function isSimpleMatch(matchExpr: any): boolean {
  * Phase 3: Allow computed fields after $group operations
  */
 function isSimpleProject(projectSpec: any, isAfterGroup = false): boolean {
-  for (const [field, spec] of Object.entries(projectSpec)) {
+  for (const [_field, spec] of Object.entries(projectSpec)) {
     if (spec === 0 || spec === 1 || spec === true || spec === false) {
       // Simple inclusion/exclusion always supported
       continue;
@@ -332,7 +332,7 @@ function isSimpleGroup(groupSpec: any): boolean {
   } else if (typeof _id === 'object' && _id !== null) {
     // Support object-based grouping (compound keys)
     // Ensure all grouping fields are simple field references
-    for (const [key, value] of Object.entries(_id)) {
+    for (const [_key, value] of Object.entries(_id)) {
       if (typeof value !== 'string' || !value.startsWith('$')) {
         return false; // Complex grouping expressions not supported
       }
@@ -438,43 +438,6 @@ function isSimpleUnwind(unwindSpec: any): boolean {
 }
 
 /**
- * Check if $unwind + $group pattern can be optimized
- * Phase 3: Avoid repeated materialization
- */
-function canOptimizeUnwindGroup(pipeline: Pipeline): boolean {
-  // Find $unwind and $group stages
-  let unwindIndex = -1;
-  let groupIndex = -1;
-
-  for (let i = 0; i < pipeline.length; i++) {
-    const stage = pipeline[i];
-    if ('$unwind' in stage) {
-      unwindIndex = i;
-    } else if ('$group' in stage) {
-      groupIndex = i;
-      break; // First $group after $unwind
-    }
-  }
-
-  if (unwindIndex === -1 || groupIndex === -1 || unwindIndex >= groupIndex) {
-    return false; // No valid $unwind + $group pattern
-  }
-
-  // Check if stages between $unwind and $group are compatible
-  for (let i = unwindIndex + 1; i < groupIndex; i++) {
-    const stage = pipeline[i];
-    const stageType = Object.keys(stage)[0];
-
-    // Only allow $match, $project between $unwind and $group
-    if (!['$match', '$project'].includes(stageType)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Check if expression is simple enough for hot path
  */
 function isSimpleExpression(expr: any): boolean {
@@ -560,12 +523,13 @@ export function hotPathAggregate<T extends Document = Document>(
         (collection.length / Math.max(duration, 1)) * 1000;
     } catch (error) {
       // Fallback on hot path failure
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (process.env.DEBUG_UNWIND) {
         console.log(
-          `[DEBUG] Hot path failed, falling back to traditional aggregation: ${error.message}`
+          `[DEBUG] Hot path failed, falling back to traditional aggregation: ${errorMessage}`
         );
       }
-      console.warn(`Hot path failed, falling back: ${error.message}`);
+      console.warn(`Hot path failed, falling back: ${errorMessage}`);
       counters.fallbacks++;
       result = originalAggregate(collection, pipeline);
 

@@ -113,7 +113,12 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
 
   remove(key: T, rowId: RowId): boolean {
     const initialSize = this.size;
-    this.root = this.removeNode(this.root, key, rowId);
+    const newRoot = this.removeNode(this.root, key, rowId);
+    if (newRoot === undefined) {
+      delete this.root;
+    } else {
+      this.root = newRoot;
+    }
     return this.size < initialSize;
   }
 
@@ -127,7 +132,7 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
   }
 
   clear(): void {
-    this.root = undefined;
+    delete this.root;
     this.size = 0;
   }
 
@@ -145,6 +150,8 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
         rowId,
         size: 1,
         height: 1,
+        left: undefined,
+        right: undefined,
       };
     }
 
@@ -253,7 +260,12 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
     if (key1 > key2) return 1;
 
     // Tie-break by rowId for stable ordering
-    return rowId1 - rowId2;
+    // Handle both numeric and string rowIds
+    if (typeof rowId1 === 'number' && typeof rowId2 === 'number') {
+      return rowId1 - rowId2;
+    }
+    // For string rowIds or mixed types, use string comparison
+    return String(rowId1).localeCompare(String(rowId2));
   }
 
   private updateNode(node: OrderStatNode<T>): void {
@@ -464,14 +476,14 @@ export class DimensionImpl implements Dimension {
     const result = new Set<RowId>();
 
     for (const value of this.sortedValues) {
-      if (value >= min && value <= max) {
+      if (value !== null && min !== null && max !== null && value >= min && value <= max) {
         const rowIds = this.valueIndex.get(value);
         if (rowIds) {
           for (const rowId of rowIds) {
             result.add(rowId);
           }
         }
-      } else if (value > max) {
+      } else if (value !== null && max !== null && value > max) {
         break; // Sorted array, no more matches
       }
     }
@@ -523,7 +535,8 @@ export class DimensionImpl implements Dimension {
 
     while (left < right) {
       const mid = Math.floor((left + right) / 2);
-      if (this.sortedValues[mid] < value) {
+      const midValue = this.sortedValues[mid];
+      if (midValue !== null && value !== null && midValue < value) {
         left = mid + 1;
       } else {
         right = mid;
@@ -565,7 +578,7 @@ export class DimensionImpl implements Dimension {
       if (value && typeof value === 'object') {
         value = value[part];
       } else {
-        return undefined;
+        return null;
       }
     }
 
@@ -747,7 +760,7 @@ export class GroupStateImpl implements GroupState {
 
   private updateFirstLast(
     field: string,
-    accType: string,
+    _accType: string,
     value: DocumentValue,
     rowId: RowId,
     sign: 1 | -1
@@ -776,16 +789,16 @@ export class GroupStateImpl implements GroupState {
     } else if (typeof accField === 'object' && accField !== null) {
       // Complex expression - handle basic operators
       if (accField.$multiply && Array.isArray(accField.$multiply)) {
-        const values = accField.$multiply.map(field =>
+        const values = accField.$multiply.map((field: any) =>
           this.getAccumulatorValue(field, doc)
         );
-        return values.reduce((a, b) => (Number(a) || 0) * (Number(b) || 0), 1);
+        return values.reduce((a: any, b: any) => (Number(a) || 0) * (Number(b) || 0), 1);
       }
       if (accField.$add && Array.isArray(accField.$add)) {
-        const values = accField.$add.map(field =>
+        const values = accField.$add.map((field: any) =>
           this.getAccumulatorValue(field, doc)
         );
-        return values.reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0);
+        return values.reduce((a: any, b: any) => (Number(a) || 0) + (Number(b) || 0), 0);
       }
       if (
         accField.$subtract &&
@@ -823,7 +836,7 @@ export class GroupStateImpl implements GroupState {
       if (value && typeof value === 'object') {
         value = value[part];
       } else {
-        return undefined;
+        return null;
       }
     }
 
@@ -840,12 +853,12 @@ export class GroupStateImpl implements GroupState {
 
     // Add mins
     for (const [field, multiset] of this.mins.entries()) {
-      result[field] = multiset.getMin();
+      result[field] = multiset.getMin() ?? null;
     }
 
     // Add maxs
     for (const [field, multiset] of this.maxs.entries()) {
-      result[field] = multiset.getMax();
+      result[field] = multiset.getMax() ?? null;
     }
 
     // Add averages

@@ -162,7 +162,7 @@ export class DeltaBatchProcessor {
   ): void {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
-      this.batchTimer = undefined;
+      delete this.batchTimer;
     }
 
     const addCount = this.pendingAdds.length;

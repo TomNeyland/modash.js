@@ -103,8 +103,9 @@ export interface OrderStatNode<T> {
   value: any;
   rowId: RowId;
   size: number; // Size of subtree
-  left?: OrderStatNode<T>;
-  right?: OrderStatNode<T>;
+  // exactOptionalPropertyTypes: allow explicit undefined assignments
+  left: OrderStatNode<T> | undefined;
+  right: OrderStatNode<T> | undefined;
   height: number; // For AVL balancing
 }
 

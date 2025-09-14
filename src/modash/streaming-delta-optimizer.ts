@@ -11,8 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
-import type { Collection, Document } from './expressions';
-import type { Pipeline } from '../index';
+import type { Document } from './expressions';
 import { DEBUG, logPipelineExecution } from './debug';
 
 /**
@@ -271,7 +270,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   /**
    * Update performance metrics
    */
-  private updateMetrics(batch: Delta[], batchDuration: number): void {
+  private updateMetrics(batch: Delta[], _batchDuration: number): void {
     this.metrics.totalBatches++;
     this.metrics.avgBatchSize =
       this.metrics.totalDeltas / this.metrics.totalBatches;
@@ -381,13 +380,6 @@ export class StreamingDeltaOptimizer extends EventEmitter {
         }
       );
     }
-  }
-
-  /**
-   * Calculate current throughput from recent metrics
-   */
-  private calculateCurrentThroughput(): number {
-    return this.metrics.throughputDeltasPerSec || 0;
   }
 
   /**

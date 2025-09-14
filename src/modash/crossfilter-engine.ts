@@ -26,6 +26,7 @@ import {
   PerformanceEngineImpl,
 } from './crossfilter-compiler';
 import { OptimizedIVMOperatorFactory } from './crossfilter-operators';
+import { getPhysicalDocument } from './store-utils';
 
 /**
  * Main crossfilter-inspired IVM engine
@@ -409,7 +410,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
         // Index existing documents in this dimension
         for (const rowId of this.store.liveSet) {
-          const doc = (this.store.documents as any)[rowId];
+          // Only physical rowIds should fall back to store
+          // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+          const doc = getPhysicalDocument(this.store, rowId);
           if (doc) {
             dimension.addDocument(doc, rowId);
           }
@@ -467,8 +470,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
             );
           }
         }
-        // Fallback to raw store document
-        return (this.store.documents as any)[rowId] || null;
+        // Fallback to raw store document (physical rows only)
+        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        return getPhysicalDocument(this.store, rowId);
       };
 
       const nextDeltas: Delta[] = [];
@@ -549,7 +553,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
             rowId: RowId
           ): Document | null => {
             if (stageIndex < 0) {
-              return this.store.documents[rowId];
+              // Only physical rowIds should fall back to store
+              // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+              return getPhysicalDocument(this.store, rowId);
             }
 
             const operator = operators[stageIndex];
@@ -654,7 +660,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
             rowId: RowId
           ): Document | null => {
             if (stageIndex < 0) {
-              return this.store.documents[rowId];
+              // Only physical rowIds should fall back to store
+              // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+              return getPhysicalDocument(this.store, rowId);
             }
 
             const operator = operators[stageIndex];
@@ -746,7 +754,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
         // Only fall back to store if operator doesn't transform
         if (!doc && !lastOperator.getEffectiveDocument) {
-          doc = this.store.documents[rowId];
+          // Only physical rowIds should fall back to store
+          // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+          doc = getPhysicalDocument(this.store, rowId);
           if (process.env.DEBUG_IVM) {
             console.log(
               `[Materializing] Falling back to store document for rowId ${rowId}`
@@ -761,15 +771,6 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     }
 
     return result;
-  }
-
-  private applyProjection(
-    documents: Collection<Document>,
-    projectExpr: any
-  ): Collection<Document> {
-    const projectedFn = this.compiler.compileProjectExpr(projectExpr);
-
-    return documents.map((doc, index) => projectedFn(doc, index));
   }
 
   private estimateDocumentsSize(): number {
@@ -799,57 +800,6 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     return size;
   }
 
-  private applySorting(
-    documents: Collection<Document>,
-    sortExpr: any
-  ): Collection<Document> {
-    if (!documents || documents.length === 0) return documents;
-
-    // Create sort comparator from MongoDB sort expression
-    const sortFields = Object.entries(sortExpr);
-
-    return [...documents].sort((a, b) => {
-      for (const [field, direction] of sortFields) {
-        const aVal = this.getFieldValue(a, field);
-        const bVal = this.getFieldValue(b, field);
-
-        let comparison = 0;
-        if (aVal < bVal) comparison = -1;
-        else if (aVal > bVal) comparison = 1;
-
-        if (comparison !== 0) {
-          return direction === 1 ? comparison : -comparison;
-        }
-      }
-      return 0;
-    });
-  }
-
-  private applyMatching(
-    documents: Collection<Document>,
-    matchExpr: any
-  ): Collection<Document> {
-    if (!documents || documents.length === 0) return documents;
-
-    // Use the crossfilter compiler to build match function
-    const compiler = new ExpressionCompilerImpl();
-    const matchFunction = compiler.compileMatchExpr(matchExpr);
-
-    return documents.filter((doc, index) => matchFunction(doc, index as RowId));
-  }
-
-  private getFieldValue(doc: Document, field: string): any {
-    if (field.includes('.')) {
-      const parts = field.split('.');
-      let value: any = doc;
-      for (const part of parts) {
-        if (value === null || value === undefined) return undefined;
-        value = value[part];
-      }
-      return value;
-    }
-    return doc[field];
-  }
 }
 
 /**

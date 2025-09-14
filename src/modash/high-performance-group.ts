@@ -21,14 +21,6 @@ interface GroupResult {
 }
 
 /**
- * Accumulator specification
- */
-interface AccumulatorSpec {
-  operator: string;
-  expression: Expression;
-}
-
-/**
  * High-performance group engine
  */
 export class HighPerformanceGroupEngine {
@@ -171,7 +163,7 @@ export class HighPerformanceGroupEngine {
     const results: GroupResult[] = [];
 
     // Process each group with SoA accumulators
-    for (const [groupKey, documents] of this.groupsTable.entries()) {
+    for (const [_groupKey, documents] of this.groupsTable.entries()) {
       const result: GroupResult = {
         _id: idSpec ? $expression(documents[0]!, idSpec) : null,
       };
@@ -256,7 +248,7 @@ export function canUseHighPerformanceGroup(
   }
 
   // Check accumulator specifications
-  for (const [fieldName, spec] of Object.entries(accumulatorSpecs)) {
+  for (const [_fieldName, spec] of Object.entries(accumulatorSpecs)) {
     if (typeof spec !== 'object' || spec === null) {
       return false;
     }

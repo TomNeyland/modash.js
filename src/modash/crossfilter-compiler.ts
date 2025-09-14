@@ -716,79 +716,6 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     `;
   }
 
-  private generateConditionCode(
-    fieldAccess: string,
-    operator: string,
-    value: any
-  ): string {
-    const jsonValue = JSON.stringify(value);
-
-    switch (operator) {
-      case '$eq':
-        return `${fieldAccess} === ${jsonValue}`;
-
-      case '$ne':
-        return `${fieldAccess} !== ${jsonValue}`;
-
-      case '$gt':
-        return `${fieldAccess} > ${jsonValue}`;
-
-      case '$gte':
-        return `${fieldAccess} >= ${jsonValue}`;
-
-      case '$lt':
-        return `${fieldAccess} < ${jsonValue}`;
-
-      case '$lte':
-        return `${fieldAccess} <= ${jsonValue}`;
-
-      case '$in':
-        if (Array.isArray(value)) {
-          const valueSet = JSON.stringify(value);
-          return `${valueSet}.includes(${fieldAccess})`;
-        }
-        return 'false';
-
-      case '$nin':
-        if (Array.isArray(value)) {
-          const valueSet = JSON.stringify(value);
-          return `!${valueSet}.includes(${fieldAccess})`;
-        }
-        return 'true';
-
-      case '$regex':
-        // Handle regex patterns
-        if (typeof value === 'string') {
-          return `new RegExp(${JSON.stringify(value)}).test(${fieldAccess})`;
-        } else if (value && typeof value === 'object' && value.$regex) {
-          const pattern = JSON.stringify(value.$regex);
-          const flags = value.$options || '';
-          return `new RegExp(${pattern}, ${JSON.stringify(flags)}).test(${fieldAccess})`;
-        }
-        return 'false';
-
-      case '$all':
-        if (Array.isArray(value)) {
-          const checks = value.map(
-            v =>
-              `(${fieldAccess} && Array.isArray(${fieldAccess}) && ${fieldAccess}.includes(${JSON.stringify(v)}))`
-          );
-          return checks.join(' && ');
-        }
-        return 'false';
-
-      case '$size':
-        return `(Array.isArray(${fieldAccess}) && ${fieldAccess}.length === ${JSON.stringify(value)})`;
-
-      case '$exists':
-        return value
-          ? `${fieldAccess} !== undefined`
-          : `${fieldAccess} === undefined`;
-
-      default:
-        return 'true'; // Unsupported operator
-    }
-  }
 
   private generateExpressionCode(expr: any): string {
     if (typeof expr === 'string' && expr.startsWith('$')) {
@@ -1162,7 +1089,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         const evaluated = this.evaluateExpression(projection, doc);
         result[field] = evaluated;
       } else {
-        result[field] = projection;
+        result[field] = projection as DocumentValue;
       }
     }
 
@@ -1260,9 +1187,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       // Math operators
       if (expr.$add && Array.isArray(expr.$add)) {
         const values = expr.$add.map(
-          v => Number(this.evaluateExpression(v, doc)) || 0
+          (v: any) => Number(this.evaluateExpression(v, doc)) || 0
         );
-        return values.reduce((sum, val) => sum + val, 0);
+        return values.reduce((sum: number, val: number) => sum + val, 0);
       }
       if (expr.$multiply && Array.isArray(expr.$multiply)) {
         const [left, right] = expr.$multiply;
@@ -1296,16 +1223,16 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             if (docValue === value) return false;
             break;
           case '$gt':
-            if (!(docValue > value)) return false;
+            if (!(docValue > (value as any))) return false;
             break;
           case '$gte':
-            if (!(docValue >= value)) return false;
+            if (!(docValue >= (value as any))) return false;
             break;
           case '$lt':
-            if (!(docValue < value)) return false;
+            if (!(docValue < (value as any))) return false;
             break;
           case '$lte':
-            if (!(docValue <= value)) return false;
+            if (!(docValue <= (value as any))) return false;
             break;
           case '$in':
             if (!Array.isArray(value) || !value.includes(docValue))
@@ -1377,7 +1304,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     this.optimizationStats.compactionsRun++;
   }
 
-  shouldCreateDimension(fieldPath: string, selectivity: number): boolean {
+  shouldCreateDimension(_fieldPath: string, selectivity: number): boolean {
     // Create dimensions for fields with good selectivity (not too high, not too low)
     // High selectivity (many unique values) = good for filtering
     // Low selectivity (few unique values) = good for grouping
@@ -1694,11 +1621,12 @@ export class PerformanceEngineImpl implements PerformanceEngine {
 
   private isMatchPredicateSafe(matchExpr: any, previousStage: any): boolean {
     // Simplified safety check - in real implementation would analyze field dependencies
-    const matchFields = this.extractMatchFields(matchExpr, new Set());
+    const matchFields = new Set<string>();
+    this.extractMatchFields(matchExpr, matchFields);
     const stageOutputs = this.getStageOutputFields(previousStage);
 
     // Safe if match doesn't depend on fields produced by previous stage
-    return !matchFields.some(field => stageOutputs.includes(field));
+    return !Array.from(matchFields).some((field: string) => stageOutputs.includes(field));
   }
 
   private isConstantExpression(expr: any): boolean {
