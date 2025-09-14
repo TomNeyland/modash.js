@@ -988,6 +988,19 @@ export class UnwindOperator implements IVMOperator {
     return result;
   }
 
+  /**
+   * Get the effective document for a virtual row ID created by $unwind
+   */
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    _context: IVMContext
+  ): Document | null => {
+    // For $unwind, rowId refers to the child document (virtual row)
+    // that was created and stored in store.documents during onAdd
+    return store.documents[rowId] || null;
+  };
+
   estimateComplexity(): string {
     return 'O(n*m)'; // Where n is documents and m is average array length
   }
@@ -1199,8 +1212,15 @@ export class OptimizedIVMOperatorFactory implements IVMOperatorFactory {
     return new SkipOperator(skip);
   }
 
-  createUnwindOperator(path: string, options?: any): IVMOperator {
-    return new UnwindOperator(path, options);
+  createUnwindOperator(pathOrSpec: string | any, options?: any): IVMOperator {
+    // Handle both string path and object specification
+    if (typeof pathOrSpec === 'string') {
+      return new UnwindOperator(pathOrSpec, options);
+    } else {
+      // Object spec with path and options
+      const { path, ...opts } = pathOrSpec;
+      return new UnwindOperator(path, opts);
+    }
   }
 
   createLookupOperator(expr: any): IVMOperator {
