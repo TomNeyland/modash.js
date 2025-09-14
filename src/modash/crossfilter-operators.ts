@@ -91,6 +91,15 @@ export class MatchOperator implements IVMOperator {
     return result;
   }
 
+  // Passthrough to upstream - match doesn't transform documents
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null => {
+    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+  };
+
   estimateComplexity(): string {
     return 'O(n)'; // Linear scan for match
   }
@@ -423,6 +432,16 @@ export class SortOperator implements IVMOperator {
     return docsWithIds.map(item => item.rowId);
   }
 
+  // Passthrough to upstream - sort doesn't transform documents
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null => {
+    // Get document from upstream stage if it was transformed
+    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+  };
+
   estimateComplexity(): string {
     return 'O(n log n)'; // Sorting complexity
   }
@@ -643,6 +662,15 @@ export class LimitOperator implements IVMOperator {
     return sourceRowIds.slice(0, this.limitValue);
   }
 
+  // Passthrough to upstream - limit doesn't transform documents
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null => {
+    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+  };
+
   estimateComplexity(): string {
     return 'O(k)'; // Where k is the limit value
   }
@@ -690,6 +718,15 @@ export class SkipOperator implements IVMOperator {
     const sourceRowIds = _context.upstreamActiveIds || [];
     return sourceRowIds.slice(this.skipValue);
   }
+
+  // Passthrough to upstream - skip doesn't transform documents
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null => {
+    return context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+  };
 
   estimateComplexity(): string {
     return 'O(n)'; // May need to scan all documents
@@ -822,16 +859,17 @@ export class UnwindOperator implements IVMOperator {
   snapshot(
     _store: CrossfilterStore,
     _context: IVMContext
-  ): Collection<Document> {
-    const result: Document[] = [];
+  ): RowId[] {
+    const result: RowId[] = [];
 
-    // Return all unwound child documents
-    for (const rowId of _store.liveSet) {
-      if (this.childToParent.has(rowId)) {
-        const doc = _store.documents[rowId];
-        if (doc) {
-          result.push(doc);
-        }
+    // Use upstream active IDs
+    const sourceRowIds = _context.upstreamActiveIds || [];
+
+    // Return child IDs for all active parent documents
+    for (const parentId of sourceRowIds) {
+      const childIds = this.parentToChildren.get(parentId);
+      if (childIds) {
+        result.push(...childIds);
       }
     }
 
@@ -957,27 +995,31 @@ export class LookupOperator implements IVMOperator {
   snapshot(
     _store: CrossfilterStore,
     _context: IVMContext
-  ): Collection<Document> {
-    const result: Document[] = [];
+  ): RowId[] {
+    // Use upstream active IDs
+    const sourceRowIds = _context.upstreamActiveIds || [];
 
-    // Perform lookup join for all live documents
-    for (const rowId of _store.liveSet) {
-      const doc = _store.documents[rowId];
-      if (!doc) continue;
-
-      const localValue = this.getFieldValue(doc, this.expr.localField);
-      const matches = this.sideIndex.get(localValue) || [];
-
-      const joinedDoc: Document = {
-        ...doc,
-        [this.expr.as]: matches,
-      };
-
-      result.push(joinedDoc);
-    }
-
-    return result;
+    // For now, just return the same rowIds - documents are enhanced via getEffectiveDocument
+    return sourceRowIds;
   }
+
+  // Transform documents by adding lookup results
+  getEffectiveDocument = (
+    rowId: RowId,
+    store: CrossfilterStore,
+    context: IVMContext
+  ): Document | null => {
+    const doc = context.getEffectiveUpstreamDocument?.(rowId) || store.documents[rowId];
+    if (!doc) return null;
+
+    const localValue = this.getFieldValue(doc, this.expr.localField);
+    const matches = this.sideIndex.get(localValue) || [];
+
+    return {
+      ...doc,
+      [this.expr.as]: matches,
+    };
+  };
 
   estimateComplexity(): string {
     return 'O(n)'; // Linear with pre-built index
