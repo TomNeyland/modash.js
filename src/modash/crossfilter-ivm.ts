@@ -15,7 +15,9 @@ import type { Pipeline } from '../index';
  * - number: for regular document rows
  * - string: for virtual rows (e.g., group results, unwind child rows)
  */
-export type RowId = number | string;
+export type PhysicalRowId = number;
+export type VirtualRowId = string;
+export type RowId = PhysicalRowId | VirtualRowId;
 
 /**
  * Delta represents a change to the dataset: add (+1) or remove (-1)
@@ -47,11 +49,13 @@ export interface ColumnStore {
 export interface LiveSet {
   bitset: Uint32Array; // Compact bitset for membership
   count: number; // Number of live documents
-  maxRowId: RowId; // Highest assigned row ID
+  maxRowId: number; // Highest assigned row ID (physical rows only)
 
-  set(rowId: RowId): void;
-  unset(rowId: RowId): boolean;
-  isSet(rowId: RowId): boolean;
+  set(rowId: number): void;
+  unset(rowId: number): boolean;
+  isSet(rowId: number): boolean;
+  clear(): void;
+  [Symbol.iterator](): IterableIterator<PhysicalRowId>;
 }
 
 /**
@@ -68,6 +72,11 @@ export interface Dimension {
   // Statistics for optimization
   cardinality: number; // Number of distinct values
   selectivity: number; // Estimated selectivity (0-1)
+
+  addDocument(doc: Document, rowId: RowId): void;
+  removeDocument(rowId: RowId): boolean;
+  getDocumentsByValue(value: DocumentValue): Set<RowId>;
+  getDocumentsByRange(min: DocumentValue, max: DocumentValue): Set<RowId>;
 }
 
 /**
@@ -141,6 +150,10 @@ export interface GroupState {
 
   // First/Last with ordering support
   firstLast: Map<string, OrderStatTree<DocumentValue>>;
+
+  addDocument(rowId: RowId, doc: Document, accumulators: any): void;
+  removeDocument(rowId: RowId, doc: Document, accumulators: any): boolean;
+  materializeResult(): Document;
 }
 
 /**
@@ -187,10 +200,10 @@ export interface ExecutionPlan {
  */
 export interface CrossfilterStore {
   // Core data storage
-  readonly documents: Document[]; // Raw document storage
+  documents: Document[]; // Raw document storage (internal mutable)
   readonly liveSet: LiveSet; // Which documents are currently active
   readonly columns: Map<string, ColumnStore>; // Columnar field storage
-  readonly rowIdCounter: { current: RowId }; // Stable ID assignment
+  readonly rowIdCounter: { current: number }; // Stable ID assignment (physical rows)
 
   // Multi-dimensional indexing (crossfilter concept)
   readonly dimensions: Map<string, Dimension>;
@@ -243,16 +256,16 @@ export interface IVMOperator {
  * Context for IVM operator execution
  */
 export interface IVMContext {
-  readonly pipeline: Pipeline;
-  readonly stageIndex: number;
-  readonly compiledStage: CompiledStage;
-  readonly executionPlan: ExecutionPlan;
+  pipeline: Pipeline;
+  stageIndex: number;
+  compiledStage: CompiledStage;
+  executionPlan: ExecutionPlan;
 
   // Upstream active rowIds - the engine owns this
-  readonly upstreamActiveIds?: RowId[];
+  upstreamActiveIds?: RowId[];
 
   // Temporary state
-  readonly tempState: Map<string, any>;
+  tempState: Map<string, any>;
 
   // Helper to get effective document from upstream stage
   getEffectiveUpstreamDocument?(rowId: RowId): Document | null;
@@ -323,8 +336,8 @@ export interface CrossfilterIVMEngine {
   compilePipeline(pipeline: Pipeline): ExecutionPlan;
 
   // Data operations
-  addDocument(doc: Document): RowId;
-  addDocuments(docs: Document[]): RowId[];
+  addDocument(doc: Document): number;
+  addDocuments(docs: Document[]): number[];
   removeDocument(rowId: RowId): boolean;
   removeDocuments(rowIds: RowId[]): number;
 
@@ -341,5 +354,6 @@ export interface CrossfilterIVMEngine {
   // Optimization and maintenance
   optimize(): void;
   getStatistics(): any;
+  getStats?(): any;
   clear(): void;
 }

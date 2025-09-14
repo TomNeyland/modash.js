@@ -63,9 +63,13 @@ function recordOptimizerRejection(
   const rejection: OptimizerRejection = {
     pipeline: JSON.parse(JSON.stringify(pipeline)), // Deep clone to avoid mutations
     reason,
-    stageIndex,
-    stageType,
   };
+  if (stageIndex !== undefined) {
+    rejection.stageIndex = stageIndex;
+  }
+  if (stageType !== undefined) {
+    rejection.stageType = stageType;
+  }
 
   optimizerRejections.push(rejection);
 

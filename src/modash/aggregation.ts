@@ -12,7 +12,6 @@ import { $accumulate } from './accumulators';
 
 // Phase 3.5: Import enhanced text and regex search capabilities
 import { $text } from './text-search';
-import { enhancedRegexMatch } from './regex-search';
 import { DEBUG } from './debug';
 
 // Import complex types from main index for now
@@ -141,8 +140,8 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
     if (
       condition &&
       typeof condition === 'object' &&
-      condition.$regex &&
-      typeof condition.$regex === 'string'
+      '$regex' in (condition as any) &&
+      typeof (condition as any).$regex === 'string'
     ) {
       // This is a single-field regex query - we could optimize this further
       // but for now we'll use the standard path with enhanced error handling
@@ -217,7 +216,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
               typeof expectedValue === 'number'
             ) {
               if (fieldValue <= expectedValue) return false;
-            } else if (fieldValue <= expectedValue) return false;
+            } else if (fieldValue <= (expectedValue as any)) return false;
             break;
           case '$gte':
             if (
@@ -225,7 +224,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
               typeof expectedValue === 'number'
             ) {
               if (fieldValue < expectedValue) return false;
-            } else if (fieldValue < expectedValue) return false;
+            } else if (fieldValue < (expectedValue as any)) return false;
             break;
           case '$lt':
             if (
@@ -233,7 +232,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
               typeof expectedValue === 'number'
             ) {
               if (fieldValue >= expectedValue) return false;
-            } else if (fieldValue >= expectedValue) return false;
+            } else if (fieldValue >= (expectedValue as any)) return false;
             break;
           case '$lte':
             if (
@@ -241,7 +240,7 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
               typeof expectedValue === 'number'
             ) {
               if (fieldValue > expectedValue) return false;
-            } else if (fieldValue > expectedValue) return false;
+            } else if (fieldValue > (expectedValue as any)) return false;
             break;
           case '$in':
             if (
@@ -421,7 +420,8 @@ function $unwind<T extends Document = Document>(
   // Parse unwind specification
   const fieldPath =
     typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
-  const options = typeof unwindSpec === 'object' ? unwindSpec : {};
+  const options: { includeArrayIndex?: string; preserveNullAndEmptyArrays?: boolean } =
+    typeof unwindSpec === 'object' ? (unwindSpec as any) : {};
 
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
@@ -440,7 +440,8 @@ function $unwind<T extends Document = Document>(
         result.push(doc);
       } else if (options.preserveNullAndEmptyArrays) {
         // Null/undefined field with preserveNullAndEmptyArrays
-        const newDoc = JSON.parse(JSON.stringify(doc));
+        // TODO(refactor): Replace deep clone with structuredClone or field-level copy to reduce GC pressure.
+        const newDoc: any = JSON.parse(JSON.stringify(doc));
         if (cleanPath.includes('.')) {
           // For nested paths, set the final property to null
           const parts = cleanPath.split('.');
@@ -465,7 +466,8 @@ function $unwind<T extends Document = Document>(
     if (arrayValue.length === 0) {
       if (options.preserveNullAndEmptyArrays) {
         // Empty array with preserveNullAndEmptyArrays
-        const newDoc = { ...doc };
+        // TODO(refactor): Avoid object spread in hot paths; consider targeted field updates.
+        const newDoc: any = { ...doc };
         if (cleanPath.includes('.')) {
           const parts = cleanPath.split('.');
           let current = newDoc;
@@ -488,7 +490,8 @@ function $unwind<T extends Document = Document>(
     // Unwind the array
     arrayValue.forEach((item, index) => {
       // Deep clone the document to avoid mutations
-      const newDoc = JSON.parse(JSON.stringify(doc));
+      // TODO(refactor): Replace deep clone with structuredClone where available.
+      const newDoc: any = JSON.parse(JSON.stringify(doc));
 
       // Set the unwound field value - preserve nested structure
       if (cleanPath.includes('.')) {
@@ -551,7 +554,7 @@ function $group<T extends Document = Document>(
     }
   );
 
-  for (const [groupKey, members] of sortedGroupEntries) {
+  for (const [_groupKey, members] of sortedGroupEntries) {
     const result: GroupResult = {};
     for (const [field, fieldSpec] of Object.entries(specifications)) {
       if (field === '_id') {

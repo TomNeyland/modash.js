@@ -256,7 +256,7 @@ export class TextSearchBloomFilter extends BloomFilter {
   /**
    * Clear all document filters
    */
-  clear(): void {
+  override clear(): void {
     super.clear();
     this.documentFilters.clear();
   }
@@ -364,7 +364,7 @@ export class RegexSearchBloomFilter extends BloomFilter {
   /**
    * Clear all document filters
    */
-  clear(): void {
+  override clear(): void {
     super.clear();
     this.documentTrigrams.clear();
   }

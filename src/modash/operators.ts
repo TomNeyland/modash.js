@@ -34,8 +34,8 @@ type ExpressionEvaluator = (
 
 // Type for operator functions
 type OperatorFunction = (
-  ...args: EvaluatableValue[]
-) => DocumentValue | boolean | number;
+  ...args: any[]
+) => DocumentValue | DocumentValue[] | boolean | number | null;
 
 // Types for array operators with special input formats
 interface FilterInput {

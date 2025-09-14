@@ -23,8 +23,8 @@ import {
  * Minimal hot path context - no object allocations
  */
 interface HotPathContext {
-  readonly documents: Document[];
-  readonly activeRowIds: Uint32Array;
+  documents: Document[];
+  activeRowIds: Uint32Array;
   activeCount: number;
   scratchBuffer: Uint32Array;
   scratchCount: number;
@@ -121,6 +121,8 @@ export class ZeroAllocEngine {
           );
         }
 
+        // TODO(refactor): Consider avoiding in-place buffer swaps by returning new buffers per stage.
+        // This would make contexts immutable at the cost of allocations; evaluate perf trade-offs.
         // Swap buffers for next stage
         [context.activeRowIds, context.scratchBuffer] = [
           context.scratchBuffer,

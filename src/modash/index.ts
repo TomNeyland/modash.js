@@ -10,60 +10,49 @@ import {
   $lookup,
   $addFields,
   $set,
-  type QueryExpression,
 } from './aggregation';
 import { count } from './count';
-import { $expression, type Collection, type Document } from './expressions';
+import { $expression } from './expressions';
+import type { Document as PublicDocument, Collection as PublicCollection } from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
 import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
 
 // Import complex types from main index that need to stay centralized
-import type {
-  ModashStatic,
-  Pipeline,
-  Expression,
-  DocumentValue,
-  GroupStage,
-  ProjectStage,
-  SortStage,
-  LookupStage,
-  AddFieldsStage,
-  SetStage,
-} from '../index';
+import type { ModashStatic, Pipeline } from '../index';
 
 /**
  * High-performance aggregation function with hot path optimization
  */
-const optimizedAggregate = <T extends Document = Document>(
-  collection: Collection<T>,
+const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
+  collection: PublicCollection<T>,
   pipeline: Pipeline
-): Collection<Document> => {
+): PublicCollection<T> => {
   // D) Pipeline Input Validation - Check pipeline before routing to hot path
   if (!Array.isArray(pipeline)) {
     // Let the underlying aggregate handle single stages and invalid inputs
-    return originalAggregate(collection, pipeline as any);
+    return originalAggregate(collection as any, pipeline as any) as any;
   }
 
   // Route to hot path for maximum performance
-  return hotPathAggregate(collection, pipeline);
+  return hotPathAggregate(collection as any, pipeline) as unknown as PublicCollection<T>;
 };
 
 /**
  * Fully transparent aggregation function that creates streaming collections
  * for all operations, providing unified incremental capabilities
  */
-const transparentAggregate = <T extends Document = Document>(
-  collection: Collection<T> | StreamingCollection<T>,
+const transparentAggregate = <T extends PublicDocument = PublicDocument>(
+  collection: PublicCollection<T> | StreamingCollection<T>,
   pipeline: Pipeline
-): Collection<Document> => {
+): PublicCollection<T> => {
   // For regular collections, use hot path optimization
   if (!(collection instanceof StreamingCollection)) {
-    return optimizedAggregate(collection, pipeline);
+    return optimizedAggregate(collection as any, pipeline) as PublicCollection<T>;
   }
 
   // For streaming collections, use streaming path
-  return collection.stream(pipeline);
+  return collection.stream(pipeline) as unknown as PublicCollection<T>;
 };
 
 /**
@@ -77,6 +66,8 @@ const transparentAggregate = <T extends Document = Document>(
  */
 const Modash: ModashStatic = {
   aggregate: transparentAggregate,
+  aggregateStreaming: (collection: any, pipeline: Pipeline) =>
+    transparentAggregate(collection as any, pipeline) as any,
   count,
   $expression,
   $group,
@@ -91,12 +82,10 @@ const Modash: ModashStatic = {
   $set,
   // Streaming methods for advanced users
   createStreamingCollection,
-
-  // Hot path performance monitoring
-  getHotPathStats: () =>
-    import('./hot-path-aggregation').then(m => m.getHotPathStats()),
-  resetHotPathStats: () =>
-    import('./hot-path-aggregation').then(m => m.resetHotPathStats()),
+  // Phase 6: Enhanced DX APIs
+  explain,
+  benchmark,
+  fromJSONL,
 };
 
 export default Modash;
@@ -122,8 +111,8 @@ export {
   fromJSONL,
 };
 
-// Re-export basic types from local modules
-export type { Collection, Document, QueryExpression };
+// Re-export basic types for convenience from the public surface
+export type { Collection, Document, QueryExpression } from '../index';
 
 // Re-export streaming capabilities
 export { StreamingCollection, createStreamingCollection } from './streaming';
@@ -132,15 +121,4 @@ export { StreamingCollection, createStreamingCollection } from './streaming';
 export type { StreamingEvents, AggregationState } from './streaming';
 
 // Re-export complex types from main index for convenience
-export type {
-  Pipeline,
-  Expression,
-  DocumentValue,
-  GroupStage,
-  ProjectStage,
-  SortStage,
-  LookupStage,
-  AddFieldsStage,
-  SetStage,
-  ModashStatic,
-};
+export type { Pipeline, ModashStatic } from '../index';

@@ -336,14 +336,14 @@ export class OrderStatTreeImpl<T> implements OrderStatTree<T> {
 export class LiveSetImpl implements LiveSet {
   bitset: Uint32Array;
   count = 0;
-  maxRowId: RowId = -1;
+  maxRowId: number = -1;
 
   constructor(initialCapacity = 1024) {
     // Each Uint32 can store 32 bits
     this.bitset = new Uint32Array(Math.ceil(initialCapacity / 32));
   }
 
-  set(rowId: RowId): void {
+  set(rowId: number): void {
     this.ensureCapacity(rowId);
 
     const wordIndex = Math.floor(rowId / 32);
@@ -357,7 +357,7 @@ export class LiveSetImpl implements LiveSet {
     }
   }
 
-  unset(rowId: RowId): boolean {
+  unset(rowId: number): boolean {
     if (rowId > this.maxRowId) return false;
 
     const wordIndex = Math.floor(rowId / 32);
@@ -373,7 +373,7 @@ export class LiveSetImpl implements LiveSet {
     return false;
   }
 
-  isSet(rowId: RowId): boolean {
+  isSet(rowId: number): boolean {
     if (rowId > this.maxRowId) return false;
 
     const wordIndex = Math.floor(rowId / 32);
@@ -389,7 +389,7 @@ export class LiveSetImpl implements LiveSet {
     this.maxRowId = -1;
   }
 
-  private ensureCapacity(rowId: RowId): void {
+  private ensureCapacity(rowId: number): void {
     const requiredWords = Math.ceil((rowId + 1) / 32);
 
     if (requiredWords > this.bitset.length) {
@@ -399,7 +399,7 @@ export class LiveSetImpl implements LiveSet {
     }
   }
 
-  *[Symbol.iterator](): IterableIterator<RowId> {
+  *[Symbol.iterator](): IterableIterator<number> {
     for (let wordIndex = 0; wordIndex < this.bitset.length; wordIndex++) {
       const word = this.bitset[wordIndex];
       if (word === 0) continue;

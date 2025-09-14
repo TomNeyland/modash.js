@@ -12,7 +12,7 @@ import type { Expression, AccumulatorExpression } from '../index';
 type AccumulatorFunction = (
   collection: Collection,
   spec: Expression
-) => DocumentValue | DocumentValue[];
+) => DocumentValue | ReadonlyArray<DocumentValue>;
 type AccumulatorOperatorObject =
   | AccumulatorExpression
   | { [key: string]: Expression };
@@ -30,8 +30,8 @@ const ACCUMULATORS: Record<string, AccumulatorFunction> = {
 };
 
 function isAccumulatorExpression(
-  expression: AccumulatorOperatorObject
-): expression is AccumulatorExpression {
+  expression: any
+): expression is AccumulatorOperatorObject {
   const expressionKeys = Object.keys(expression);
   return (
     typeof expression === 'object' &&
@@ -48,10 +48,10 @@ function isAccumulatorExpression(
 function $accumulate(
   collection: Collection,
   operatorExpression: Expression
-): DocumentValue {
+): DocumentValue | ReadonlyArray<DocumentValue> {
   if (isAccumulatorExpression(operatorExpression)) {
     const [operator] = Object.keys(operatorExpression);
-    const args = operatorExpression[operator as keyof AccumulatorExpression];
+    const args = (operatorExpression as any)[operator as keyof AccumulatorExpression] as Expression;
     const accumulatorFunction = ACCUMULATORS[operator!];
 
     if (!accumulatorFunction) {
@@ -123,12 +123,18 @@ function $min(collection: Collection, spec: Expression): number | null {
   return minValue === Infinity ? null : minValue;
 }
 
-function $push(collection: Collection, spec: Expression): DocumentValue[] {
+function $push(
+  collection: Collection,
+  spec: Expression
+): ReadonlyArray<DocumentValue> {
   // C) $$ROOT resolution: Pass each obj as both current document and root
   return collection.map(obj => $expression(obj, spec, obj));
 }
 
-function $addToSet(collection: Collection, spec: Expression): DocumentValue[] {
+function $addToSet(
+  collection: Collection,
+  spec: Expression
+): ReadonlyArray<DocumentValue> {
   const values = $push(collection, spec);
   return [...new Set(values.map(obj => JSON.stringify(obj)))].map(str =>
     JSON.parse(str)

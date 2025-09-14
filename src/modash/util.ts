@@ -116,8 +116,12 @@ export function isEqual(a: any, b: any): boolean {
 /**
  * Array intersection - replaces lodash.intersection
  */
-export function intersection<T>(arr1: T[], arr2: T[]): T[] {
-  return arr1.filter(item => arr2.includes(item));
+export function intersection<T>(...arrays: T[][]): T[] {
+  if (arrays.length === 0) return [];
+  return arrays.slice(1).reduce<T[]>(
+    (acc, arr) => acc.filter(item => arr.includes(item)),
+    arrays[0]
+  );
 }
 
 /**
@@ -130,8 +134,10 @@ export function union<T>(...arrays: T[][]): T[] {
 /**
  * Array difference - replaces lodash.difference
  */
-export function difference<T>(arr1: T[], arr2: T[]): T[] {
-  return arr1.filter(item => !arr2.includes(item));
+export function difference<T>(...arrays: T[][]): T[] {
+  if (arrays.length === 0) return [];
+  const [first, ...rest] = arrays;
+  return rest.reduce<T[]>((acc, arr) => acc.filter(item => !arr.includes(item)), first);
 }
 
 /**

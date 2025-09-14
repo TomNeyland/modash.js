@@ -2,7 +2,8 @@
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import Modash from './index';
-import type { Pipeline, Document } from './index';
+import type { Pipeline } from './index';
+import type { Document } from './modash/expressions';
 
 interface CLIOptions {
   file?: string;
@@ -135,7 +136,7 @@ async function readJSONLFromFile(filepath: string): Promise<Document[]> {
   return documents;
 }
 
-function formatOutput(result: Document[], pretty: boolean): string {
+function formatOutput(result: ReadonlyArray<unknown>, pretty: boolean): string {
   if (pretty) {
     return JSON.stringify(result, null, 2);
   } else {
@@ -212,7 +213,7 @@ async function main() {
     const startTime = options.stats ? process.hrtime.bigint() : null;
     const startMemory = options.stats ? process.memoryUsage() : null;
 
-    const result = Modash.aggregate(documents, pipeline);
+    const result = Modash.aggregate(documents as any, pipeline);
 
     if (options.stats && startTime && startMemory) {
       const endTime = process.hrtime.bigint();

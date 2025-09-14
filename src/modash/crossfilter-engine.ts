@@ -197,7 +197,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     return plan;
   }
 
-  addDocument(doc: Document): RowId {
+  addDocument(doc: Document): number {
     const rowId = this.store.rowIdCounter.current++;
 
     // Store document
@@ -218,8 +218,8 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     return rowId;
   }
 
-  addDocuments(docs: Document[]): RowId[] {
-    const rowIds: RowId[] = [];
+  addDocuments(docs: Document[]): number[] {
+    const rowIds: number[] = [];
 
     for (const doc of docs) {
       rowIds.push(this.addDocument(doc));
@@ -229,12 +229,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   }
 
   removeDocument(rowId: RowId): boolean {
-    if (!this.store.liveSet.isSet(rowId)) {
+    if (!this.store.liveSet.isSet(rowId as number)) {
       return false; // Document not live
     }
 
     // Mark as not live
-    this.store.liveSet.unset(rowId);
+    this.store.liveSet.unset(rowId as number);
 
     // Update statistics
     this.store.stats.liveDocs--;
@@ -409,7 +409,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
         // Index existing documents in this dimension
         for (const rowId of this.store.liveSet) {
-          const doc = this.store.documents[rowId];
+          const doc = (this.store.documents as any)[rowId];
           if (doc) {
             dimension.addDocument(doc, rowId);
           }
@@ -468,7 +468,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           }
         }
         // Fallback to raw store document
-        return this.store.documents[rowId] || null;
+        return (this.store.documents as any)[rowId] || null;
       };
 
       const nextDeltas: Delta[] = [];

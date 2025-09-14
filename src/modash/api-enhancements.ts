@@ -234,7 +234,8 @@ export async function benchmark<T extends Document = Document>(
     const startMemory = process.memoryUsage();
     const startTime = process.hrtime.bigint();
     
-    const result = aggregate(collection, pipeline);
+    // TODO(types): If we capture result here for additional validation, use it; otherwise omit for clarity
+    aggregate(collection, pipeline);
     
     const endTime = process.hrtime.bigint();
     const endMemory = process.memoryUsage();
@@ -393,7 +394,7 @@ export async function* fromJSONL(
 /**
  * Analyzes a single pipeline stage
  */
-function analyzeStage(stageName: string, stageValue: any, index: number): StageExplanation {
+function analyzeStage(stageName: string, _stageValue: any, index: number): StageExplanation {
   const baseStage: Omit<StageExplanation, 'operation' | 'complexity' | 'description' | 'canUseIndexes' | 'memoryImpact' | 'optimizations'> = {
     stage: `Stage ${index + 1}: ${stageName}`
   };

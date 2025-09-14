@@ -60,7 +60,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       getValue: (doc: Document, _rowId: RowId) => DocumentValue;
     }>;
   } {
-    const _key = `group:${JSON.stringify(expr)}`;
+    // Note: cache key elided; compilation is deterministic and fast for now
 
     // Build group key function
     const getGroupKey = this.buildGroupKeyFunction(expr._id);
@@ -566,8 +566,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             return (leftVal || 0) * (rightVal || 0);
           }
           if (expr.$add && Array.isArray(expr.$add)) {
-            const values = expr.$add.map(v => Number(evalExpr(v, doc)) || 0);
-            return values.reduce((sum, val) => sum + val, 0);
+            const values = expr.$add.map((v: any) => Number(evalExpr(v, doc)) || 0);
+            return values.reduce((sum: number, val: number) => sum + val, 0);
           }
           if (expr.$subtract && Array.isArray(expr.$subtract) && expr.$subtract.length === 2) {
             const [left, right] = expr.$subtract;
@@ -678,10 +678,10 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             return [];
           }
           if (expr.$concatArrays && Array.isArray(expr.$concatArrays)) {
-            const arrays = expr.$concatArrays.map(arrExpr => {
-              const result = evalExpr(arrExpr, doc);
-              return Array.isArray(result) ? result : [];
-            });
+        const arrays = expr.$concatArrays.map((arrExpr: any) => {
+          const result = evalExpr(arrExpr, doc);
+          return Array.isArray(result) ? result : [];
+        });
             return arrays.flat();
           }
           if (expr.$size) {
@@ -795,7 +795,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       return this.generateFieldAccess(expr.substring(1));
     } else if (Array.isArray(expr)) {
       // Array expression
-      const elements = expr.map(item => this.generateExpressionCode(item));
+      const elements = expr.map((item: any) => this.generateExpressionCode(item));
       return `[${elements.join(', ')}]`;
     } else if (typeof expr === 'object' && expr !== null) {
       // Check if it's a plain object (like {day: ..., month: ..., year: ...})
@@ -819,8 +819,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   private compileOperatorExpression(expr: any): string {
     // Math operators
     if (expr.$add && Array.isArray(expr.$add)) {
-      const values = expr.$add.map(
-        v => `(Number(${this.generateExpressionCode(v)}) || 0)`
+      const values = expr.$add.map((v: any) =>
+        `(Number(${this.generateExpressionCode(v)}) || 0)`
       );
       return `(${values.join(' + ')})`;
     }
@@ -885,8 +885,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       return `(${str}).substring(${start}, ${start} + ${length})`;
     }
     if (expr.$concat && Array.isArray(expr.$concat)) {
-      const parts = expr.$concat.map(
-        part => `String(${this.generateExpressionCode(part)} || '')`
+      const parts = expr.$concat.map((part: any) =>
+        `String(${this.generateExpressionCode(part)} || '')`
       );
       return `(${parts.join(' + ')})`;
     }
@@ -995,7 +995,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     // Note: This is not standard MongoDB but some tests expect it
     if (expr.$avg) {
       const fieldExpr = this.generateExpressionCode(expr.$avg);
-      return `((arr => Array.isArray(arr) ? arr.reduce((sum, val) => sum + (Number(val) || 0), 0) / arr.length : 0)(${fieldExpr}))`;
+      return `((arr => Array.isArray(arr) ? arr.reduce((sum: number, val: any) => sum + (Number(val) || 0), 0) / arr.length : 0)(${fieldExpr}))`;
     }
 
     // Fallback for truly complex expressions - but this should be rare now
@@ -1120,7 +1120,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           if (sourceValue !== undefined) {
             if (Array.isArray(sourceValue)) {
               // Project each array element
-              result[field] = sourceValue.map(item => {
+              result[field] = sourceValue.map((item: any) => {
                 if (item && typeof item === 'object') {
                   const projected: any = {};
                   for (const [nestedField, include] of Object.entries(
@@ -1238,7 +1238,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         return [];
       }
       if (expr.$concatArrays && Array.isArray(expr.$concatArrays)) {
-        const arrays = expr.$concatArrays.map(arrExpr => {
+        const arrays = expr.$concatArrays.map((arrExpr: any) => {
           const result = this.evaluateExpression(arrExpr, doc);
           return Array.isArray(result) ? result : [];
         });
@@ -1318,7 +1318,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             if ((docValue !== undefined) !== value) return false;
             break;
           case '$regex': {
-            const pattern = value instanceof RegExp ? value : new RegExp(value);
+            const pattern = value instanceof RegExp ? value : new RegExp(String(value));
             if (!pattern.test(String(docValue || ''))) return false;
             break;
           }
@@ -1713,9 +1713,9 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     // Simplified constant evaluation
     if (typeof expr === 'object' && expr !== null && !Array.isArray(expr)) {
       if (expr.$add && Array.isArray(expr.$add)) {
-        const values = expr.$add.map(v => this.evaluateConstant(v));
-        if (values.every(v => typeof v === 'number')) {
-          return values.reduce((sum, val) => sum + val, 0);
+        const values = expr.$add.map((v: any) => this.evaluateConstant(v));
+        if (values.every((v: any) => typeof v === 'number')) {
+          return (values as number[]).reduce((sum: number, val: number) => sum + val, 0);
         }
       }
     }
