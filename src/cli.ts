@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, createReadStream } from 'fs';
+import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
-import { pipeline } from 'stream/promises';
-import { Transform } from 'stream';
 import Modash from './index';
 import type { Pipeline, Document } from './index';
 
@@ -15,43 +13,7 @@ interface CLIOptions {
   help?: boolean;
 }
 
-class JSONLProcessor extends Transform {
-  private buffer = '';
-
-  constructor() {
-    super({ objectMode: true });
-  }
-
-  _transform(chunk: Buffer, _encoding: string, callback: Function) {
-    this.buffer += chunk.toString();
-    const lines = this.buffer.split('\n');
-    this.buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      if (line.trim()) {
-        try {
-          const doc = JSON.parse(line);
-          this.push(doc);
-        } catch (error) {
-          console.error(`⚠️  Invalid JSON line: ${line}`);
-        }
-      }
-    }
-    callback();
-  }
-
-  _flush(callback: Function) {
-    if (this.buffer.trim()) {
-      try {
-        const doc = JSON.parse(this.buffer);
-        this.push(doc);
-      } catch (error) {
-        console.error(`⚠️  Invalid JSON line: ${this.buffer}`);
-      }
-    }
-    callback();
-  }
-}
+// JSONLProcessor was removed in favor of simpler streaming readers below
 
 function parseArgs(): { pipeline: Pipeline; options: CLIOptions } {
   const args = process.argv.slice(2);

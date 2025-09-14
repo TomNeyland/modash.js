@@ -29,5 +29,6 @@ export default defineConfig([
     // Preserve the shebang from src/cli.ts
     // esbuild (used by tsup) preserves the first-line shebang automatically
   },
+  // Public types bundle (no JS consumption needed)
+  // Types are generated from real source; we don't maintain a separate types entry
 ]);
-

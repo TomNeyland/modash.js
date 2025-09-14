@@ -14,11 +14,11 @@ export type DocumentValue =
 
 // MongoDB document type - immutable by design
 export interface Document {
-  readonly [key: string]: DocumentValue;
+  [key: string]: DocumentValue;
 }
 
 // Collection type - readonly array for immutable operations
-export type Collection<T = Document> = readonly T[];
+export type Collection<T = Document> = T[];
 
 // Expression types
 export type FieldPath = `$${string}`;

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "noEmit": false,
+    "checkJs": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/types-entry.ts"],
+  "exclude": ["node_modules", "dist"]
+}
+

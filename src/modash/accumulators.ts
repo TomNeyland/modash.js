@@ -12,7 +12,7 @@ import type { Expression, AccumulatorExpression } from '../index';
 type AccumulatorFunction = (
   collection: Collection,
   spec: Expression
-) => DocumentValue;
+) => DocumentValue | DocumentValue[];
 type AccumulatorOperatorObject =
   | AccumulatorExpression
   | { [key: string]: Expression };
