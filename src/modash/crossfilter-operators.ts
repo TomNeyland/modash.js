@@ -154,7 +154,8 @@ export class GroupOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = _store.documents[_delta.rowId];
+    // Get document (preferring projected version from upstream stages)
+    const doc = this.getEffectiveDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -203,7 +204,8 @@ export class GroupOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== -1) return [];
 
-    const doc = _store.documents[_delta.rowId];
+    // Get document (preferring projected version from upstream stages)
+    const doc = this.getEffectiveDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -297,6 +299,21 @@ export class GroupOperator implements IVMOperator {
 
   getOutputFields(): string[] {
     return Object.keys(this.groupExpr);
+  }
+
+  private getEffectiveDocument(_rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+    // Check if there are projected documents from upstream stages
+    // Look backwards through stages to find the most recent projection
+    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+      const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
+      const projectedDocs = _context.tempState.get(projectedDocsKey);
+      if (projectedDocs && projectedDocs.has(_rowId)) {
+        return projectedDocs.get(_rowId);
+      }
+    }
+    
+    // Fallback to original document
+    return _store.documents[_rowId] || null;
   }
 
   private extractGroupDimension(idExpr: any): string {
@@ -426,7 +443,23 @@ export class ProjectOperator implements IVMOperator {
     _store: CrossfilterStore,
     _context: IVMContext
   ): Delta[] {
-    // Project doesn't filter, just transforms
+    // Transform and cache document for downstream stages
+    if (_delta.sign === 1) {
+      const doc = _store.documents[_delta.rowId];
+      if (doc) {
+        const projectedDoc = this.compiledExpr(doc, _delta.rowId);
+        
+        // Cache projected document in context for downstream stages
+        const projectedDocsKey = `projected_docs_stage_${_context.stageIndex}`;
+        let projectedDocs = _context.tempState.get(projectedDocsKey);
+        if (!projectedDocs) {
+          projectedDocs = new Map<RowId, Document>();
+          _context.tempState.set(projectedDocsKey, projectedDocs);
+        }
+        projectedDocs.set(_delta.rowId, projectedDoc);
+      }
+    }
+    
     return [_delta];
   }
 
@@ -435,6 +468,15 @@ export class ProjectOperator implements IVMOperator {
     _store: CrossfilterStore,
     _context: IVMContext
   ): Delta[] {
+    // Remove cached projected document
+    if (_delta.sign === -1) {
+      const projectedDocsKey = `projected_docs_stage_${_context.stageIndex}`;
+      const projectedDocs = _context.tempState.get(projectedDocsKey);
+      if (projectedDocs) {
+        projectedDocs.delete(_delta.rowId);
+      }
+    }
+    
     return [_delta];
   }
 
