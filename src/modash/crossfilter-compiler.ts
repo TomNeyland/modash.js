@@ -12,6 +12,7 @@ import type {
 } from './crossfilter-ivm.js';
 import type { Document, DocumentValue } from './expressions.js';
 import type { Pipeline } from '../index.js';
+import { DEBUG, logPipelineExecution } from './debug.js';
 
 /**
  * JIT Expression Compiler for MongoDB expressions
@@ -1599,6 +1600,13 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     // Analyze which fields are actually used in downstream stages
     const usedFields = this.analyzeFieldUsage(stages);
 
+    if (DEBUG) {
+      logPipelineExecution('OPTIMIZER', `🔍 Field usage analysis completed`, {
+        totalStages: stages.length,
+        usedFields: Array.from(usedFields)
+      });
+    }
+
     for (let i = 0; i < stages.length; i++) {
       const stage = stages[i];
       if ('$project' in stage) {
@@ -1608,16 +1616,53 @@ export class PerformanceEngineImpl implements PerformanceEngine {
         // Also don't prune if the next stage is $limit or $skip
         // These stages don't "use" fields but pass through all projected fields
         const nextStage = i + 1 < stages.length ? stages[i + 1] : null;
-        const isBeforeLimitOrSkip =
-          nextStage && ('$limit' in nextStage || '$skip' in nextStage);
+        const nextStageType = nextStage ? Object.keys(nextStage)[0] : null;
+        const isBeforeLimitOrSkip = nextStage && ('$limit' in nextStage || '$skip' in nextStage);
+
+        if (DEBUG) {
+          logPipelineExecution('OPTIMIZER', `🔧 Analyzing $project stage ${i}`, {
+            stageIndex: i,
+            isFinalStage,
+            nextStageType,
+            isBeforeLimitOrSkip,
+            projectFields: Object.keys(stage.$project),
+            usedFields: Array.from(usedFields)
+          });
+        }
 
         if (!isFinalStage && !isBeforeLimitOrSkip) {
-          for (const field of Object.keys(stage.$project)) {
+          const originalFields = Object.keys(stage.$project);
+          const fieldsToRemove: string[] = [];
+          
+          for (const field of originalFields) {
             if (!usedFields.has(field) && field !== '_id') {
+              fieldsToRemove.push(field);
               delete stage.$project[field];
               changed = true;
             }
           }
+
+          if (DEBUG && fieldsToRemove.length > 0) {
+            logPipelineExecution('OPTIMIZER', `✂️ Pruned unused fields from $project stage ${i}`, {
+              stageIndex: i,
+              prunedFields: fieldsToRemove,
+              remainingFields: Object.keys(stage.$project)
+            });
+          } else if (DEBUG) {
+            logPipelineExecution('OPTIMIZER', `✅ No pruning needed for $project stage ${i}`, {
+              stageIndex: i,
+              reason: fieldsToRemove.length === 0 ? 'All fields are used' : 'Protected stage'
+            });
+          }
+        } else if (DEBUG) {
+          const reason = isFinalStage ? 'Final stage - preserving user output' :
+                        isBeforeLimitOrSkip ? `Protected before ${nextStageType} - preserving pass-through fields` :
+                        'Unknown protection reason';
+          logPipelineExecution('OPTIMIZER', `🛡️ Protected $project stage ${i}`, {
+            stageIndex: i,
+            reason,
+            fields: Object.keys(stage.$project)
+          });
         }
       }
     }
