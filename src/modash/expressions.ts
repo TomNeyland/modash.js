@@ -88,12 +88,14 @@ function isExpressionOperator(
  * @param obj - Document to evaluate against
  * @param expression - Expression to evaluate
  * @param root - Root document (defaults to obj)
+ * @param context - Evaluation context for system variables like $$value, $$this
  * @returns Result of the expression
  */
 function $expression(
   obj: Document,
   expression: Expression,
-  root?: Document
+  root?: Document,
+  context?: { [key: string]: DocumentValue }
 ): DocumentValue {
   let result: DocumentValue;
 
@@ -102,13 +104,13 @@ function $expression(
   }
 
   if (isSystemVariable(expression)) {
-    result = $systemVariable(obj, expression, root);
+    result = $systemVariable(obj, expression, root, context);
   } else if (isExpressionOperator(expression)) {
-    result = $expressionOperator(obj, expression, root);
+    result = $expressionOperator(obj, expression, root, context);
   } else if (isFieldPath(expression)) {
     result = $fieldPath(obj, expression);
   } else if (isExpressionObject(expression)) {
-    result = $expressionObject(obj, expression, root);
+    result = $expressionObject(obj, expression, root, context);
   } else {
     result = expression as DocumentValue;
   }
@@ -126,7 +128,8 @@ function $fieldPath(obj: Document, path: FieldPath): DocumentValue {
 function $expressionOperator(
   obj: Document,
   operatorExpression: ExpressionOperatorObject,
-  root: Document
+  root: Document,
+  context?: { [key: string]: DocumentValue }
 ): DocumentValue {
   const [operator] = Object.keys(operatorExpression);
   let args = operatorExpression[operator!];
@@ -136,12 +139,58 @@ function $expressionOperator(
     throw new Error(`Unknown operator: ${operator}`);
   }
 
+  // Special handling for operators that need document context
+  if (operator === '$switch') {
+    const switchInput = args as any;
+    const { branches, default: defaultValue } = switchInput;
+    
+    // Iterate through branches and return first truthy case
+    for (const branch of branches) {
+      const caseResult = $expression(obj, branch.case, root, context);
+      if (caseResult) {
+        return $expression(obj, branch.then, root, context);
+      }
+    }
+    
+    // Return default value if no cases match
+    return defaultValue !== undefined 
+      ? $expression(obj, defaultValue, root, context) 
+      : null;
+  }
+
+  if (operator === '$reduce') {
+    const reduceInput = args as any;
+    const { input, initialValue, in: inExpression } = reduceInput;
+    
+    const arrayValue = $expression(obj, input, root, context) as DocumentValue[];
+    if (!Array.isArray(arrayValue)) {
+      return null;
+    }
+    
+    let accumulator = $expression(obj, initialValue, root, context);
+    
+    // Iterate through array elements with $$value and $$this context
+    for (const element of arrayValue) {
+      // Create context with $$value (current accumulator) and $$this (current element)
+      const reduceContext = {
+        ...context,
+        $$value: accumulator,
+        $$this: element
+      };
+      
+      // Evaluate the expression with the context and update accumulator
+      accumulator = $expression(obj, inExpression, root, reduceContext);
+    }
+    
+    return accumulator;
+  }
+
   if (!Array.isArray(args)) {
     args = [args];
   }
 
   const evaluatedArgs = (args as Expression[]).map(
-    argExpression => () => $expression(obj, argExpression, root)
+    argExpression => () => $expression(obj, argExpression, root, context)
   );
 
   const result = operatorFunction(...evaluatedArgs);
@@ -151,7 +200,8 @@ function $expressionOperator(
 function $expressionObject(
   obj: Document,
   specifications: { [key: string]: Expression },
-  root?: Document
+  root?: Document,
+  context?: { [key: string]: DocumentValue }
 ): Document {
   const result: Document = {};
 
@@ -174,7 +224,7 @@ function $expressionObject(
           result,
           headPath,
           (head as Document[]).map(subtarget =>
-            $expression(subtarget, { [pathParts.join('.')]: expression }, root)
+            $expression(subtarget, { [pathParts.join('.')]: expression }, root, context)
           )
         );
         Object.assign(result, setResult);
@@ -187,7 +237,8 @@ function $expressionObject(
             $expression(
               head as Document,
               { [pathParts.join('.')]: expression },
-              root
+              root,
+              context
             )
           )
         );
@@ -226,7 +277,8 @@ function $expressionObject(
                   $expressionObject(
                     item,
                     expression as { [key: string]: Expression },
-                    root
+                    root,
+                    context
                   )
                 )
               )
@@ -242,7 +294,8 @@ function $expressionObject(
                 $expressionObject(
                   fieldValue as Document,
                   expression as { [key: string]: Expression },
-                  root
+                  root,
+                  context
                 )
               )
             );
@@ -264,14 +317,14 @@ function $expressionObject(
           set(
             {},
             path,
-            target.map(subtarget => $expression(subtarget, expression, root))
+            target.map(subtarget => $expression(subtarget, expression, root, context))
           )
         );
         Object.assign(result, mergeResult);
       } else {
         const mergeResult = merge(
           result,
-          set({}, path, $expression(target as Document, expression, root))
+          set({}, path, $expression(target as Document, expression, root, context))
         );
         Object.assign(result, mergeResult);
       }
@@ -284,20 +337,51 @@ function $expressionObject(
 function $systemVariable(
   obj: Document,
   variableName: SystemVariable,
-  root: Document
-): Document {
-  switch (variableName) {
+  root: Document,
+  context?: { [key: string]: DocumentValue }
+): DocumentValue {
+  // Handle dot notation in system variables (e.g., $$this.price)
+  const parts = variableName.split('.');
+  const baseVariable = parts[0] as SystemVariable;
+  const fieldPath = parts.slice(1).join('.');
+
+  let baseValue: DocumentValue;
+  
+  switch (baseVariable) {
     case '$$ROOT':
       // C) $$ROOT resolution: Ensure we always return the root document
       if (root === undefined || root === null) {
-        return obj;
+        baseValue = obj;
+      } else {
+        baseValue = root;
       }
-      return root;
+      break;
     case '$$CURRENT':
-      return obj;
+      baseValue = obj;
+      break;
+    case '$$NOW':
+      baseValue = new Date();
+      break;
+    case '$$value':
+      baseValue = context?.$$value ?? null;
+      break;
+    case '$$this':
+      baseValue = context?.$$this ?? null;
+      break;
+    case '$$REMOVE':
+      // Special marker for field removal in $project/$addFields
+      baseValue = Symbol.for('$$REMOVE');
+      break;
     default:
-      throw new Error(`Unsupported system variable: ${variableName}`);
+      throw new Error(`Unsupported system variable: ${baseVariable}`);
   }
+
+  // If there's a field path, access the nested property
+  if (fieldPath && baseValue && typeof baseValue === 'object') {
+    return get(baseValue as Document, fieldPath);
+  }
+
+  return baseValue;
 }
 
 /**

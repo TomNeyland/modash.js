@@ -29,7 +29,8 @@ type ComparableValue = Exclude<PrimitiveValue, null> | Date;
 type ExpressionEvaluator = (
   obj: Document,
   expression: Expression,
-  root?: Document
+  root?: Document,
+  context?: { [key: string]: DocumentValue }
 ) => DocumentValue;
 
 // Type for operator functions
@@ -638,6 +639,70 @@ function $ifNull(
   return val !== null ? val : evaluate(defaultValue);
 }
 
+// $coalesce operator - returns first non-null value
+function $coalesce(...values: EvaluatableValue[]): DocumentValue {
+  for (const value of values) {
+    const evaluated = evaluate(value);
+    if (evaluated !== null && evaluated !== undefined) {
+      return evaluated;
+    }
+  }
+  return null;
+}
+
+// Type checking operators
+function $type(value: EvaluatableValue): string {
+  const val = evaluate(value);
+  
+  if (val === null) return 'null';
+  if (val === undefined) return 'undefined';
+  if (Array.isArray(val)) return 'array';
+  if (val instanceof Date) return 'date';
+  if (typeof val === 'object') return 'object';
+  if (typeof val === 'string') return 'string';
+  if (typeof val === 'number') return 'number';
+  if (typeof val === 'boolean') return 'bool';
+  
+  return 'unknown';
+}
+
+function $isNumber(value: EvaluatableValue): boolean {
+  const val = evaluate(value);
+  return typeof val === 'number' && !isNaN(val);
+}
+
+function $isArray(value: EvaluatableValue): boolean {
+  const val = evaluate(value);
+  return Array.isArray(val);
+}
+
+// Object composition operator
+function $mergeObjects(...objects: EvaluatableValue[]): Document {
+  const result: Document = {};
+  
+  for (const obj of objects) {
+    const evaluated = evaluate(obj);
+    if (evaluated && typeof evaluated === 'object' && !Array.isArray(evaluated)) {
+      Object.assign(result, evaluated);
+    }
+  }
+  
+  return result;
+}
+
+// Additional math operator
+function $trunc(value: EvaluatableValue): number {
+  const num = evaluate(value) as number;
+  return Math.trunc(num);
+}
+
+// String conversion operator
+function $toString(value: EvaluatableValue): string {
+  const val = evaluate(value);
+  if (val === null || val === undefined) return '';
+  return String(val);
+}
+
 const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   // Boolean
   $and,
@@ -674,6 +739,7 @@ const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   $round,
   $sqrt,
   $pow,
+  $trunc,
 
   // String
   $concat,
@@ -685,6 +751,7 @@ const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   $trim,
   $ltrim,
   $rtrim,
+  $toString,
 
   // Array
   $size,
@@ -718,6 +785,19 @@ const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   // Conditional
   $cond,
   $ifNull,
+  $switch: () => null, // Special operator handled in expressions.ts
+  $coalesce,
+  
+  // Type checking
+  $type,
+  $isNumber,
+  $isArray,
+  
+  // Object composition
+  $mergeObjects,
+  
+  // Array accumulation
+  $reduce: () => null, // Special operator handled in expressions.ts
 };
 
 export default EXPRESSION_OPERATORS;
