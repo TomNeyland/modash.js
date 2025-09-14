@@ -96,5 +96,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.9.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "rxjs": "^7.8.2"
+  }
 }
