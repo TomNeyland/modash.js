@@ -488,8 +488,11 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         if (!Array.isArray(activeIds)) {
           throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[], got ${typeof activeIds}`);
         }
-        if (activeIds.length > 0 && typeof activeIds[0] !== 'number') {
-          throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() returned non-numeric IDs`);
+        if (activeIds.length > 0) {
+          const firstId = activeIds[0];
+          if (typeof firstId !== 'number' && typeof firstId !== 'string') {
+            throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() returned invalid RowId type: ${typeof firstId}. Expected number or string.`);
+          }
         }
       }
     }
