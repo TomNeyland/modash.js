@@ -1220,6 +1220,21 @@ npm install
 # Run tests (TypeScript executed directly via tsx)
 npm test
 
+# Run fast core tests only (recommended for development)
+npm run test:fast
+
+# Run all unit tests (including slow/problematic tests)
+npm run test:units
+
+# Run streaming-related tests separately
+npm run test:streaming
+
+# Run slow tests (aggregation, enhanced operators, etc.)
+npm run test:slow
+
+# Run comprehensive test suite (all units + performance)
+npm run test:all
+
 # Run tests in watch mode
 npm run test:watch
 
@@ -1259,10 +1274,19 @@ npm run build  # Just echoes "No build step needed"
 
 The test suite includes automatic performance measurement and tracking:
 
-- **Automatic Measurement**: `npm test` runs both unit tests and performance benchmarks
-- **Historical Comparison**: Performance results are compared against first run and previous runs
+- **Fast Development Tests**: `npm test` runs core tests + performance benchmarks (~2 seconds)
+- **Comprehensive Testing**: `npm run test:all` runs all unit tests + performance benchmarks
+- **Automatic Measurement**: Performance results are compared against first run and previous runs
 - **Multiple Iterations**: Each benchmark runs multiple times and reports averages with standard deviation
 - **CI-Safe**: In CI environments, performance is measured but not persisted to files
+
+### Test Commands Explained
+
+- **`npm test`** (Fast, ~2s): Core functionality tests + performance benchmarks - ideal for development
+- **`npm run test:fast`**: Only fast core tests (count, modash, docs, operators, regression tests)
+- **`npm run test:streaming`**: Streaming collection tests (may have some failing tests)
+- **`npm run test:slow`**: Slower tests like aggregation and enhanced operators
+- **`npm run test:all`**: Complete test suite including all unit tests
 
 Performance results are saved in `performance-results/` as timestamped JSON files:
 
