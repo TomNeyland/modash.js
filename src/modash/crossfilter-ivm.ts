@@ -12,8 +12,10 @@ import type { Pipeline } from '../index.js';
 
 /**
  * Stable row identifier for tracking documents across operations
+ * - number: for regular document rows
+ * - string: for virtual rows (e.g., group results, unwind child rows)
  */
-export type RowId = number;
+export type RowId = number | string;
 
 /**
  * Delta represents a change to the dataset: add (+1) or remove (-1)

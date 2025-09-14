@@ -186,7 +186,7 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== 1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = this.getEffectiveDocument(_delta.rowId, _store, _context);
+    const doc = this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -236,7 +236,7 @@ export class GroupOperator implements IVMOperator {
     if (_delta.sign !== -1) return [];
 
     // Get document (preferring projected version from upstream stages)
-    const doc = this.getEffectiveDocument(_delta.rowId, _store, _context);
+    const doc = this.getEffectiveUpstreamDocument(_delta.rowId, _store, _context);
     if (!doc) return [];
 
     // Get group key for this document
@@ -280,22 +280,41 @@ export class GroupOperator implements IVMOperator {
   snapshot(
     _store: CrossfilterStore,
     _context: IVMContext
-  ): Collection<Document> {
+  ): RowId[] {
     const groupsMap = _store.groups.get(this.groupsKey);
     if (!groupsMap || groupsMap.size === 0) {
       return [];
     }
 
-    const result: Document[] = [];
+    const activeGroupIds: RowId[] = [];
 
-    for (const groupState of groupsMap.values()) {
+    // Return the group key strings as virtual RowIds
+    for (const [groupKeyStr, groupState] of groupsMap.entries()) {
       if (groupState.count > 0) {
-        result.push(groupState.materializeResult());
+        activeGroupIds.push(groupKeyStr); // Use serialized group key as virtual RowId
       }
     }
 
-    return result;
+    return activeGroupIds;
   }
+
+  /**
+   * Get the effective document for a group virtual RowId
+   */
+  getEffectiveDocument = (rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null => {
+    // For group operations, rowId is the serialized group key
+    const groupsMap = _store.groups.get(this.groupsKey);
+    if (!groupsMap) {
+      return null;
+    }
+
+    const groupState = groupsMap.get(String(rowId));
+    if (!groupState || groupState.count === 0) {
+      return null;
+    }
+
+    return groupState.materializeResult();
+  };
 
   estimateComplexity(): string {
     return 'O(1)'; // Incremental group operations are O(1) per document
@@ -332,7 +351,7 @@ export class GroupOperator implements IVMOperator {
     return Object.keys(this.groupExpr);
   }
 
-  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+  private getEffectiveUpstreamDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
     // Check if there are projected documents from upstream stages
     // Look backwards through stages to find the most recent projection
     for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
@@ -1232,7 +1251,8 @@ export class TopKOperator implements IVMOperator {
   ): Delta[] {
     if (_delta.sign !== 1) return [];
 
-    const doc = _store.documents[_delta.rowId];
+    // Get effective document from upstream stages
+    const doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId) || _store.documents[_delta.rowId];
     if (!doc) return [];
 
     // Insert into sorted results maintaining top-k
@@ -1291,6 +1311,15 @@ export class TopKOperator implements IVMOperator {
   getOutputFields(): string[] {
     return []; // TopK doesn't add fields
   }
+
+  /**
+   * TopK is a passthrough operator - delegate to upstream for document transformation
+   */
+  getEffectiveDocument = (rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null => {
+    // TopK doesn't transform documents, just reorders and limits them
+    // Always delegate to upstream for the actual document content
+    return _context.getEffectiveUpstreamDocument?.(rowId) || _store.documents[rowId] || null;
+  };
 
   private compareDocuments(a: Document, b: Document): number {
     for (const sortKey of this.sortKeys) {
