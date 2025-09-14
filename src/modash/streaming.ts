@@ -15,7 +15,11 @@ import { aggregate } from './aggregation.js';
 import { createCrossfilterEngine } from './crossfilter-engine.js';
 import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
 import { DEBUG, recordFallback, logPipelineExecution } from './debug.js';
-import { createDeltaOptimizer, type StreamingDeltaOptimizer, type Delta as DeltaRecord } from './streaming-delta-optimizer.js';
+import {
+  createDeltaOptimizer,
+  type StreamingDeltaOptimizer,
+  type Delta as DeltaRecord,
+} from './streaming-delta-optimizer.js';
 
 /**
  * Events emitted by StreamingCollection
@@ -85,13 +89,13 @@ export class StreamingCollection<
 
   // Core crossfilter IVM engine
   private ivmEngine = createCrossfilterEngine();
-  
+
   // High-performance delta optimizer for streaming
   private deltaOptimizer = createDeltaOptimizer({
     maxBatchSize: 256,
     maxBatchDelayMs: 1, // Aggressive 1ms batching for P0 throughput
     adaptiveSizing: true,
-    targetThroughput: 250_000
+    targetThroughput: 250_000,
   });
 
   // Mapping from document array index to IVM rowId
@@ -113,11 +117,11 @@ export class StreamingCollection<
         this.rowIdToDocIndex.set(rowId, i);
       }
     }
-    
+
     // Set up delta optimizer event handlers
     this.setupDeltaOptimizer();
   }
-  
+
   /**
    * Configure delta optimizer for high-performance streaming
    */
@@ -128,27 +132,27 @@ export class StreamingCollection<
         logPipelineExecution('DELTA_BATCH', `Processing batch-add`, {
           batchId,
           documentCount: documents.length,
-          totalDocuments: this.documents.length
+          totalDocuments: this.documents.length,
         });
       }
-      
+
       // Process batch efficiently
       this.processBatchAdd(documents);
     });
-    
-    // Handle batched remove operations  
+
+    // Handle batched remove operations
     this.deltaOptimizer.on('batch-remove', ({ documents, batchId }) => {
       if (DEBUG) {
         logPipelineExecution('DELTA_BATCH', `Processing batch-remove`, {
           batchId,
           documentCount: documents.length,
-          totalDocuments: this.documents.length
+          totalDocuments: this.documents.length,
         });
       }
-      
+
       this.processBatchRemove(documents);
     });
-    
+
     // Handle backpressure
     this.deltaOptimizer.on('backpressure', ({ queueSize }) => {
       this.emit('streaming-backpressure', { queueSize });
@@ -172,17 +176,17 @@ export class StreamingCollection<
     const delta: DeltaRecord = {
       operation: 'add',
       documents: newDocuments as Document[],
-      timestamp: performance.now()
+      timestamp: performance.now(),
     };
-    
+
     const queued = this.deltaOptimizer.queueDelta(delta);
-    
+
     if (!queued) {
       // Fallback to immediate processing if queue is full
       this.processBatchAdd(newDocuments);
     }
   }
-  
+
   /**
    * Process batched add operations efficiently
    */
@@ -327,7 +331,7 @@ export class StreamingCollection<
       documentCount: this.documents.length,
       activePipelines: this.activePipelines.size,
       deltaOptimizer: this.deltaOptimizer.getMetrics(),
-      ivmEngine: this.ivmEngine.getStats ? this.ivmEngine.getStats() : {}
+      ivmEngine: this.ivmEngine.getStats ? this.ivmEngine.getStats() : {},
     };
   }
 

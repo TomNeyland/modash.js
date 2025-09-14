@@ -1,8 +1,8 @@
 /**
  * High-Performance Bloom Filter Implementation for Text & Regex Prefiltering
- * 
+ *
  * Optimized for Phase 3.5 requirements:
- * - 256B and 512B filter sizes  
+ * - 256B and 512B filter sizes
  * - False positive rates: ≤1% at 256B, ≤0.1% at 512B
  * - Zero false negatives (correctness guarantee)
  * - Compatible with streaming/IVM operations
@@ -16,7 +16,8 @@ function hash(data: string, seed = 0): number {
   let hash = 2166136261 ^ seed;
   for (let i = 0; i < data.length; i++) {
     hash ^= data.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    hash +=
+      (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
   }
   return hash >>> 0; // Convert to unsigned 32-bit integer
 }
@@ -41,12 +42,12 @@ export class BloomFilter {
    */
   add(item: string): void {
     if (!item || typeof item !== 'string') return;
-    
+
     for (let i = 0; i < this.hashCount; i++) {
       const index = hash(item, i) % this.size;
       const byteIndex = Math.floor(index / 8);
       const bitIndex = index % 8;
-      this.bits[byteIndex] |= (1 << bitIndex);
+      this.bits[byteIndex] |= 1 << bitIndex;
     }
     this.addedCount++;
   }
@@ -73,13 +74,13 @@ export class BloomFilter {
    */
   getFalsePositiveRate(): number {
     if (this.addedCount === 0) return 0;
-    
+
     // Theoretical FPR = (1 - e^(-k*n/m))^k
     // Where k = hash functions, n = items added, m = bits
     const k = this.hashCount;
     const n = this.addedCount;
     const m = this.size;
-    
+
     const exponent = (-k * n) / m;
     const baseFpr = Math.pow(1 - Math.exp(exponent), k);
     return Math.min(baseFpr, 1.0);
@@ -121,7 +122,7 @@ export interface BloomFilterStats {
  */
 export function extractTokens(text: string): string[] {
   if (!text || typeof text !== 'string') return [];
-  
+
   return text
     .toLowerCase()
     .split(/\s+/)
@@ -136,7 +137,7 @@ export function extractTokens(text: string): string[] {
  */
 export function extractTrigrams(text: string): string[] {
   if (!text || typeof text !== 'string' || text.length < 3) return [];
-  
+
   const trigrams: string[] = [];
   for (let i = 0; i <= text.length - 3; i++) {
     trigrams.push(text.substring(i, i + 3));
@@ -150,15 +151,15 @@ export function extractTrigrams(text: string): string[] {
  */
 export function extractLiteralsFromRegex(pattern: string): string[] {
   if (!pattern || typeof pattern !== 'string') return [];
-  
+
   // Simple extraction - find sequences of literal characters
   // This is a basic implementation that can be enhanced
   const literals: string[] = [];
   let current = '';
-  
+
   for (let i = 0; i < pattern.length; i++) {
     const char = pattern[i];
-    
+
     // Skip regex metacharacters
     if (/[.*+?^${}()|[\]\\]/.test(char)) {
       if (current.length >= 3) {
@@ -169,12 +170,12 @@ export function extractLiteralsFromRegex(pattern: string): string[] {
       current += char;
     }
   }
-  
+
   // Don't forget the last sequence
   if (current.length >= 3) {
     literals.push(current);
   }
-  
+
   return literals;
 }
 
@@ -183,20 +184,20 @@ export function extractLiteralsFromRegex(pattern: string): string[] {
  */
 export class TextSearchBloomFilter extends BloomFilter {
   private documentFilters = new Map<string, BloomFilter>();
-  
+
   /**
    * Add a document's text content to the filter
    */
   addDocument(docId: string, textContent: string): void {
     const tokens = extractTokens(textContent);
-    
+
     // Create or get document-specific filter
     let docFilter = this.documentFilters.get(docId);
     if (!docFilter) {
       docFilter = new BloomFilter(256, 3); // 256B per document
       this.documentFilters.set(docId, docFilter);
     }
-    
+
     // Add tokens to both global and document filters
     tokens.forEach(token => {
       this.add(token);
@@ -207,24 +208,28 @@ export class TextSearchBloomFilter extends BloomFilter {
   /**
    * Test if query tokens might match document content
    */
-  testQuery(query: string): { candidates: string[], falsePositiveRate: number } {
+  testQuery(query: string): {
+    candidates: string[];
+    falsePositiveRate: number;
+  } {
     const queryTokens = extractTokens(query);
-    if (queryTokens.length === 0) return { candidates: [], falsePositiveRate: 0 };
-    
+    if (queryTokens.length === 0)
+      return { candidates: [], falsePositiveRate: 0 };
+
     const candidates: string[] = [];
     let totalTests = 0;
     let falsePositives = 0;
-    
+
     for (const [docId, docFilter] of this.documentFilters) {
       let allTokensMatch = true;
-      
+
       for (const token of queryTokens) {
         if (!docFilter.test(token)) {
           allTokensMatch = false;
           break;
         }
       }
-      
+
       totalTests++;
       if (allTokensMatch) {
         candidates.push(docId);
@@ -234,7 +239,7 @@ export class TextSearchBloomFilter extends BloomFilter {
         }
       }
     }
-    
+
     return {
       candidates,
       falsePositiveRate: totalTests > 0 ? falsePositives / totalTests : 0,
@@ -262,20 +267,20 @@ export class TextSearchBloomFilter extends BloomFilter {
  */
 export class RegexSearchBloomFilter extends BloomFilter {
   private documentTrigrams = new Map<string, BloomFilter>();
-  
+
   /**
    * Add a document's text content to the regex filter
    */
   addDocument(docId: string, textContent: string): void {
     const trigrams = extractTrigrams(textContent.toLowerCase());
-    
+
     // Create or get document-specific filter
     let docFilter = this.documentTrigrams.get(docId);
     if (!docFilter) {
-      docFilter = new BloomFilter(256, 3); // 256B per document  
+      docFilter = new BloomFilter(256, 3); // 256B per document
       this.documentTrigrams.set(docId, docFilter);
     }
-    
+
     // Add trigrams to both global and document filters
     trigrams.forEach(trigram => {
       this.add(trigram);
@@ -286,22 +291,26 @@ export class RegexSearchBloomFilter extends BloomFilter {
   /**
    * Test if regex pattern might match document content
    */
-  testRegexPattern(pattern: string): { candidates: string[], shouldUsePrefilter: boolean, falsePositiveRate: number } {
+  testRegexPattern(pattern: string): {
+    candidates: string[];
+    shouldUsePrefilter: boolean;
+    falsePositiveRate: number;
+  } {
     const literals = extractLiteralsFromRegex(pattern);
-    
+
     // Skip prefiltering for patterns without sufficient literal content
     if (literals.length === 0 || literals.every(lit => lit.length < 3)) {
-      return { 
-        candidates: Array.from(this.documentTrigrams.keys()), 
+      return {
+        candidates: Array.from(this.documentTrigrams.keys()),
         shouldUsePrefilter: false,
-        falsePositiveRate: 0 
+        falsePositiveRate: 0,
       };
     }
-    
+
     const candidates: string[] = [];
     let totalTests = 0;
     let falsePositives = 0;
-    
+
     // Get trigrams from the literals
     const patternTrigrams = new Set<string>();
     literals.forEach(literal => {
@@ -309,25 +318,25 @@ export class RegexSearchBloomFilter extends BloomFilter {
         patternTrigrams.add(trigram);
       });
     });
-    
+
     if (patternTrigrams.size === 0) {
-      return { 
+      return {
         candidates: Array.from(this.documentTrigrams.keys()),
         shouldUsePrefilter: false,
-        falsePositiveRate: 0 
+        falsePositiveRate: 0,
       };
     }
-    
+
     for (const [docId, docFilter] of this.documentTrigrams) {
       let hasMatchingTrigrams = false;
-      
+
       for (const trigram of patternTrigrams) {
         if (docFilter.test(trigram)) {
           hasMatchingTrigrams = true;
           break;
         }
       }
-      
+
       totalTests++;
       if (hasMatchingTrigrams) {
         candidates.push(docId);
@@ -337,7 +346,7 @@ export class RegexSearchBloomFilter extends BloomFilter {
         }
       }
     }
-    
+
     return {
       candidates,
       shouldUsePrefilter: true,

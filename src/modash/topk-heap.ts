@@ -1,6 +1,6 @@
 /**
  * Top-K Heap Implementation for $sort + $limit Optimization
- * 
+ *
  * Provides O(n log k) performance for sort + limit operations
  * instead of O(n log n) full sorting when k << n
  */
@@ -28,10 +28,13 @@ export class TopKHeap {
 
   constructor(k: number, sortSpec: SortSpec) {
     this.k = k;
-    this.sortFields = Object.entries(sortSpec).map(([field, order]) => ({ field, order }));
-    
+    this.sortFields = Object.entries(sortSpec).map(([field, order]) => ({
+      field,
+      order,
+    }));
+
     // For getting top K largest items, we use a min-heap
-    // For getting top K smallest items, we use a max-heap  
+    // For getting top K smallest items, we use a max-heap
     this.isMinHeap = this.sortFields[0]?.order === -1;
   }
 
@@ -72,7 +75,7 @@ export class TopKHeap {
 
     // Extract all items and sort them properly
     const items = this.heap.slice();
-    
+
     // Sort the heap items to get final order
     items.sort((a, b) => {
       const comparison = this.compareItems(a, b);
@@ -209,7 +212,7 @@ export class TopKHeap {
       const shouldPreferLeft = this.isMinHeap
         ? this.compareItems(this.heap[leftChild], this.heap[targetIndex]) < 0
         : this.compareItems(this.heap[leftChild], this.heap[targetIndex]) > 0;
-      
+
       if (shouldPreferLeft) {
         targetIndex = leftChild;
       }
@@ -219,7 +222,7 @@ export class TopKHeap {
       const shouldPreferRight = this.isMinHeap
         ? this.compareItems(this.heap[rightChild], this.heap[targetIndex]) < 0
         : this.compareItems(this.heap[rightChild], this.heap[targetIndex]) > 0;
-      
+
       if (shouldPreferRight) {
         targetIndex = rightChild;
       }

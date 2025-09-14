@@ -1603,7 +1603,7 @@ export class PerformanceEngineImpl implements PerformanceEngine {
     if (DEBUG) {
       logPipelineExecution('OPTIMIZER', `🔍 Field usage analysis completed`, {
         totalStages: stages.length,
-        usedFields: Array.from(usedFields)
+        usedFields: Array.from(usedFields),
       });
     }
 
@@ -1617,23 +1617,28 @@ export class PerformanceEngineImpl implements PerformanceEngine {
         // These stages don't "use" fields but pass through all projected fields
         const nextStage = i + 1 < stages.length ? stages[i + 1] : null;
         const nextStageType = nextStage ? Object.keys(nextStage)[0] : null;
-        const isBeforeLimitOrSkip = nextStage && ('$limit' in nextStage || '$skip' in nextStage);
+        const isBeforeLimitOrSkip =
+          nextStage && ('$limit' in nextStage || '$skip' in nextStage);
 
         if (DEBUG) {
-          logPipelineExecution('OPTIMIZER', `🔧 Analyzing $project stage ${i}`, {
-            stageIndex: i,
-            isFinalStage,
-            nextStageType,
-            isBeforeLimitOrSkip,
-            projectFields: Object.keys(stage.$project),
-            usedFields: Array.from(usedFields)
-          });
+          logPipelineExecution(
+            'OPTIMIZER',
+            `🔧 Analyzing $project stage ${i}`,
+            {
+              stageIndex: i,
+              isFinalStage,
+              nextStageType,
+              isBeforeLimitOrSkip,
+              projectFields: Object.keys(stage.$project),
+              usedFields: Array.from(usedFields),
+            }
+          );
         }
 
         if (!isFinalStage && !isBeforeLimitOrSkip) {
           const originalFields = Object.keys(stage.$project);
           const fieldsToRemove: string[] = [];
-          
+
           for (const field of originalFields) {
             if (!usedFields.has(field) && field !== '_id') {
               fieldsToRemove.push(field);
@@ -1643,26 +1648,43 @@ export class PerformanceEngineImpl implements PerformanceEngine {
           }
 
           if (DEBUG && fieldsToRemove.length > 0) {
-            logPipelineExecution('OPTIMIZER', `✂️ Pruned unused fields from $project stage ${i}`, {
-              stageIndex: i,
-              prunedFields: fieldsToRemove,
-              remainingFields: Object.keys(stage.$project)
-            });
+            logPipelineExecution(
+              'OPTIMIZER',
+              `✂️ Pruned unused fields from $project stage ${i}`,
+              {
+                stageIndex: i,
+                prunedFields: fieldsToRemove,
+                remainingFields: Object.keys(stage.$project),
+              }
+            );
           } else if (DEBUG) {
-            logPipelineExecution('OPTIMIZER', `✅ No pruning needed for $project stage ${i}`, {
-              stageIndex: i,
-              reason: fieldsToRemove.length === 0 ? 'All fields are used' : 'Protected stage'
-            });
+            logPipelineExecution(
+              'OPTIMIZER',
+              `✅ No pruning needed for $project stage ${i}`,
+              {
+                stageIndex: i,
+                reason:
+                  fieldsToRemove.length === 0
+                    ? 'All fields are used'
+                    : 'Protected stage',
+              }
+            );
           }
         } else if (DEBUG) {
-          const reason = isFinalStage ? 'Final stage - preserving user output' :
-                        isBeforeLimitOrSkip ? `Protected before ${nextStageType} - preserving pass-through fields` :
-                        'Unknown protection reason';
-          logPipelineExecution('OPTIMIZER', `🛡️ Protected $project stage ${i}`, {
-            stageIndex: i,
-            reason,
-            fields: Object.keys(stage.$project)
-          });
+          const reason = isFinalStage
+            ? 'Final stage - preserving user output'
+            : isBeforeLimitOrSkip
+              ? `Protected before ${nextStageType} - preserving pass-through fields`
+              : 'Unknown protection reason';
+          logPipelineExecution(
+            'OPTIMIZER',
+            `🛡️ Protected $project stage ${i}`,
+            {
+              stageIndex: i,
+              reason,
+              fields: Object.keys(stage.$project),
+            }
+          );
         }
       }
     }

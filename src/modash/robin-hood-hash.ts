@@ -1,6 +1,6 @@
 /**
  * Robin Hood Hash Table Implementation for High-Performance $group Operations
- * 
+ *
  * Provides O(1) amortized lookup with excellent cache performance
  * and stable performance under hash collisions using Robin Hood hashing.
  */
@@ -18,11 +18,11 @@ export interface RobinHoodEntry<K, V> {
 export class RobinHoodHashTable<K = string, V = any> {
   private static readonly LOAD_FACTOR = 0.75;
   private static readonly INITIAL_CAPACITY = 16;
-  
+
   private buckets: Array<RobinHoodEntry<K, V> | null>;
   private capacity: number;
   private size: number = 0;
-  
+
   constructor(initialCapacity: number = RobinHoodHashTable.INITIAL_CAPACITY) {
     this.capacity = this.nextPowerOf2(initialCapacity);
     this.buckets = new Array(this.capacity).fill(null);
@@ -35,7 +35,7 @@ export class RobinHoodHashTable<K = string, V = any> {
     if (typeof key === 'string') {
       return this.hashString(key);
     }
-    
+
     // For objects, use JSON.stringify (can be optimized later with dedicated object hash)
     const str = typeof key === 'object' ? JSON.stringify(key) : String(key);
     return this.hashString(str);
@@ -82,7 +82,7 @@ export class RobinHoodHashTable<K = string, V = any> {
 
     while (true) {
       const entry = this.buckets[pos];
-      
+
       if (!entry) {
         return undefined; // Key not found
       }
@@ -116,7 +116,7 @@ export class RobinHoodHashTable<K = string, V = any> {
 
     while (true) {
       const existing = this.buckets[pos];
-      
+
       if (!existing) {
         // Empty slot found
         this.buckets[pos] = entry;
@@ -148,12 +148,12 @@ export class RobinHoodHashTable<K = string, V = any> {
    */
   private keysEqual(a: K, b: K): boolean {
     if (a === b) return true;
-    
+
     // For objects, deep comparison via JSON (can be optimized)
     if (typeof a === 'object' && typeof b === 'object') {
       return JSON.stringify(a) === JSON.stringify(b);
     }
-    
+
     return false;
   }
 
@@ -163,7 +163,7 @@ export class RobinHoodHashTable<K = string, V = any> {
   private resize(): void {
     const oldBuckets = this.buckets;
     const oldCapacity = this.capacity;
-    
+
     this.capacity *= 2;
     this.buckets = new Array(this.capacity).fill(null);
     this.size = 0;
@@ -182,14 +182,14 @@ export class RobinHoodHashTable<K = string, V = any> {
    */
   entries(): Array<[K, V]> {
     const result: Array<[K, V]> = [];
-    
+
     for (let i = 0; i < this.capacity; i++) {
       const entry = this.buckets[i];
       if (entry) {
         result.push([entry.key, entry.value]);
       }
     }
-    
+
     return result;
   }
 
@@ -198,14 +198,14 @@ export class RobinHoodHashTable<K = string, V = any> {
    */
   values(): V[] {
     const result: V[] = [];
-    
+
     for (let i = 0; i < this.capacity; i++) {
       const entry = this.buckets[i];
       if (entry) {
         result.push(entry.value);
       }
     }
-    
+
     return result;
   }
 
@@ -259,7 +259,7 @@ export class RobinHoodHashTable<K = string, V = any> {
       capacity: this.capacity,
       loadFactor: this.getLoadFactor(),
       avgDistance: entryCount > 0 ? totalDistance / entryCount : 0,
-      maxDistance
+      maxDistance,
     };
   }
 }

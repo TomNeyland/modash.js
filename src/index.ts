@@ -423,6 +423,4 @@ export type {
   RegexSearchConfig,
 } from './modash/regex-search.js';
 
-export type {
-  BloomFilterStats,
-} from './modash/bloom-filter.js';
+export type { BloomFilterStats } from './modash/bloom-filter.js';

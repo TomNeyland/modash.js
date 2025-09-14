@@ -62,31 +62,39 @@ export function recordTextSearchMetrics(
   prefilterUsed: boolean
 ): void {
   prefilterMetrics.textSearchQueries++;
-  
+
   if (prefilterUsed) {
     prefilterMetrics.bloomFilterHits++;
     prefilterMetrics.candidateReductions += candidatesBefore - candidatesAfter;
-    
-    const reductionRate = candidatesBefore > 0 ? 
-      (candidatesBefore - candidatesAfter) / candidatesBefore : 0;
-    prefilterMetrics.averageReductionRate = (
-      (prefilterMetrics.averageReductionRate * (prefilterMetrics.bloomFilterHits - 1) + reductionRate) /
-      prefilterMetrics.bloomFilterHits
-    );
-    
+
+    const reductionRate =
+      candidatesBefore > 0
+        ? (candidatesBefore - candidatesAfter) / candidatesBefore
+        : 0;
+    prefilterMetrics.averageReductionRate =
+      (prefilterMetrics.averageReductionRate *
+        (prefilterMetrics.bloomFilterHits - 1) +
+        reductionRate) /
+      prefilterMetrics.bloomFilterHits;
+
     if (candidatesAfter > actualMatches) {
       const fpRate = (candidatesAfter - actualMatches) / candidatesAfter;
-      prefilterMetrics.falsePositiveRate = (
-        (prefilterMetrics.falsePositiveRate * (prefilterMetrics.bloomFilterHits - 1) + fpRate) /
-        prefilterMetrics.bloomFilterHits
-      );
+      prefilterMetrics.falsePositiveRate =
+        (prefilterMetrics.falsePositiveRate *
+          (prefilterMetrics.bloomFilterHits - 1) +
+          fpRate) /
+        prefilterMetrics.bloomFilterHits;
     }
   }
-  
+
   if (DEBUG) {
-    console.log(`🔍 Text search: ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`);
+    console.log(
+      `🔍 Text search: ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`
+    );
     if (prefilterUsed) {
-      console.log(`📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`);
+      console.log(
+        `📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`
+      );
     }
   }
 }
@@ -102,23 +110,30 @@ export function recordRegexSearchMetrics(
   pattern: string
 ): void {
   prefilterMetrics.regexSearchQueries++;
-  
+
   if (prefilterUsed) {
     prefilterMetrics.bloomFilterHits++;
     prefilterMetrics.candidateReductions += candidatesBefore - candidatesAfter;
-    
-    const reductionRate = candidatesBefore > 0 ? 
-      (candidatesBefore - candidatesAfter) / candidatesBefore : 0;
-    prefilterMetrics.averageReductionRate = (
-      (prefilterMetrics.averageReductionRate * (prefilterMetrics.bloomFilterHits - 1) + reductionRate) /
-      prefilterMetrics.bloomFilterHits
-    );
+
+    const reductionRate =
+      candidatesBefore > 0
+        ? (candidatesBefore - candidatesAfter) / candidatesBefore
+        : 0;
+    prefilterMetrics.averageReductionRate =
+      (prefilterMetrics.averageReductionRate *
+        (prefilterMetrics.bloomFilterHits - 1) +
+        reductionRate) /
+      prefilterMetrics.bloomFilterHits;
   }
-  
+
   if (DEBUG) {
-    console.log(`🔍 Regex search "${pattern}": ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`);
+    console.log(
+      `🔍 Regex search "${pattern}": ${candidatesBefore} -> ${candidatesAfter} candidates, ${actualMatches} matches`
+    );
     if (prefilterUsed) {
-      console.log(`📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`);
+      console.log(
+        `📊 Reduction: ${((1 - candidatesAfter / candidatesBefore) * 100).toFixed(1)}%`
+      );
     } else {
       console.log(`⚠️  Prefilter skipped for pattern: "${pattern}"`);
     }
@@ -151,15 +166,21 @@ export function resetPrefilterMetrics(): void {
  */
 export function logPerformanceSummary(): void {
   if (!DEBUG) return;
-  
+
   console.log('\n📊 Phase 3.5 Performance Summary');
   console.log('═══════════════════════════════════');
   console.log(`🔍 Text searches: ${prefilterMetrics.textSearchQueries}`);
   console.log(`🔍 Regex searches: ${prefilterMetrics.regexSearchQueries}`);
   console.log(`⚡ Bloom filter hits: ${prefilterMetrics.bloomFilterHits}`);
-  console.log(`📉 Total candidate reductions: ${prefilterMetrics.candidateReductions}`);
-  console.log(`📊 Average reduction rate: ${(prefilterMetrics.averageReductionRate * 100).toFixed(1)}%`);
-  console.log(`⚠️  False positive rate: ${(prefilterMetrics.falsePositiveRate * 100).toFixed(2)}%`);
+  console.log(
+    `📉 Total candidate reductions: ${prefilterMetrics.candidateReductions}`
+  );
+  console.log(
+    `📊 Average reduction rate: ${(prefilterMetrics.averageReductionRate * 100).toFixed(1)}%`
+  );
+  console.log(
+    `⚠️  False positive rate: ${(prefilterMetrics.falsePositiveRate * 100).toFixed(2)}%`
+  );
   console.log(`❌ Fallbacks: ${fallbackCount}`);
   console.log('═══════════════════════════════════\n');
 }
