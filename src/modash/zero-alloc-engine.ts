@@ -95,6 +95,7 @@ export class ZeroAllocEngine {
 
   /**
    * Compile pipeline to optimized stages
+   * Phase 3: Enhanced fusion and $unwind support
    */
   private compilePipeline(pipeline: Pipeline): CompiledStage[] {
     const stages: CompiledStage[] = [];
@@ -103,7 +104,7 @@ export class ZeroAllocEngine {
       const stage = pipeline[i];
       const nextStage = i < pipeline.length - 1 ? pipeline[i + 1] : null;
       
-      // Check for fusion opportunities
+      // Check for Phase 3 fusion opportunities
       if (stage.$match && nextStage?.$project) {
         // Fuse $match + $project
         stages.push(this.compileFusedMatchProject(stage.$match, nextStage.$project));
@@ -111,6 +112,10 @@ export class ZeroAllocEngine {
       } else if (stage.$sort && nextStage?.$limit) {
         // Fuse $sort + $limit for Top-K
         stages.push(this.compileFusedSortLimit(stage.$sort, nextStage.$limit));
+        i++; // Skip next stage
+      } else if (stage.$unwind && nextStage?.$group) {
+        // Phase 3: Fuse $unwind + $group to avoid repeated materialization
+        stages.push(this.compileFusedUnwindGroup(stage.$unwind, nextStage.$group));
         i++; // Skip next stage
       } else if (stage.$match) {
         stages.push(this.compileMatch(stage.$match));
@@ -124,6 +129,8 @@ export class ZeroAllocEngine {
         stages.push(this.compileLimit(stage.$limit));
       } else if (stage.$skip) {
         stages.push(this.compileSkip(stage.$skip));
+      } else if (stage.$unwind) {
+        stages.push(this.compileUnwind(stage.$unwind));
       } else {
         // Unsupported stage - fallback
         throw new Error(`Unsupported stage: ${Object.keys(stage)[0]}`);
@@ -572,6 +579,240 @@ export class ZeroAllocEngine {
       
       [heap[parent], heap[target]] = [heap[target], heap[parent]];
       parent = target;
+    }
+  }
+
+  /**
+   * Phase 3: Compile $unwind stage
+   */
+  private compileUnwind(unwindSpec: any): CompiledStage {
+    const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+    const fieldName = path.startsWith('$') ? path.slice(1) : path;
+    
+    return (context: HotPathContext): number => {
+      let count = 0;
+      const unwoundDocs: Document[] = [];
+      
+      // Unwind arrays and create new documents
+      for (let i = 0; i < context.activeCount; i++) {
+        const rowId = context.activeRowIds[i];
+        const doc = context.documents[rowId];
+        const arrayValue = doc[fieldName];
+        
+        if (Array.isArray(arrayValue)) {
+          for (const element of arrayValue) {
+            const unwoundDoc = { ...doc, [fieldName]: element };
+            unwoundDocs.push(unwoundDoc);
+            if (count < context.scratchBuffer.length) {
+              context.scratchBuffer[count] = unwoundDocs.length - 1;
+              count++;
+            }
+          }
+        } else if (arrayValue != null) {
+          // Non-array value, keep as-is
+          if (count < context.scratchBuffer.length) {
+            context.scratchBuffer[count] = rowId;
+            count++;
+          }
+        }
+      }
+      
+      // Store unwound documents in context for next stage
+      if (unwoundDocs.length > 0) {
+        (context as any)._unwoundDocuments = [
+          ...(context.documents || []),
+          ...unwoundDocs
+        ];
+      }
+      
+      return count;
+    };
+  }
+
+  /**
+   * Phase 3: Compile fused $unwind + $group for optimization
+   * Avoids repeated materialization by processing arrays directly
+   */
+  private compileFusedUnwindGroup(unwindSpec: any, groupSpec: any): CompiledStage {
+    const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+    const fieldName = path.startsWith('$') ? path.slice(1) : path;
+    
+    return (context: HotPathContext): number => {
+      const groupMap = new Map<string, any>();
+      
+      // Process each document and unwind + group in one pass
+      for (let i = 0; i < context.activeCount; i++) {
+        const rowId = context.activeRowIds[i];
+        const doc = context.documents[rowId];
+        const arrayValue = doc[fieldName];
+        
+        if (Array.isArray(arrayValue)) {
+          for (const element of arrayValue) {
+            const unwoundDoc = { ...doc, [fieldName]: element };
+            this.processGroupDocument(unwoundDoc, groupSpec, groupMap);
+          }
+        } else if (arrayValue != null) {
+          this.processGroupDocument(doc, groupSpec, groupMap);
+        }
+      }
+      
+      // Convert group results to array
+      const groupResults = Array.from(groupMap.values());
+      (context as any)._groupResults = groupResults;
+      
+      return groupResults.length;
+    };
+  }
+
+  /**
+   * Process a single document for grouping (helper for fused operations)
+   */
+  private processGroupDocument(doc: Document, groupSpec: any, groupMap: Map<string, any>): void {
+    // Extract group key
+    const groupKey = this.extractGroupKey(doc, groupSpec._id);
+    const keyStr = JSON.stringify(groupKey);
+    
+    // Get or create group
+    let group = groupMap.get(keyStr);
+    if (!group) {
+      group = { _id: groupKey };
+      
+      // Initialize accumulators
+      for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
+        if (field === '_id') continue;
+        
+        const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
+        switch (accumulatorOp) {
+          case '$sum':
+            group[field] = 0;
+            break;
+          case '$avg':
+            group[field] = { sum: 0, count: 0 };
+            break;
+          case '$min':
+            group[field] = Infinity;
+            break;
+          case '$max':
+            group[field] = -Infinity;
+            break;
+          case '$first':
+          case '$last':
+            group[field] = undefined;
+            break;
+          case '$push':
+            group[field] = [];
+            break;
+          case '$addToSet':
+            group[field] = new Set();
+            break;
+        }
+      }
+      
+      groupMap.set(keyStr, group);
+    }
+    
+    // Update accumulators
+    this.updateAccumulators(doc, groupSpec, group);
+  }
+
+  /**
+   * Extract group key from document
+   */
+  private extractGroupKey(doc: Document, idSpec: any): any {
+    if (idSpec === null || idSpec === undefined) {
+      return null;
+    }
+    
+    if (typeof idSpec === 'string' && idSpec.startsWith('$')) {
+      const field = idSpec.slice(1);
+      return doc[field];
+    }
+    
+    if (typeof idSpec === 'object' && idSpec !== null) {
+      const result: any = {};
+      for (const [key, value] of Object.entries(idSpec)) {
+        if (typeof value === 'string' && value.startsWith('$')) {
+          const field = value.slice(1);
+          result[key] = doc[field];
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    }
+    
+    return idSpec;
+  }
+
+  /**
+   * Update group accumulators with document values
+   */
+  private updateAccumulators(doc: Document, groupSpec: any, group: any): void {
+    for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
+      if (field === '_id') continue;
+      
+      const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
+      const valueExpr = (accumulatorSpec as any)[accumulatorOp];
+      
+      let value: any;
+      if (typeof valueExpr === 'string' && valueExpr.startsWith('$')) {
+        const fieldName = valueExpr.slice(1);
+        value = doc[fieldName];
+      } else if (typeof valueExpr === 'number') {
+        value = valueExpr;
+      } else {
+        value = 1; // Default for counting
+      }
+      
+      switch (accumulatorOp) {
+        case '$sum':
+          group[field] += (typeof value === 'number') ? value : 0;
+          break;
+        case '$avg':
+          if (typeof value === 'number') {
+            group[field].sum += value;
+            group[field].count++;
+          }
+          break;
+        case '$min':
+          if (value != null && value < group[field]) {
+            group[field] = value;
+          }
+          break;
+        case '$max':
+          if (value != null && value > group[field]) {
+            group[field] = value;
+          }
+          break;
+        case '$first':
+          if (group[field] === undefined) {
+            group[field] = value;
+          }
+          break;
+        case '$last':
+          group[field] = value;
+          break;
+        case '$push':
+          group[field].push(value);
+          break;
+        case '$addToSet':
+          group[field].add(value);
+          break;
+      }
+    }
+    
+    // Finalize $avg calculations
+    for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
+      if (field === '_id') continue;
+      
+      const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
+      if (accumulatorOp === '$avg' && group[field].count > 0) {
+        const avgData = group[field];
+        group[field] = avgData.sum / avgData.count;
+      } else if (accumulatorOp === '$addToSet') {
+        // Convert Set to Array for final result
+        group[field] = Array.from(group[field]);
+      }
     }
   }
 

@@ -1,11 +1,13 @@
 /**
  * High-Performance Delta Batching Optimizer for Streaming Operations
  * 
- * Provides 250k+ deltas/sec throughput with <5ms P99 latency through:
+ * Phase 3 Enhanced Features:
+ * - Provides 250k+ deltas/sec throughput with <5ms P99 latency through:
  * - Batched delta processing with adaptive batch sizes
  * - Ring buffer for delta queuing without allocation overhead
  * - Micro-batching with backpressure handling
  * - JIT compilation of hot delta paths
+ * - Multi-factor adaptive sizing (latency, throughput, queue pressure)
  */
 
 import { EventEmitter } from 'events';
@@ -310,7 +312,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   }
 
   /**
-   * Adaptive batch sizing based on performance
+   * Phase 3: Enhanced adaptive batch sizing for ≥250k deltas/sec @ <5ms P99 latency
    */
   private adaptBatchSize(batchSize: number, batchDuration: number): void {
     if (!this.config.adaptiveSizing) {
@@ -319,23 +321,63 @@ export class StreamingDeltaOptimizer extends EventEmitter {
 
     const currentThroughput = this.metrics.throughputDeltasPerSec;
     const targetThroughput = this.targetThroughput;
+    const queuePressure = this.deltaBuffer.getSize() / 2048; // Normalized queue pressure
     
-    // Increase batch size if throughput is below target and latency is acceptable
-    if (currentThroughput < targetThroughput * 0.8 && this.metrics.p99LatencyMs < 3) {
-      this.adaptiveBatchSize = Math.min(this.adaptiveBatchSize * 1.2, this.config.maxBatchSize);
+    // Phase 3: Multi-factor adaptive batching
+    const latencyOk = this.metrics.p99LatencyMs < 5.0; // Target: <5ms P99
+    const throughputOk = currentThroughput >= targetThroughput * 0.9; // 90% of target
+    
+    let adjustmentFactor = 1.0;
+    let reason = 'stable';
+    
+    if (!latencyOk && this.adaptiveBatchSize > 8) {
+      // P99 latency too high - reduce batch size aggressively
+      adjustmentFactor = 0.7;
+      reason = 'latency_high';
+    } else if (!throughputOk && this.adaptiveBatchSize < 512 && latencyOk) {
+      // Throughput below target but latency ok - increase batch size
+      adjustmentFactor = 1.3;
+      reason = 'throughput_low';
+    } else if (queuePressure > 0.8 && latencyOk) {
+      // High queue pressure - larger batches to drain faster
+      adjustmentFactor = 1.5;
+      reason = 'queue_pressure';
+    } else if (queuePressure < 0.1 && throughputOk && latencyOk) {
+      // Low pressure, good performance - optimize for efficiency
+      adjustmentFactor = batchDuration > 1 ? 0.95 : 1.05;
+      reason = 'optimize';
+    } else if (batchDuration > 3 && batchSize > 32) {
+      // Batch processing too slow
+      adjustmentFactor = 0.85;
+      reason = 'processing_slow';
     }
     
-    // Decrease batch size if latency is too high
-    else if (this.metrics.p99LatencyMs > 4) {
-      this.adaptiveBatchSize = Math.max(this.adaptiveBatchSize * 0.8, 16);
-    }
+    // Apply adjustment with bounds
+    const oldSize = this.adaptiveBatchSize;
+    this.adaptiveBatchSize = Math.max(8, Math.min(512, Math.round(this.adaptiveBatchSize * adjustmentFactor)));
+    this.metrics.adaptiveBatchSize = this.adaptiveBatchSize;
     
-    // Fine-tune based on batch processing time
-    else if (batchDuration > 2 && batchSize > 16) {
-      this.adaptiveBatchSize = Math.max(this.adaptiveBatchSize * 0.9, 16);
+    if (DEBUG && Math.abs(adjustmentFactor - 1.0) > 0.05) {
+      logPipelineExecution('DELTA_OPTIMIZER', `Adaptive batch size adjustment`, {
+        reason,
+        oldSize,
+        newSize: this.adaptiveBatchSize,
+        adjustmentFactor: adjustmentFactor.toFixed(2),
+        latencyOk,
+        throughputOk,
+        queuePressure: Math.round(queuePressure * 100) + '%',
+        p99Latency: this.metrics.p99LatencyMs.toFixed(2) + 'ms',
+        throughput: Math.round(currentThroughput) + ' deltas/sec',
+        batchDuration: batchDuration.toFixed(1) + 'ms'
+      });
     }
-    
-    this.metrics.adaptiveBatchSize = Math.round(this.adaptiveBatchSize);
+  }
+
+  /**
+   * Calculate current throughput from recent metrics
+   */
+  private calculateCurrentThroughput(): number {
+    return this.metrics.throughputDeltasPerSec || 0;
   }
 
   /**
