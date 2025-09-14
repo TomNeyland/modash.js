@@ -46,6 +46,9 @@ jobs:
       - name: Parity check (array vs streaming)
         run: npm run parity
         
+      - name: Dead code scan
+        run: npm run deadcode
+        
       - name: Upload coverage reports to Codecov
         if: matrix.node-version == 20
         uses: codecov/codecov-action@v4

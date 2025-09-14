@@ -1,0 +1,58 @@
+name: Dead Code Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deadcode-scan:
+    name: Scan for Dead Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run dead code scanner
+        id: deadcode
+        run: |
+          echo "## Dead Code Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if npm run deadcode; then
+            echo "✅ No dead code detected!" >> $GITHUB_STEP_SUMMARY
+            echo "scan_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Dead code detected. Please review the following:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            (npm run deadcode 2>&1 || true) >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Remove unused files, exports, or dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "- Or update \`knip.json\` to ignore intentionally kept items" >> $GITHUB_STEP_SUMMARY
+            echo "- Run \`npm run deadcode:fix\` locally to auto-remove some unused exports" >> $GITHUB_STEP_SUMMARY
+            echo "scan_status=failure" >> $GITHUB_OUTPUT
+          fi
+        
+      - name: Fail on dead code
+        if: steps.deadcode.outputs.scan_status == 'failure'
+        run: |
+          echo "Dead code scan failed. Check the summary above for details."
+          exit 1

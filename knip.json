@@ -1,0 +1,29 @@
+{
+  "include": ["files", "exports", "dependencies", "devDependencies"],
+  "exclude": ["types"],
+  "ignoreExportsUsedInFile": true,
+  "entry": [
+    "benchmarks/*.{js,mjs,ts}",
+    "tests/*.{js,ts}",
+    "test_*.mjs",
+    "examples/*.{js,ts}"
+  ],
+  "project": [
+    "src/**/*.{js,ts}",
+    "benchmarks/**/*.{js,mjs,ts}",
+    "tests/**/*.{js,ts}",
+    "test_*.mjs",
+    "examples/**/*.{js,ts}",
+    "*.{js,mjs,ts}"
+  ],
+  "ignore": [
+    "docs/**",
+    "performance-results/**",
+    "performance-ideas/**",
+    "node_modules/**",
+    "coverage/**",
+    "*.md",
+    "*.json",
+    "check_liveset_usage.sh"
+  ]
+}
