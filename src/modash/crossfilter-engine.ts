@@ -482,12 +482,28 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         console.log(`[Engine] Calling snapshot on ${operator.type}#${(operator as any).__id}`);
       }
       activeIds = operator.snapshot(this.store, context);
+
+      // INVARIANT: snapshot must return RowId[]
+      if (process.env.DEBUG_IVM) {
+        if (!Array.isArray(activeIds)) {
+          throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() must return RowId[], got ${typeof activeIds}`);
+        }
+        if (activeIds.length > 0 && typeof activeIds[0] !== 'number') {
+          throw new Error(`[INVARIANT VIOLATION] ${operator.type}.snapshot() returned non-numeric IDs`);
+        }
+      }
     }
 
     // Materialize final documents from the LAST stage's view
     const lastOperator = operators[operators.length - 1];
     if (process.env.DEBUG_IVM) {
       console.log(`[Engine] Materializing from lastOperator ${lastOperator.type}#${(lastOperator as any).__id}`);
+
+      // INVARIANT: Transforming operators must have getEffectiveDocument
+      const transformingOps = ['$project', '$addFields', '$set', '$group', '$unwind', '$lookup'];
+      if (transformingOps.includes(lastOperator.type) && !lastOperator.getEffectiveDocument) {
+        throw new Error(`[INVARIANT VIOLATION] ${lastOperator.type} must implement getEffectiveDocument`);
+      }
     }
     const result: Document[] = [];
 
@@ -501,6 +517,22 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         executionPlan: plan,
         upstreamActiveIds: activeIds,
         tempState: persistentTempState,
+        getEffectiveUpstreamDocument: (rowId: RowId) => {
+          // Get document from the second-to-last stage if it exists
+          const lastIndex = operators.length - 1;
+          if (lastIndex > 0 && operators[lastIndex - 1].getEffectiveDocument) {
+            const prevContext: IVMContext = {
+              pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+              stageIndex: lastIndex - 1,
+              compiledStage: plan.stages[lastIndex - 1],
+              executionPlan: plan,
+              upstreamActiveIds: activeIds,
+              tempState: persistentTempState,
+            };
+            return operators[lastIndex - 1].getEffectiveDocument(rowId, this.store, prevContext);
+          }
+          return this.store.documents[rowId];
+        }
       };
 
       // Materialize each document from the last operator's transformed view
