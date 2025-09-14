@@ -10,6 +10,7 @@
 
 import type { Collection, Document, DocumentValue } from './expressions.js';
 import type { Pipeline } from '../index.js';
+import { highPerformanceGroup, canUseHighPerformanceGroup } from './high-performance-group.js';
 
 /**
  * Minimal hot path context - no object allocations
@@ -72,6 +73,13 @@ export class ZeroAllocEngine {
       }
 
       // Materialize final result from row IDs
+      // Check if we have group results stored in context
+      if ((context as any)._groupResults) {
+        // Return group results directly
+        const groupResults = (context as any)._groupResults;
+        return groupResults as Collection;
+      }
+      
       const result: Document[] = new Array(context.activeCount);
       for (let i = 0; i < context.activeCount; i++) {
         result[i] = context.documents[context.activeRowIds[i]];
@@ -202,38 +210,27 @@ export class ZeroAllocEngine {
    * Compile $group stage to hot path function
    */
   private compileGroup(spec: any): CompiledStage {
-    // Group requires materializing results
-    // For P0, implement simple count-only groups to maintain performance
-    const { _id: groupExpr } = spec;
-    
-    if (typeof groupExpr === 'string' && groupExpr.startsWith('$')) {
-      const field = groupExpr.slice(1);
-      
-      return (context: HotPathContext): number => {
-        const groups = new Map<DocumentValue, number>();
-        
-        // Group by field value
-        for (let i = 0; i < context.activeCount; i++) {
-          const rowId = context.activeRowIds[i];
-          const doc = context.documents[rowId];
-          const groupKey = doc[field];
-          
-          if (!groups.has(groupKey)) {
-            groups.set(groupKey, groups.size);
-          }
-        }
-        
-        // Return group count (this is a simplification for P0)
-        let count = 0;
-        for (const groupIndex of groups.values()) {
-          context.scratchBuffer[count++] = groupIndex;
-        }
-        return count;
-      };
+    // Check if we can use high-performance group engine
+    if (!canUseHighPerformanceGroup(spec)) {
+      throw new Error('Group operation not supported in zero-alloc path');
     }
-
-    // Complex grouping - fallback
-    throw new Error('Complex grouping not supported in zero-alloc path');
+    
+    return (context: HotPathContext): number => {
+      // Materialize active documents for grouping
+      const activeDocuments = [];
+      for (let i = 0; i < context.activeCount; i++) {
+        const rowId = context.activeRowIds[i];
+        activeDocuments.push(context.documents[rowId]);
+      }
+      
+      // Use high-performance group engine
+      const groupResults = highPerformanceGroup(activeDocuments, spec);
+      
+      // Store results in context for materialization
+      (context as any)._groupResults = groupResults;
+      
+      return groupResults.length;
+    };
   }
 
   /**

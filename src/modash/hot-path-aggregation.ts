@@ -223,15 +223,25 @@ function isSimpleSort(sortSpec: any): boolean {
  * Check if $group is simple enough for hot path
  */
 function isSimpleGroup(groupSpec: any): boolean {
-  // For P0, only support very simple grouping by single field
+  // Enhanced P0+ support with high-performance group engine
   const { _id } = groupSpec;
   
-  // Only string field references
-  if (typeof _id !== 'string' || !_id.startsWith('$')) {
-    return false;
+  // Support null _id (single group)
+  if (_id === null || _id === undefined) {
+    return true;
+  }
+  
+  // Support string field references
+  if (typeof _id === 'string' && _id.startsWith('$')) {
+    return true;
+  }
+  
+  // Support object-based grouping (compound keys)
+  if (typeof _id === 'object' && _id !== null) {
+    return true;
   }
 
-  // Check accumulators - only support $sum: 1 for counts
+  // Check accumulators - now support all major operators
   for (const [field, accumulator] of Object.entries(groupSpec)) {
     if (field === '_id') continue;
     
@@ -241,7 +251,8 @@ function isSimpleGroup(groupSpec: any): boolean {
     if (ops.length !== 1) return false;
     
     const [op, value] = ops[0];
-    if (op !== '$sum' || value !== 1) return false;
+    const supportedOps = ['$sum', '$avg', '$min', '$max', '$first', '$last', '$push', '$addToSet'];
+    if (!supportedOps.includes(op)) return false;
   }
 
   return true;
