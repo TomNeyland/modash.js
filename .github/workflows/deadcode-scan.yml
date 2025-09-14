@@ -41,7 +41,7 @@ jobs:
             echo "❌ Dead code detected. Please review the following:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            npm run deadcode 2>&1 || true >> $GITHUB_STEP_SUMMARY
+            (npm run deadcode 2>&1 || true) >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
