@@ -658,6 +658,12 @@ export class ZeroAllocEngine {
       
       // Convert group results to array
       const groupResults = Array.from(groupMap.values());
+      
+      // Finalize all accumulators
+      for (const group of groupResults) {
+        this.finalizeAccumulators(group, groupSpec);
+      }
+      
       (context as any)._groupResults = groupResults;
       
       return groupResults.length;
@@ -796,17 +802,26 @@ export class ZeroAllocEngine {
           group[field].push(value);
           break;
         case '$addToSet':
-          group[field].add(value);
+          if (value != null) {
+            if (!group[field].has(value)) {
+              group[field].add(value);
+            }
+          }
           break;
       }
     }
-    
-    // Finalize $avg calculations
+  }
+
+  /**
+   * Finalize accumulators after all documents are processed
+   */
+  private finalizeAccumulators(group: any, groupSpec: any): void {
+    // Finalize $avg calculations and convert Sets to Arrays
     for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
       if (field === '_id') continue;
       
       const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
-      if (accumulatorOp === '$avg' && group[field].count > 0) {
+      if (accumulatorOp === '$avg' && group[field] && typeof group[field] === 'object' && group[field].count > 0) {
         const avgData = group[field];
         group[field] = avgData.sum / avgData.count;
       } else if (accumulatorOp === '$addToSet') {
