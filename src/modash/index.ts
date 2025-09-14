@@ -15,6 +15,7 @@ import {
 import { count } from './count.js';
 import { $expression, type Collection, type Document } from './expressions.js';
 import { createStreamingCollection, StreamingCollection } from './streaming.js';
+import { hotPathAggregate } from './hot-path-aggregation.js';
 
 // Import complex types from main index that need to stay centralized
 import type {
@@ -31,6 +32,17 @@ import type {
 } from '../index.js';
 
 /**
+ * High-performance aggregation function with hot path optimization
+ */
+const optimizedAggregate = <T extends Document = Document>(
+  collection: Collection<T>,
+  pipeline: Pipeline
+): Collection<Document> => {
+  // Route to hot path for maximum performance
+  return hotPathAggregate(collection, pipeline);
+};
+
+/**
  * Fully transparent aggregation function that creates streaming collections
  * for all operations, providing unified incremental capabilities
  */
@@ -38,11 +50,12 @@ const transparentAggregate = <T extends Document = Document>(
   collection: Collection<T> | StreamingCollection<T>,
   pipeline: Pipeline
 ): Collection<Document> => {
-  // Always use streaming collections - create one if needed
+  // For regular collections, use hot path optimization
   if (!(collection instanceof StreamingCollection)) {
-    const streamingCollection = createStreamingCollection(collection);
-    return streamingCollection.stream(pipeline);
+    return optimizedAggregate(collection, pipeline);
   }
+  
+  // For streaming collections, use streaming path
   return collection.stream(pipeline);
 };
 
@@ -71,6 +84,10 @@ const Modash: ModashStatic = {
   $set,
   // Streaming methods for advanced users
   createStreamingCollection,
+  
+  // Hot path performance monitoring
+  getHotPathStats: () => import('./hot-path-aggregation.js').then(m => m.getHotPathStats()),
+  resetHotPathStats: () => import('./hot-path-aggregation.js').then(m => m.resetHotPathStats()),
 };
 
 export default Modash;
