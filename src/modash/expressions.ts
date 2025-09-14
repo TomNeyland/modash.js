@@ -9,8 +9,7 @@ export type PrimitiveValue = string | number | boolean | Date | null;
 export type DocumentValue =
   | PrimitiveValue
   | Document
-  | readonly PrimitiveValue[]
-  | readonly Document[];
+  | readonly DocumentValue[]; // Recursive to allow nested arrays
 
 // MongoDB document type - immutable by design
 export interface Document {
@@ -29,12 +28,7 @@ import type { Expression } from '../index';
 
 // Local type definitions for expression evaluation
 type ExpressionOperatorObject = Record<string, Expression | Expression[]>;
-type ExpressionValue =
-  | DocumentValue
-  | FieldPath
-  | SystemVariable
-  | ExpressionOperatorObject
-  | { [key: string]: Expression };
+type ExpressionValue = Expression | DocumentValue;
 
 /**
  * Type guard to check if an expression represents a field path
@@ -75,12 +69,7 @@ function isSystemVariable(
 function isExpressionObject(
   expression: ExpressionValue
 ): expression is { [key: string]: Expression } {
-  return (
-    isObject(expression) &&
-    !isExpressionOperator(expression) &&
-    !Array.isArray(expression) &&
-    !(expression instanceof Date)
-  );
+  return isObject(expression) && !isExpressionOperator(expression);
 }
 
 function isExpressionOperator(

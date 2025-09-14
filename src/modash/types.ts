@@ -79,11 +79,7 @@ export type ReadonlyKeys<T> = {
 }[keyof T];
 
 // Pipeline stage type helpers
-export type StageOperator<T> = T extends { [K in keyof T]: infer _U }
-  ? K extends string
-    ? K
-    : never
-  : never;
+export type StageOperator<T> = keyof T & string;
 
 // Function type utilities
 export type ExtractReturnType<T> = T extends (...args: any[]) => infer R

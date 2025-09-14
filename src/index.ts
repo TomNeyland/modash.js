@@ -6,15 +6,25 @@ import type { StreamingCollection } from './modash/streaming';
  * Modern MongoDB-inspired aggregation library for TypeScript
  */
 
-// Re-export basic types from implementation modules where they are defined
-export type {
-  PrimitiveValue,
-  DocumentValue,
-  Document,
-  Collection,
-  FieldPath,
-  SystemVariable,
+// Re-export basic types for consumers.
+// Expose readonly (immutable) types at the public API, while internal
+// modules can use mutable counterparts for performance.
+import type {
+  PrimitiveValue as _PrimitiveValue,
+  DocumentValue as _DocumentValue,
+  Document as _ImplDocument,
 } from './modash/expressions';
+import type { DeepReadonly } from './modash/types';
+import type {
+  FieldPath as PublicFieldPath,
+  SystemVariable as PublicSystemVariable,
+} from './modash/expressions';
+
+export type PrimitiveValue = _PrimitiveValue;
+export type DocumentValue = _DocumentValue;
+export type Document = DeepReadonly<_ImplDocument>;
+export type Collection<T = Document> = ReadonlyArray<T>;
+export type { FieldPath, SystemVariable } from './modash/expressions';
 
 export type {
   ComparisonOperators,
@@ -52,21 +62,13 @@ export type {
   StreamLoaderOptions,
 } from './modash/api-enhancements';
 
-// Import the basic types for use in Expression definition
-import type {
-  DocumentValue,
-  FieldPath,
-  SystemVariable,
-  Collection,
-  Document,
-} from './modash/expressions';
 import type { QueryExpression } from './modash/aggregation';
 
 // Expression type - used in $project, $addFields, etc.
 export type Expression =
   | DocumentValue
-  | FieldPath
-  | SystemVariable
+  | PublicFieldPath
+  | PublicSystemVariable
   | ArithmeticExpression
   | ArrayExpression
   | StringExpression
@@ -255,7 +257,7 @@ export interface SetStage {
 }
 
 // Union of all pipeline stages
-export type PipelineStage =
+export type PipelineStage = (
   | MatchStage
   | ProjectStage
   | GroupStage
@@ -265,7 +267,8 @@ export type PipelineStage =
   | UnwindStage
   | LookupStage
   | AddFieldsStage
-  | SetStage;
+  | SetStage
+) & { [key: string]: any };
 
 // Pipeline type
 export type Pipeline = PipelineStage[];
