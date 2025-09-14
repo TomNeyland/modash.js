@@ -86,23 +86,29 @@
     "test:debug:ivm": "DEBUG_IVM=1 npm run test:all",
     "test:debug:parity": "DEBUG_IVM_MISMATCH=1 npm run test:all",
     "test:debug:groupkeys": "DEBUG_GROUP_KEYS=1 npm run test:all",
-    "test:debug:all": "DEBUG_IVM=1 DEBUG_IVM_MISMATCH=1 DEBUG_GROUP_KEYS=1 npm run test:all"
+    "test:debug:all": "DEBUG_IVM=1 DEBUG_IVM_MISMATCH=1 DEBUG_GROUP_KEYS=1 npm run test:all",
+    "fixtures:generate": "tsx scripts/fixture-generator.ts generate",
+    "fixtures:demo": "tsx scripts/fixture-generator.ts demo",
+    "fixtures:test": "tsx scripts/fixture-generator.ts demo --size small",
+    "test:fixtures": "mocha --import=tsx/esm --exit tests/fixtures/*.spec.js"
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
     "@microsoft/eslint-formatter-sarif": "^3.1.0",
     "@types/node": "^24.3.3",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "c8": "^10.1.2",
     "chai": "^5.1.2",
+    "commander": "^14.0.1",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "mocha": "^10.8.2",
     "prettier": "^3.3.3",
-    "tsx": "^4.19.2",
     "tsup": "^8.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.2"
   },
   "dependencies": {
