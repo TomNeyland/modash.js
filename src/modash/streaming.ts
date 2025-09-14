@@ -15,6 +15,7 @@ import { aggregate } from './aggregation.js';
 import { createCrossfilterEngine } from './crossfilter-engine.js';
 import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
 import { DEBUG, recordFallback, logPipelineExecution } from './debug.js';
+import { createDeltaOptimizer, type StreamingDeltaOptimizer, type Delta as DeltaRecord } from './streaming-delta-optimizer.js';
 
 /**
  * Events emitted by StreamingCollection
@@ -84,6 +85,14 @@ export class StreamingCollection<
 
   // Core crossfilter IVM engine
   private ivmEngine = createCrossfilterEngine();
+  
+  // High-performance delta optimizer for streaming
+  private deltaOptimizer = createDeltaOptimizer({
+    maxBatchSize: 256,
+    maxBatchDelayMs: 1, // Aggressive 1ms batching for P0 throughput
+    adaptiveSizing: true,
+    targetThroughput: 250_000
+  });
 
   // Mapping from document array index to IVM rowId
   private docIndexToRowId = new Map<number, RowId>();
@@ -104,6 +113,46 @@ export class StreamingCollection<
         this.rowIdToDocIndex.set(rowId, i);
       }
     }
+    
+    // Set up delta optimizer event handlers
+    this.setupDeltaOptimizer();
+  }
+  
+  /**
+   * Configure delta optimizer for high-performance streaming
+   */
+  private setupDeltaOptimizer(): void {
+    // Handle batched add operations
+    this.deltaOptimizer.on('batch-add', ({ documents, batchId }) => {
+      if (DEBUG) {
+        logPipelineExecution('DELTA_BATCH', `Processing batch-add`, {
+          batchId,
+          documentCount: documents.length,
+          totalDocuments: this.documents.length
+        });
+      }
+      
+      // Process batch efficiently
+      this.processBatchAdd(documents);
+    });
+    
+    // Handle batched remove operations  
+    this.deltaOptimizer.on('batch-remove', ({ documents, batchId }) => {
+      if (DEBUG) {
+        logPipelineExecution('DELTA_BATCH', `Processing batch-remove`, {
+          batchId,
+          documentCount: documents.length,
+          totalDocuments: this.documents.length
+        });
+      }
+      
+      this.processBatchRemove(documents);
+    });
+    
+    // Handle backpressure
+    this.deltaOptimizer.on('backpressure', ({ queueSize }) => {
+      this.emit('streaming-backpressure', { queueSize });
+    });
   }
 
   /**
@@ -114,15 +163,34 @@ export class StreamingCollection<
   }
 
   /**
-   * Add multiple documents and trigger incremental updates using IVM engine
+   * Add multiple documents and trigger incremental updates using optimized delta batching
    */
   addBulk(newDocuments: T[]): void {
     if (newDocuments.length === 0) return;
 
+    // Queue delta for optimized batch processing
+    const delta: DeltaRecord = {
+      operation: 'add',
+      documents: newDocuments as Document[],
+      timestamp: performance.now()
+    };
+    
+    const queued = this.deltaOptimizer.queueDelta(delta);
+    
+    if (!queued) {
+      // Fallback to immediate processing if queue is full
+      this.processBatchAdd(newDocuments);
+    }
+  }
+  
+  /**
+   * Process batched add operations efficiently
+   */
+  private processBatchAdd(newDocuments: Document[]): void {
     const startIndex = this.documents.length;
-    this.documents.push(...newDocuments);
+    this.documents.push(...(newDocuments as T[]));
 
-    // Add to IVM engine and track rowIds
+    // Add to IVM engine and track rowIds in batch
     const addedRowIds: RowId[] = [];
     for (let i = 0; i < newDocuments.length; i++) {
       const docIndex = startIndex + i;
@@ -132,9 +200,9 @@ export class StreamingCollection<
       addedRowIds.push(rowId);
     }
 
-    // Emit data-added event
+    // Emit single data-added event for entire batch
     this.emit('data-added', {
-      newDocuments: newDocuments as Document[],
+      newDocuments: newDocuments,
       totalCount: this.documents.length,
     });
 
@@ -194,6 +262,80 @@ export class StreamingCollection<
     }
 
     return removedDocuments;
+  }
+
+  /**
+   * Process batched remove operations efficiently
+   */
+  private processBatchRemove(documentsToRemove: Document[]): void {
+    const removedDocuments: T[] = [];
+    const indicesToRemove: number[] = [];
+    const rowIdsToRemove: RowId[] = [];
+
+    // Create a set for faster lookup
+    const removeSet = new Set(documentsToRemove);
+
+    // Find documents to remove
+    this.documents.forEach((doc, index) => {
+      if (removeSet.has(doc as Document)) {
+        removedDocuments.push(doc);
+        indicesToRemove.push(index);
+
+        const rowId = this.docIndexToRowId.get(index);
+        if (rowId !== undefined) {
+          rowIdsToRemove.push(rowId);
+        }
+      }
+    });
+
+    // Remove documents from IVM engine first
+    for (const rowId of rowIdsToRemove) {
+      this.ivmEngine.removeDocument(rowId);
+    }
+
+    // Remove from documents array (in reverse order to maintain correct indices)
+    indicesToRemove.reverse().forEach(index => {
+      const rowId = this.docIndexToRowId.get(index);
+      if (rowId !== undefined) {
+        this.docIndexToRowId.delete(index);
+        this.rowIdToDocIndex.delete(rowId);
+      }
+      this.documents.splice(index, 1);
+    });
+
+    // Update index mappings after removal
+    this.reindexAfterRemoval();
+
+    if (removedDocuments.length > 0) {
+      // Emit data-removed event
+      this.emit('data-removed', {
+        removedDocuments: removedDocuments as Document[],
+        removedCount: removedDocuments.length,
+        totalCount: this.documents.length,
+      });
+
+      // Update all active aggregation results using IVM
+      this.updateAggregationsWithIVM(rowIdsToRemove, 'remove');
+    }
+  }
+
+  /**
+   * Get streaming performance metrics including delta optimizer stats
+   */
+  getStreamingMetrics(): any {
+    return {
+      documentCount: this.documents.length,
+      activePipelines: this.activePipelines.size,
+      deltaOptimizer: this.deltaOptimizer.getMetrics(),
+      ivmEngine: this.ivmEngine.getStats ? this.ivmEngine.getStats() : {}
+    };
+  }
+
+  /**
+   * Reset streaming performance metrics
+   */
+  resetStreamingMetrics(): void {
+    this.deltaOptimizer.resetMetrics();
   }
 
   /**
