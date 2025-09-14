@@ -11,19 +11,31 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
 
   const cases = [
     { name: 'projection-only', p: [{ $project: { a: 1, _id: 0 } }] },
-    { name: 'match+project', p: [{ $match: { g: 'X' } }, { $project: { a: 1 } }] },
-    { name: 'group+project+sort', p: [
-      { $group: { _id: '$g', count: { $sum: 1 } } },
-      { $project: { group: '$_id', count: 1, _id: 0 } },
-      { $sort: { group: 1 } },
-    ]},
+    {
+      name: 'match+project',
+      p: [{ $match: { g: 'X' } }, { $project: { a: 1 } }],
+    },
+    {
+      name: 'group+project+sort',
+      p: [
+        { $group: { _id: '$g', count: { $sum: 1 } } },
+        { $project: { group: '$_id', count: 1, _id: 0 } },
+        { $sort: { group: 1 } },
+      ],
+    },
     { name: 'unwind-empty-skip', p: [{ $unwind: '$b' }] },
-    { name: 'unwind-preserve', p: [{ $unwind: { path: '$b', preserveNullAndEmptyArrays: true } }] },
-    { name: 'chain-addFields-project-group', p: [
-      { $addFields: { c: { $add: ['$a', 1] } } },
-      { $project: { g: 1, c: 1 } },
-      { $group: { _id: '$g', avg: { $avg: '$c' } } },
-    ]},
+    {
+      name: 'unwind-preserve',
+      p: [{ $unwind: { path: '$b', preserveNullAndEmptyArrays: true } }],
+    },
+    {
+      name: 'chain-addFields-project-group',
+      p: [
+        { $addFields: { c: { $add: ['$a', 1] } } },
+        { $project: { g: 1, c: 1 } },
+        { $group: { _id: '$g', avg: { $avg: '$c' } } },
+      ],
+    },
   ];
 
   for (const c of cases) {
@@ -32,7 +44,10 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
       const sc = createStreamingCollection(base);
       const streamResult = sc.aggregate(c.p);
       // Sort for parity where order is not guaranteed
-      const s = (x) => [...x].sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      const s = x =>
+        [...x].sort((a, b) =>
+          JSON.stringify(a).localeCompare(JSON.stringify(b))
+        );
       expect(s(streamResult)).to.deep.equal(s(arrResult));
       sc.destroy();
     });
@@ -47,7 +62,7 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
     }));
 
     const ops = ['match', 'project', 'group', 'sort', 'unwind'];
-    const rnd = (n) => Math.floor(Math.random() * n);
+    const rnd = n => Math.floor(Math.random() * n);
 
     const makePipeline = () => {
       const stages = [];
@@ -56,9 +71,15 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
         const op = ops[rnd(ops.length)];
         if (op === 'match') stages.push({ $match: { v: { $gte: rnd(10) } } });
         else if (op === 'project') stages.push({ $project: { v: 1, g: 1 } });
-        else if (op === 'group') stages.push({ $group: { _id: '$g', sum: { $sum: '$v' } } });
+        else if (op === 'group')
+          stages.push({ $group: { _id: '$g', sum: { $sum: '$v' } } });
         else if (op === 'sort') stages.push({ $sort: { v: rnd(2) ? 1 : -1 } });
-        else if (op === 'unwind') stages.push({ $unwind: rnd(2) ? '$arr' : { path: '$arr', preserveNullAndEmptyArrays: true } });
+        else if (op === 'unwind')
+          stages.push({
+            $unwind: rnd(2)
+              ? '$arr'
+              : { path: '$arr', preserveNullAndEmptyArrays: true },
+          });
       }
       return stages;
     };
@@ -69,7 +90,10 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
       const sc = createStreamingCollection(randBase);
       const streamResult = sc.aggregate(p);
       sc.destroy();
-      const s = (x) => [...x].sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      const s = x =>
+        [...x].sort((a, b) =>
+          JSON.stringify(a).localeCompare(JSON.stringify(b))
+        );
       expect(s(streamResult)).to.deep.equal(s(arrResult));
     }
   });

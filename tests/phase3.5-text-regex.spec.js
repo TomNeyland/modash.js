@@ -1,37 +1,62 @@
 /**
  * Phase 3.5: Text & Regex Prefiltering Tests
- * 
+ *
  * Tests for Bloom filter-based text search and regex acceleration
  */
 
 import { describe, it } from 'mocha';
 import { expect } from 'chai';
 import Modash from '../src/index.ts';
-import { 
-  $text, 
-  getTextSearchStats, 
+import {
+  $text,
+  getTextSearchStats,
   resetTextSearchStats,
   configureTextSearch,
-  clearTextSearchIndex 
+  clearTextSearchIndex,
 } from '../src/modash/text-search.ts';
-import { 
-  enhancedRegexMatch, 
-  getRegexSearchStats, 
-  resetRegexSearchStats, 
+import {
+  enhancedRegexMatch,
+  getRegexSearchStats,
+  resetRegexSearchStats,
   analyzeRegexPattern,
   configureRegexSearch,
-  clearRegexSearchIndex 
+  clearRegexSearchIndex,
 } from '../src/modash/regex-search.ts';
-import { BloomFilter, extractTokens, extractTrigrams, extractLiteralsFromRegex } from '../src/modash/bloom-filter.ts';
+import {
+  BloomFilter,
+  extractTokens,
+  extractTrigrams,
+  extractLiteralsFromRegex,
+} from '../src/modash/bloom-filter.ts';
 
 describe('Phase 3.5: Text & Regex Prefiltering', () => {
   // Test data
   const documents = [
-    { _id: 1, title: 'JavaScript Programming Guide', content: 'Learn modern JavaScript features including async await' },
-    { _id: 2, title: 'Python Data Science', content: 'Data analysis with pandas and numpy libraries' },
-    { _id: 3, title: 'Web Development', content: 'HTML CSS JavaScript for modern web applications' },
-    { _id: 4, title: 'Machine Learning Basics', content: 'Introduction to ML algorithms and data processing' },
-    { _id: 5, title: 'Database Design', content: 'SQL and NoSQL database design patterns' }
+    {
+      _id: 1,
+      title: 'JavaScript Programming Guide',
+      content: 'Learn modern JavaScript features including async await',
+    },
+    {
+      _id: 2,
+      title: 'Python Data Science',
+      content: 'Data analysis with pandas and numpy libraries',
+    },
+    {
+      _id: 3,
+      title: 'Web Development',
+      content: 'HTML CSS JavaScript for modern web applications',
+    },
+    {
+      _id: 4,
+      title: 'Machine Learning Basics',
+      content: 'Introduction to ML algorithms and data processing',
+    },
+    {
+      _id: 5,
+      title: 'Database Design',
+      content: 'SQL and NoSQL database design patterns',
+    },
   ];
 
   beforeEach(() => {
@@ -45,7 +70,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     it('should create Bloom filter with correct parameters', () => {
       const filter = new BloomFilter(256, 3);
       const stats = filter.getStats();
-      
+
       expect(stats.sizeInBytes).to.equal(256);
       expect(stats.sizeInBits).to.equal(256 * 8);
       expect(stats.hashCount).to.equal(3);
@@ -54,10 +79,10 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
 
     it('should add and test items correctly', () => {
       const filter = new BloomFilter(256, 3);
-      
+
       filter.add('javascript');
       filter.add('programming');
-      
+
       expect(filter.test('javascript')).to.be.true;
       expect(filter.test('programming')).to.be.true;
       expect(filter.test('nonexistent')).to.be.false; // This could be false positive
@@ -94,7 +119,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
   describe('$text Operator', () => {
     it('should perform basic text search', () => {
       const results = $text(documents, 'javascript programming');
-      
+
       expect(results).to.have.length.greaterThan(0);
       expect(results.some(doc => doc._id === 1)).to.be.true; // Should find the JS doc
     });
@@ -113,14 +138,14 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     it('should collect statistics', () => {
       $text(documents, 'javascript programming');
       $text(documents, 'data science');
-      
+
       const stats = getTextSearchStats();
       expect(stats.totalQueries).to.equal(2);
     });
 
     it('should support configuration changes', () => {
       configureTextSearch({ minQueryTokens: 1 });
-      
+
       const results = $text(documents, 'javascript'); // Single token
       expect(results).to.have.length.greaterThan(0);
     });
@@ -128,15 +153,24 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
 
   describe('Enhanced $regex Operator', () => {
     it('should perform enhanced regex matching', () => {
-      const results = enhancedRegexMatch(documents, 'title', 'JavaScript.*Guide');
-      
+      const results = enhancedRegexMatch(
+        documents,
+        'title',
+        'JavaScript.*Guide'
+      );
+
       expect(results).to.have.length(1);
       expect(results[0]._id).to.equal(1);
     });
 
     it('should handle case-insensitive regex', () => {
-      const results = enhancedRegexMatch(documents, 'title', 'javascript.*guide', 'i');
-      
+      const results = enhancedRegexMatch(
+        documents,
+        'title',
+        'javascript.*guide',
+        'i'
+      );
+
       expect(results).to.have.length(1);
       expect(results[0]._id).to.equal(1);
     });
@@ -144,14 +178,14 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     it('should collect statistics for regex operations', () => {
       enhancedRegexMatch(documents, 'title', 'JavaScript.*Guide');
       enhancedRegexMatch(documents, 'content', 'data.*analysis');
-      
+
       const stats = getRegexSearchStats();
       expect(stats.totalQueries).to.equal(2);
     });
 
     it('should analyze regex patterns correctly', () => {
       const analysis = analyzeRegexPattern('test.*pattern[0-9]+end');
-      
+
       expect(analysis.literals).to.include('test');
       expect(analysis.literals).to.include('pattern');
       expect(analysis.literals).to.include('end');
@@ -172,39 +206,45 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
   describe('Integration with $match operator', () => {
     it('should work with $text in aggregation pipeline', () => {
       const results = Modash.aggregate(documents, [
-        { $match: { $text: 'javascript programming' } }
+        { $match: { $text: 'javascript programming' } },
       ]);
-      
+
       expect(results).to.have.length.greaterThan(0);
       expect(results.some(doc => doc._id === 1)).to.be.true;
     });
 
     it('should work with $regex in aggregation pipeline', () => {
       const results = Modash.aggregate(documents, [
-        { $match: { title: { $regex: 'JavaScript.*Guide' } } }
+        { $match: { title: { $regex: 'JavaScript.*Guide' } } },
       ]);
-      
+
       expect(results).to.have.length(1);
       expect(results[0]._id).to.equal(1);
     });
 
     it('should combine $text with other operators', () => {
       const results = Modash.aggregate(documents, [
-        { $match: { 
-          $text: 'javascript',
-          _id: { $lte: 3 }
-        }}
+        {
+          $match: {
+            $text: 'javascript',
+            _id: { $lte: 3 },
+          },
+        },
       ]);
-      
+
       expect(results).to.have.length.greaterThan(0);
       expect(results.every(doc => doc._id <= 3)).to.be.true;
     });
 
     it('should handle complex regex patterns', () => {
       const results = Modash.aggregate(documents, [
-        { $match: { content: { $regex: 'modern.*applications|algorithms.*processing' } } }
+        {
+          $match: {
+            content: { $regex: 'modern.*applications|algorithms.*processing' },
+          },
+        },
       ]);
-      
+
       expect(results).to.have.length.greaterThan(0);
     });
   });
@@ -216,56 +256,76 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
       largeDataset.push({
         _id: i,
         title: `Document ${i}`,
-        content: i % 2 === 0 ? 
-          `JavaScript programming tutorial number ${i}` : 
-          `Python data science guide number ${i}`,
-        category: i % 3 === 0 ? 'programming' : 'data'
+        content:
+          i % 2 === 0
+            ? `JavaScript programming tutorial number ${i}`
+            : `Python data science guide number ${i}`,
+        category: i % 3 === 0 ? 'programming' : 'data',
       });
     }
 
     it('should maintain correctness with large datasets', () => {
       const textResults = $text(largeDataset, 'javascript programming');
-      const regexResults = enhancedRegexMatch(largeDataset, 'content', 'JavaScript.*tutorial');
-      
+      const regexResults = enhancedRegexMatch(
+        largeDataset,
+        'content',
+        'JavaScript.*tutorial'
+      );
+
       expect(textResults.length).to.be.greaterThan(0);
       expect(regexResults.length).to.be.greaterThan(0);
-      
+
       // Verify all results actually contain the search terms
-      expect(textResults.every(doc => 
-        doc.content.toLowerCase().includes('javascript') && 
-        doc.content.toLowerCase().includes('programming')
-      )).to.be.true;
+      expect(
+        textResults.every(
+          doc =>
+            doc.content.toLowerCase().includes('javascript') &&
+            doc.content.toLowerCase().includes('programming')
+        )
+      ).to.be.true;
     });
 
     it('should show performance improvements with prefiltering', () => {
       const stats = getTextSearchStats();
       const initialQueries = stats.totalQueries;
-      
+
       $text(largeDataset, 'javascript programming tutorial');
-      
+
       const newStats = getTextSearchStats();
       expect(newStats.totalQueries).to.equal(initialQueries + 1);
-      
+
       // If prefiltering was used, we should see some candidates reduction
       if (newStats.prefilterHits > 0) {
-        expect(newStats.candidatesAfterFilter).to.be.lessThan(newStats.candidatesBeforeFilter);
+        expect(newStats.candidatesAfterFilter).to.be.lessThan(
+          newStats.candidatesBeforeFilter
+        );
       }
     });
 
     it('should handle zero false negatives', () => {
       // Test that Bloom filter prefiltering never misses actual matches
-      const fullResults = enhancedRegexMatch(largeDataset, 'content', 'JavaScript.*programming', '', 
-        { enableBloomFilter: false }); // Disable bloom filter
-      const bloomResults = enhancedRegexMatch(largeDataset, 'content', 'JavaScript.*programming', '', 
-        { enableBloomFilter: true }); // Enable bloom filter
-      
+      const fullResults = enhancedRegexMatch(
+        largeDataset,
+        'content',
+        'JavaScript.*programming',
+        '',
+        { enableBloomFilter: false }
+      ); // Disable bloom filter
+      const bloomResults = enhancedRegexMatch(
+        largeDataset,
+        'content',
+        'JavaScript.*programming',
+        '',
+        { enableBloomFilter: true }
+      ); // Enable bloom filter
+
       // Bloom filter results should contain at least all the actual matches
       expect(bloomResults.length).to.be.at.least(fullResults.length);
-      
+
       // All full results should be in bloom results (no false negatives)
       const fullIds = new Set(fullResults.map(doc => doc._id));
       const bloomIds = new Set(bloomResults.map(doc => doc._id));
-      
+
       fullIds.forEach(id => {
         expect(bloomIds.has(id)).to.be.true;
       });
@@ -275,10 +335,10 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
   describe('Statistics and Observability', () => {
     it('should track text search performance metrics', () => {
       resetTextSearchStats();
-      
+
       $text(documents, 'javascript programming');
       $text(documents, 'data analysis');
-      
+
       const stats = getTextSearchStats();
       expect(stats.totalQueries).to.equal(2);
       expect(stats.totalPrefilterTime).to.be.a('number');
@@ -287,10 +347,10 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
 
     it('should track regex search performance metrics', () => {
       resetRegexSearchStats();
-      
+
       enhancedRegexMatch(documents, 'title', 'JavaScript.*Guide');
       enhancedRegexMatch(documents, 'content', 'data.*science');
-      
+
       const stats = getRegexSearchStats();
       expect(stats.totalQueries).to.equal(2);
       expect(stats.totalPrefilterTime).to.be.a('number');
