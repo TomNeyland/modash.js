@@ -160,6 +160,14 @@ export interface ConditionalExpression {
         else: Expression;
       };
   $ifNull?: [Expression, Expression];
+  $switch?: {
+    branches: Array<{
+      case: Expression;
+      then: Expression;
+    }>;
+    default?: Expression;
+  };
+  $coalesce?: Expression[];
 }
 
 // Literal expressions
