@@ -1,0 +1,33 @@
+{
+  "results": {
+    "simpleFilter": {
+      "avgTimeMs": 0.4393707999999947,
+      "docsPerSec": 22759819.268827427,
+      "targetMet": true,
+      "target": 1000000,
+      "improvement": "2276.0"
+    },
+    "groupAndAggregate": {
+      "avgTimeMs": 4.835100199999999,
+      "docsPerSec": 2068209.4654418954,
+      "targetMet": true,
+      "target": 250000,
+      "improvement": "827.3"
+    },
+    "complexPipeline": {
+      "avgTimeMs": 3.346125399999994,
+      "docsPerSec": 2988531.1530763367,
+      "targetMet": true,
+      "target": 150000,
+      "improvement": "1992.4"
+    }
+  },
+  "allTargetsMet": true,
+  "testSize": 10000,
+  "timestamp": "2025-09-14T12:37:32.064Z",
+  "summary": {
+    "targetsCount": 3,
+    "targetsMet": 3,
+    "averageImprovement": 1698.5666666666668
+  }
+}

@@ -102,6 +102,11 @@ export function canUseFastProject(projectSpec: ProjectStage['$project']): boolea
   for (const [field, spec] of Object.entries(projectSpec)) {
     if (field === '_id') continue;
     
+    // Don't use fast path for dot notation field names - they need proper nesting
+    if (field.includes('.')) {
+      return false;
+    }
+    
     // Check if it's a simple include/exclude
     if (spec === 1 || spec === 0 || spec === true || spec === false) {
       continue;

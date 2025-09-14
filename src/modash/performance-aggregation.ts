@@ -12,6 +12,7 @@
 
 import type { Collection, Document, DocumentValue } from './expressions.js';
 import type { Pipeline, PipelineStage, QueryExpression } from '../index.js';
+import { $expression } from './expressions.js';
 
 import {
   createCompilationContext,
@@ -215,9 +216,7 @@ function processStage(
     return collection.map(doc => {
       const newFields: Record<string, DocumentValue> = {};
       for (const [fieldName, expression] of Object.entries(fieldSpecs)) {
-        // This would need the original $expression function
-        // For now, just return the document unchanged
-        newFields[fieldName] = null; // Placeholder
+        newFields[fieldName] = $expression(doc, expression);
       }
       return { ...doc, ...newFields };
     });
@@ -382,6 +381,67 @@ export function performanceAggregate<T extends Document = Document>(
  * Check if performance aggregation can handle this pipeline
  */
 export function canUsePerformanceAggregation(pipeline: Pipeline): boolean {
+  // Track fields added by $addFields/$set stages and $group stages
+  const addedFields = new Set<string>();
+  
+  for (let i = 0; i < pipeline.length; i++) {
+    const stage = pipeline[i]!;
+    
+    // Track fields added by $addFields/$set
+    if ('$addFields' in stage || '$set' in stage) {
+      const fieldSpecs = stage.$addFields || stage.$set;
+      for (const fieldName of Object.keys(fieldSpecs)) {
+        addedFields.add(fieldName);
+      }
+    }
+    
+    // Track fields created by $group
+    if ('$group' in stage) {
+      const groupSpec = stage.$group;
+      // Check if $group uses fields added by $addFields
+      const groupStr = JSON.stringify(groupSpec);
+      for (const addedField of addedFields) {
+        if (groupStr.includes(`"$${addedField}"`)) {
+          // If $group references added fields, disable optimization
+          return false;
+        }
+      }
+      
+      // Add group output fields to tracking
+      for (const fieldName of Object.keys(groupSpec)) {
+        if (fieldName !== '_id') {
+          addedFields.add(fieldName);
+        }
+      }
+    }
+    
+    // Check $project stages for complex expressions that need traditional processing
+    if ('$project' in stage) {
+      const projectSpec = stage.$project;
+      for (const [field, spec] of Object.entries(projectSpec)) {
+        if (field === '_id') continue;
+        
+        // If it's a computed expression, check various conditions
+        if (typeof spec === 'object' && spec !== null && !Array.isArray(spec)) {
+          const specStr = JSON.stringify(spec);
+          
+          // Check if it references fields added by previous stages
+          for (const addedField of addedFields) {
+            if (specStr.includes(`"$${addedField}"`)) {
+              return false; // Fall back to traditional aggregation
+            }
+          }
+          
+          // For now, disable optimization for any complex expressions in multi-stage pipelines
+          // This is a conservative approach to ensure correctness
+          if (pipeline.length > 1) {
+            return false; // Fall back to traditional aggregation for complex expressions
+          }
+        }
+      }
+    }
+  }
+  
   const analysis = analyzePipeline(pipeline);
   return analysis.canOptimize && analysis.hotPath;
 }

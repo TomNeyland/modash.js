@@ -344,6 +344,29 @@ function createGeneralMatcher(query: QueryExpression): (doc: Document) => boolea
               });
             }
             break;
+          case '$all':
+            if (Array.isArray(expectedValue)) {
+              conditions.push((doc: Document) => {
+                const value = getter(doc);
+                return Array.isArray(value) && expectedValue.every(val => value.includes(val));
+              });
+            }
+            break;
+          case '$size':
+            conditions.push((doc: Document) => {
+              const value = getter(doc);
+              return Array.isArray(value) && value.length === expectedValue;
+            });
+            break;
+          case '$elemMatch':
+            conditions.push((doc: Document) => {
+              const value = getter(doc);
+              if (!Array.isArray(value)) return false;
+              return value.some(elem =>
+                createGeneralMatcher({ elem: expectedValue })({ elem })
+              );
+            });
+            break;
           // Add other operators as needed
         }
       }
