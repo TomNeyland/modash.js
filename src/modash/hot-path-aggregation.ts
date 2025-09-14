@@ -1,6 +1,6 @@
 /**
  * Hot Path Aggregation - P0 Performance Implementation
- * 
+ *
  * Routes simple, high-performance pipelines to zero-allocation engine
  * Falls back to regular aggregation for complex operations
  */
@@ -34,7 +34,7 @@ const counters: HotPathCounters = {
   totalOperations: 0,
   hotPathThroughput: 0,
   fallbackThroughput: 0,
-  optimizerRejections: 0
+  optimizerRejections: 0,
 };
 
 /**
@@ -52,25 +52,34 @@ const optimizerRejections: OptimizerRejection[] = [];
 /**
  * Record an optimizer rejection with detailed reason
  */
-function recordOptimizerRejection(pipeline: Pipeline, reason: string, stageIndex?: number, stageType?: string): void {
+function recordOptimizerRejection(
+  pipeline: Pipeline,
+  reason: string,
+  stageIndex?: number,
+  stageType?: string
+): void {
   counters.optimizerRejections++;
-  
+
   const rejection: OptimizerRejection = {
     pipeline: JSON.parse(JSON.stringify(pipeline)), // Deep clone to avoid mutations
     reason,
     stageIndex,
-    stageType
+    stageType,
   };
-  
+
   optimizerRejections.push(rejection);
-  
+
   if (DEBUG) {
-    logPipelineExecution('OPTIMIZER', `❌ Hot path rejected: ${reason}${stageType ? ` (stage: ${stageType})` : ''}`, {
-      pipelineLength: pipeline.length,
-      stageIndex,
-      stageType,
-      pipeline: pipeline
-    });
+    logPipelineExecution(
+      'OPTIMIZER',
+      `❌ Hot path rejected: ${reason}${stageType ? ` (stage: ${stageType})` : ''}`,
+      {
+        pipelineLength: pipeline.length,
+        stageIndex,
+        stageType,
+        pipeline: pipeline,
+      }
+    );
   }
 }
 
@@ -99,25 +108,31 @@ function canUseHotPath(pipeline: Pipeline): boolean {
   // 3. $unwind + $group optimization patterns
   // 4. Vectorized accumulator operations ($addToSet, $push)
   // 5. Operator fusion detection for multi-stage optimization
-  
+
   if (pipeline.length === 0) {
     recordOptimizerRejection(pipeline, 'Empty pipeline');
     return false;
   }
-  
+
   if (pipeline.length > 6) {
-    recordOptimizerRejection(pipeline, `Pipeline too long (${pipeline.length} stages, max 6)`);
+    recordOptimizerRejection(
+      pipeline,
+      `Pipeline too long (${pipeline.length} stages, max 6)`
+    );
     return false;
   }
 
   // Check for complex pipeline patterns that are now supported
   const hasGroup = pipeline.some(stage => '$group' in stage);
   const hasUnwind = pipeline.some(stage => '$unwind' in stage);
-  
+
   // Phase 3: Support $unwind + $group patterns with optimization
   if (hasUnwind && hasGroup) {
     if (!canOptimizeUnwindGroup(pipeline)) {
-      recordOptimizerRejection(pipeline, '$unwind + $group pattern not optimizable');
+      recordOptimizerRejection(
+        pipeline,
+        '$unwind + $group pattern not optimizable'
+      );
       return false;
     }
   }
@@ -125,11 +140,16 @@ function canUseHotPath(pipeline: Pipeline): boolean {
   for (let i = 0; i < pipeline.length; i++) {
     const stage = pipeline[i];
     const stageType = Object.keys(stage)[0];
-    
+
     switch (stageType) {
       case '$match':
         if (!isSimpleMatch(stage.$match)) {
-          recordOptimizerRejection(pipeline, 'Complex $match not supported in hot path', i, stageType);
+          recordOptimizerRejection(
+            pipeline,
+            'Complex $match not supported in hot path',
+            i,
+            stageType
+          );
           return false;
         }
         break;
@@ -137,13 +157,23 @@ function canUseHotPath(pipeline: Pipeline): boolean {
         // Phase 3: Allow computed fields after $group operations
         const isAfterGroup = pipeline.slice(0, i).some(s => '$group' in s);
         if (!isSimpleProject(stage.$project, isAfterGroup)) {
-          recordOptimizerRejection(pipeline, 'Complex $project with unsupported computed fields', i, stageType);
+          recordOptimizerRejection(
+            pipeline,
+            'Complex $project with unsupported computed fields',
+            i,
+            stageType
+          );
           return false;
         }
         break;
       case '$sort':
         if (!isSimpleSort(stage.$sort)) {
-          recordOptimizerRejection(pipeline, 'Complex $sort (multi-field or expression-based) not supported in hot path', i, stageType);
+          recordOptimizerRejection(
+            pipeline,
+            'Complex $sort (multi-field or expression-based) not supported in hot path',
+            i,
+            stageType
+          );
           return false;
         }
         break;
@@ -153,30 +183,49 @@ function canUseHotPath(pipeline: Pipeline): boolean {
         break;
       case '$group':
         if (!isSimpleGroup(stage.$group)) {
-          recordOptimizerRejection(pipeline, 'Complex $group operations not supported in hot path', i, stageType);
+          recordOptimizerRejection(
+            pipeline,
+            'Complex $group operations not supported in hot path',
+            i,
+            stageType
+          );
           return false;
         }
         break;
       case '$unwind':
         // Phase 3: Support $unwind in combination with $group
         if (!isSimpleUnwind(stage.$unwind)) {
-          recordOptimizerRejection(pipeline, 'Complex $unwind operations not supported in hot path', i, stageType);
+          recordOptimizerRejection(
+            pipeline,
+            'Complex $unwind operations not supported in hot path',
+            i,
+            stageType
+          );
           return false;
         }
         break;
       default:
         // Unsupported stage type
-        recordOptimizerRejection(pipeline, `Unsupported stage type: ${stageType}`, i, stageType);
+        recordOptimizerRejection(
+          pipeline,
+          `Unsupported stage type: ${stageType}`,
+          i,
+          stageType
+        );
         return false;
     }
   }
 
   // If we get here, pipeline is eligible for hot path
   if (DEBUG) {
-    logPipelineExecution('OPTIMIZER', `✅ Hot path eligible: ${pipeline.length} stages`, {
-      pipelineLength: pipeline.length,
-      stages: pipeline.map(s => Object.keys(s)[0])
-    });
+    logPipelineExecution(
+      'OPTIMIZER',
+      `✅ Hot path eligible: ${pipeline.length} stages`,
+      {
+        pipelineLength: pipeline.length,
+        stages: pipeline.map(s => Object.keys(s)[0]),
+      }
+    );
   }
 
   return true;
@@ -227,14 +276,14 @@ function isSimpleProject(projectSpec: any, isAfterGroup = false): boolean {
       // Simple inclusion/exclusion always supported
       continue;
     }
-    
+
     if (isAfterGroup && typeof spec === 'object' && spec !== null) {
       // Phase 3: Allow simple computed fields after $group
       if (isSimpleExpression(spec)) {
         continue;
       }
     }
-    
+
     // Complex computed fields not supported in hot path
     return false;
   }
@@ -247,7 +296,10 @@ function isSimpleProject(projectSpec: any, isAfterGroup = false): boolean {
 function isSimpleSort(sortSpec: any): boolean {
   // Only single field sorts for P0
   const fields = Object.keys(sortSpec);
-  return fields.length === 1 && (sortSpec[fields[0]] === 1 || sortSpec[fields[0]] === -1);
+  return (
+    fields.length === 1 &&
+    (sortSpec[fields[0]] === 1 || sortSpec[fields[0]] === -1)
+  );
 }
 
 /**
@@ -256,17 +308,17 @@ function isSimpleSort(sortSpec: any): boolean {
  */
 function isSimpleGroup(groupSpec: any): boolean {
   const { _id } = groupSpec;
-  
+
   // Support null _id (single group)
   if (_id === null || _id === undefined) {
     return true;
   }
-  
+
   // Support string field references
   if (typeof _id === 'string' && _id.startsWith('$')) {
     return true;
   }
-  
+
   // Support object-based grouping (compound keys)
   if (typeof _id === 'object' && _id !== null) {
     // Ensure all grouping fields are simple field references
@@ -281,20 +333,27 @@ function isSimpleGroup(groupSpec: any): boolean {
   // Check accumulators - Phase 3: support vectorized operations
   for (const [field, accumulator] of Object.entries(groupSpec)) {
     if (field === '_id') continue;
-    
+
     if (typeof accumulator !== 'object' || accumulator === null) return false;
-    
+
     const ops = Object.entries(accumulator);
     if (ops.length !== 1) return false;
-    
+
     const [op, value] = ops[0];
     // Phase 3: Enhanced accumulator support including vectorized $addToSet and $push
     const supportedOps = [
-      '$sum', '$avg', '$min', '$max', '$first', '$last', 
-      '$push', '$addToSet', '$count' // Vectorized operations
+      '$sum',
+      '$avg',
+      '$min',
+      '$max',
+      '$first',
+      '$last',
+      '$push',
+      '$addToSet',
+      '$count', // Vectorized operations
     ];
     if (!supportedOps.includes(op)) return false;
-    
+
     // Validate accumulator expression
     if (!isSimpleAccumulatorExpression(value)) return false;
   }
@@ -310,12 +369,12 @@ function isSimpleAccumulatorExpression(expr: any): boolean {
   if (typeof expr === 'string' && expr.startsWith('$')) {
     return true;
   }
-  
+
   // Literals and constants
   if (typeof expr === 'number' || typeof expr === 'string' || expr === 1) {
     return true;
   }
-  
+
   // Simple arithmetic expressions for $sum
   if (typeof expr === 'object' && expr !== null) {
     const keys = Object.keys(expr);
@@ -329,7 +388,7 @@ function isSimpleAccumulatorExpression(expr: any): boolean {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -342,22 +401,22 @@ function isSimpleUnwind(unwindSpec: any): boolean {
   if (typeof unwindSpec === 'string') {
     return true;
   }
-  
+
   // Object form with path only (no complex options)
   if (typeof unwindSpec === 'object' && unwindSpec !== null) {
     const { path, includeArrayIndex, preserveNullAndEmptyArrays } = unwindSpec;
-    
+
     // Must have path
     if (!path || typeof path !== 'string') return false;
-    
+
     // Phase 3: Basic support without complex options for now
     if (includeArrayIndex || preserveNullAndEmptyArrays) {
       return false;
     }
-    
+
     return true;
   }
-  
+
   return false;
 }
 
@@ -369,7 +428,7 @@ function canOptimizeUnwindGroup(pipeline: Pipeline): boolean {
   // Find $unwind and $group stages
   let unwindIndex = -1;
   let groupIndex = -1;
-  
+
   for (let i = 0; i < pipeline.length; i++) {
     const stage = pipeline[i];
     if ('$unwind' in stage) {
@@ -379,22 +438,22 @@ function canOptimizeUnwindGroup(pipeline: Pipeline): boolean {
       break; // First $group after $unwind
     }
   }
-  
+
   if (unwindIndex === -1 || groupIndex === -1 || unwindIndex >= groupIndex) {
     return false; // No valid $unwind + $group pattern
   }
-  
+
   // Check if stages between $unwind and $group are compatible
   for (let i = unwindIndex + 1; i < groupIndex; i++) {
     const stage = pipeline[i];
     const stageType = Object.keys(stage)[0];
-    
+
     // Only allow $match, $project between $unwind and $group
     if (!['$match', '$project'].includes(stageType)) {
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -406,18 +465,29 @@ function isSimpleExpression(expr: any): boolean {
   if (typeof expr === 'string' && expr.startsWith('$')) {
     return true;
   }
-  
+
   // Literals
-  if (typeof expr === 'number' || typeof expr === 'string' || typeof expr === 'boolean') {
+  if (
+    typeof expr === 'number' ||
+    typeof expr === 'string' ||
+    typeof expr === 'boolean'
+  ) {
     return true;
   }
-  
+
   // Simple object expressions
   if (typeof expr === 'object' && expr !== null && !Array.isArray(expr)) {
     const keys = Object.keys(expr);
     if (keys.length === 1) {
       const op = keys[0];
-      const supportedOps = ['$multiply', '$add', '$subtract', '$divide', '$concat', '$toString'];
+      const supportedOps = [
+        '$multiply',
+        '$add',
+        '$subtract',
+        '$divide',
+        '$concat',
+        '$toString',
+      ];
       if (supportedOps.includes(op)) {
         const operands = expr[op];
         if (Array.isArray(operands)) {
@@ -428,7 +498,7 @@ function isSimpleExpression(expr: any): boolean {
       }
     }
   }
-  
+
   return false;
 }
 
@@ -436,48 +506,52 @@ function isSimpleExpression(expr: any): boolean {
  * High-performance aggregate function with hot path optimization
  */
 export function hotPathAggregate<T extends Document = Document>(
-  collection: Collection<T>, 
+  collection: Collection<T>,
   pipeline: Pipeline
 ): Collection<Document> {
   counters.totalOperations++;
-  
+
   // Handle null/undefined collections gracefully
   if (!collection || !Array.isArray(collection)) {
     return [];
   }
-  
+
   const startTime = Date.now();
   let result: Collection<Document>;
-  
+
   if (canUseHotPath(pipeline)) {
     try {
       // Use zero-allocation hot path
       counters.hotPathHits++;
       result = zeroAllocEngine.execute(collection, pipeline);
-      
+
       const duration = Date.now() - startTime;
-      counters.hotPathThroughput = collection.length / Math.max(duration, 1) * 1000;
-      
+      counters.hotPathThroughput =
+        (collection.length / Math.max(duration, 1)) * 1000;
     } catch (error) {
       // Fallback on hot path failure
       console.warn(`Hot path failed, falling back: ${error.message}`);
       counters.fallbacks++;
       result = originalAggregate(collection, pipeline);
-      
+
       const duration = Date.now() - startTime;
       // Safe length access
-      const collectionLength = collection && Array.isArray(collection) ? collection.length : 0;
-      counters.fallbackThroughput = collectionLength / Math.max(duration, 1) * 1000;
+      const collectionLength =
+        collection && Array.isArray(collection) ? collection.length : 0;
+      counters.fallbackThroughput =
+        (collectionLength / Math.max(duration, 1)) * 1000;
     }
   } else {
     // Use regular aggregation
     counters.fallbacks++;
     result = originalAggregate(collection, pipeline);
-    
+
     const duration = Date.now() - startTime;
     // Safe length access
-    const collectionLength = collection && Array.isArray(collection) ? collection.length : 0;
-    counters.fallbackThroughput = collectionLength / Math.max(duration, 1) * 1000;
+    const collectionLength =
+      collection && Array.isArray(collection) ? collection.length : 0;
+    counters.fallbackThroughput =
+      (collectionLength / Math.max(duration, 1)) * 1000;
   }
 
   return result;
@@ -491,15 +565,21 @@ export function getHotPathStats(): HotPathCounters & {
   averageHotPathThroughput: number;
   averageFallbackThroughput: number;
   optimizerRejectionRate: number;
-  topRejectionReasons: Array<{ reason: string; count: number; percentage: number }>;
+  topRejectionReasons: Array<{
+    reason: string;
+    count: number;
+    percentage: number;
+  }>;
 } {
-  const hotPathHitRate = counters.totalOperations > 0 
-    ? (counters.hotPathHits / counters.totalOperations) * 100 
-    : 0;
+  const hotPathHitRate =
+    counters.totalOperations > 0
+      ? (counters.hotPathHits / counters.totalOperations) * 100
+      : 0;
 
-  const optimizerRejectionRate = counters.totalOperations > 0
-    ? (counters.optimizerRejections / counters.totalOperations) * 100
-    : 0;
+  const optimizerRejectionRate =
+    counters.totalOperations > 0
+      ? (counters.optimizerRejections / counters.totalOperations) * 100
+      : 0;
 
   // Analyze rejection reasons
   const rejectionCounts = new Map<string, number>();
@@ -509,12 +589,15 @@ export function getHotPathStats(): HotPathCounters & {
   }
 
   const topRejectionReasons = Array.from(rejectionCounts.entries())
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5) // Top 5 reasons
     .map(([reason, count]) => ({
       reason,
       count,
-      percentage: counters.optimizerRejections > 0 ? (count / counters.optimizerRejections) * 100 : 0
+      percentage:
+        counters.optimizerRejections > 0
+          ? (count / counters.optimizerRejections) * 100
+          : 0,
     }));
 
   return {
@@ -523,7 +606,7 @@ export function getHotPathStats(): HotPathCounters & {
     optimizerRejectionRate,
     averageHotPathThroughput: counters.hotPathThroughput,
     averageFallbackThroughput: counters.fallbackThroughput,
-    topRejectionReasons
+    topRejectionReasons,
   };
 }
 

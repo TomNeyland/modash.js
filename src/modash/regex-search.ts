@@ -1,12 +1,16 @@
 /**
  * Enhanced Regex Search Implementation with Bloom Filter Prefiltering
- * 
+ *
  * Enhances $regex operator with trigram-based Bloom filtering for Phase 3.5
  * Target: 3x speedup for patterns with 3+ literal characters and <1% false positive rate
  */
 
 import type { Collection, Document } from './expressions.js';
-import { RegexSearchBloomFilter, extractLiteralsFromRegex, extractTrigrams } from './bloom-filter.js';
+import {
+  RegexSearchBloomFilter,
+  extractLiteralsFromRegex,
+  extractTrigrams,
+} from './bloom-filter.js';
 import { DEBUG } from './debug.js';
 
 /**
@@ -68,12 +72,18 @@ const defaultConfig: RegexSearchConfig = {
 /**
  * Collection-based Bloom filters for regex search
  */
-const collectionRegexIndexes = new WeakMap<Collection<any>, RegexSearchBloomFilter>();
+const collectionRegexIndexes = new WeakMap<
+  Collection<any>,
+  RegexSearchBloomFilter
+>();
 
 /**
  * Initialize or get regex filter for a collection
  */
-function getRegexFilterForCollection<T extends Document>(collection: Collection<T>, field: string): RegexSearchBloomFilter {
+function getRegexFilterForCollection<T extends Document>(
+  collection: Collection<T>,
+  field: string
+): RegexSearchBloomFilter {
   let filter = collectionRegexIndexes.get(collection);
   if (!filter) {
     filter = new RegexSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
@@ -95,89 +105,119 @@ export function enhancedRegexMatch<T extends Document = Document>(
 ): Collection<T> {
   const startTime = performance.now();
   const mergedConfig = { ...defaultConfig, ...config };
-  
+
   regexSearchStats.totalQueries++;
-  
+
   if (!pattern || typeof pattern !== 'string') {
     if (DEBUG) {
-      console.log('🔍 $regex: Empty or invalid pattern, returning empty result');
+      console.log(
+        '🔍 $regex: Empty or invalid pattern, returning empty result'
+      );
     }
     return [];
   }
 
   // Check pattern complexity and literal content
   const literals = extractLiteralsFromRegex(pattern);
-  const hasUsefulLiterals = literals.some(lit => lit.length >= mergedConfig.minLiteralLength);
-  
-  if (!mergedConfig.enableBloomFilter || 
-      !hasUsefulLiterals || 
-      pattern.length > mergedConfig.maxPatternComplexity ||
-      collection.length < mergedConfig.minCollectionSize) {
+  const hasUsefulLiterals = literals.some(
+    lit => lit.length >= mergedConfig.minLiteralLength
+  );
+
+  if (
+    !mergedConfig.enableBloomFilter ||
+    !hasUsefulLiterals ||
+    pattern.length > mergedConfig.maxPatternComplexity ||
+    collection.length < mergedConfig.minCollectionSize
+  ) {
     if (DEBUG) {
-      const reason = !mergedConfig.enableBloomFilter ? 'disabled' :
-                    !hasUsefulLiterals ? 'insufficient literals' : 
-                    pattern.length > mergedConfig.maxPatternComplexity ? 'pattern too complex' :
-                    `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
+      const reason = !mergedConfig.enableBloomFilter
+        ? 'disabled'
+        : !hasUsefulLiterals
+          ? 'insufficient literals'
+          : pattern.length > mergedConfig.maxPatternComplexity
+            ? 'pattern too complex'
+            : `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
       console.log(`🔍 $regex: Skipping Bloom prefilter - ${reason}`);
     }
-    
+
     if (!hasUsefulLiterals) regexSearchStats.shortPatterns++;
-    if (pattern.length > mergedConfig.maxPatternComplexity) regexSearchStats.unsupportedPatterns++;
-    
+    if (pattern.length > mergedConfig.maxPatternComplexity)
+      regexSearchStats.unsupportedPatterns++;
+
     return performFullRegexSearch(collection, field, pattern, options);
   }
 
   // Try Bloom filter prefiltering
   const filter = getRegexFilterForCollection(collection, field);
   const prefilterStartTime = performance.now();
-  
-  const { candidates, shouldUsePrefilter, falsePositiveRate } = filter.testRegexPattern(pattern);
+
+  const { candidates, shouldUsePrefilter, falsePositiveRate } =
+    filter.testRegexPattern(pattern);
   const prefilterEndTime = performance.now();
-  
+
   regexSearchStats.candidatesBeforeFilter += collection.length;
   regexSearchStats.candidatesAfterFilter += candidates.length;
-  regexSearchStats.totalPrefilterTime += (prefilterEndTime - prefilterStartTime);
-  
+  regexSearchStats.totalPrefilterTime += prefilterEndTime - prefilterStartTime;
+
   if (DEBUG) {
-    console.log(`🔍 $regex Bloom prefilter: ${collection.length} -> ${candidates.length} candidates (${((1 - candidates.length / collection.length) * 100).toFixed(1)}% reduction)`);
+    console.log(
+      `🔍 $regex Bloom prefilter: ${collection.length} -> ${candidates.length} candidates (${((1 - candidates.length / collection.length) * 100).toFixed(1)}% reduction)`
+    );
     console.log(`🔍 $regex literals found: ${literals.join(', ')}`);
-    console.log(`🔍 $regex estimated FPR: ${(falsePositiveRate * 100).toFixed(2)}%`);
+    console.log(
+      `🔍 $regex estimated FPR: ${(falsePositiveRate * 100).toFixed(2)}%`
+    );
   }
 
   // If prefiltering didn't help or shouldn't be used, fall back to full scan
   if (!shouldUsePrefilter || candidates.length > collection.length * 0.7) {
     if (DEBUG) {
-      console.log('🔍 $regex: Prefilter not effective, falling back to full scan');
+      console.log(
+        '🔍 $regex: Prefilter not effective, falling back to full scan'
+      );
     }
     return performFullRegexSearch(collection, field, pattern, options);
   }
 
   regexSearchStats.prefilterHits++;
-  
+
   // Filter collection to candidate documents and verify
   const verificationStartTime = performance.now();
   const candidateSet = new Set(candidates);
-  const candidateDocs = collection.filter((doc, index) => 
-    candidateSet.has(index.toString()) || candidateSet.has((doc as any)._id?.toString())
+  const candidateDocs = collection.filter(
+    (doc, index) =>
+      candidateSet.has(index.toString()) ||
+      candidateSet.has((doc as any)._id?.toString())
   );
-  
-  const results = performFullRegexSearch(candidateDocs, field, pattern, options);
+
+  const results = performFullRegexSearch(
+    candidateDocs,
+    field,
+    pattern,
+    options
+  );
   const verificationEndTime = performance.now();
-  
-  regexSearchStats.totalVerificationTime += (verificationEndTime - verificationStartTime);
+
+  regexSearchStats.totalVerificationTime +=
+    verificationEndTime - verificationStartTime;
   regexSearchStats.actualMatches += results.length;
-  
+
   const totalTime = performance.now() - startTime;
-  const estimatedFullScanTime = (totalTime / candidateDocs.length) * collection.length;
-  const speedupRatio = candidateDocs.length > 0 ? estimatedFullScanTime / totalTime : 1.0;
-  
-  regexSearchStats.averageSpeedupRatio = (
-    (regexSearchStats.averageSpeedupRatio * (regexSearchStats.totalQueries - 1) + speedupRatio) / 
-    regexSearchStats.totalQueries
-  );
-  
+  const estimatedFullScanTime =
+    (totalTime / candidateDocs.length) * collection.length;
+  const speedupRatio =
+    candidateDocs.length > 0 ? estimatedFullScanTime / totalTime : 1.0;
+
+  regexSearchStats.averageSpeedupRatio =
+    (regexSearchStats.averageSpeedupRatio *
+      (regexSearchStats.totalQueries - 1) +
+      speedupRatio) /
+    regexSearchStats.totalQueries;
+
   if (DEBUG) {
-    console.log(`🔍 $regex: Found ${results.length} matches, estimated speedup: ${speedupRatio.toFixed(1)}x`);
+    console.log(
+      `🔍 $regex: Found ${results.length} matches, estimated speedup: ${speedupRatio.toFixed(1)}x`
+    );
   }
 
   return results;
@@ -193,7 +233,7 @@ function buildRegexDocumentIndex<T extends Document>(
 ): void {
   collection.forEach((doc, index) => {
     const docId = (doc as any)._id?.toString() || index.toString();
-    
+
     // Extract field value for regex matching
     const fieldValue = getNestedFieldValue(doc, field);
     if (typeof fieldValue === 'string') {
@@ -208,14 +248,14 @@ function buildRegexDocumentIndex<T extends Document>(
 function getNestedFieldValue(obj: any, path: string): any {
   const keys = path.split('.');
   let current = obj;
-  
+
   for (const key of keys) {
     if (current == null || typeof current !== 'object') {
       return undefined;
     }
     current = current[key];
   }
-  
+
   return current;
 }
 
@@ -229,7 +269,7 @@ function performFullRegexSearch<T extends Document>(
   options: string = ''
 ): Collection<T> {
   let regex: RegExp;
-  
+
   try {
     regex = new RegExp(pattern, options);
   } catch (error) {
@@ -238,11 +278,11 @@ function performFullRegexSearch<T extends Document>(
     }
     return [];
   }
-  
+
   return collection.filter(doc => {
     const fieldValue = getNestedFieldValue(doc, field);
     if (typeof fieldValue !== 'string') return false;
-    
+
     return regex.test(fieldValue);
   });
 }
@@ -258,14 +298,16 @@ export function analyzeRegexPattern(pattern: string): {
 } {
   const literals = extractLiteralsFromRegex(pattern);
   const trigrams: string[] = [];
-  
+
   literals.forEach(literal => {
     trigrams.push(...extractTrigrams(literal));
   });
-  
-  const complexity = pattern.length + (pattern.match(/[.*+?^${}()|[\]\\]/g) || []).length;
-  const suitableForBloom = literals.some(lit => lit.length >= 3) && complexity <= 100;
-  
+
+  const complexity =
+    pattern.length + (pattern.match(/[.*+?^${}()|[\]\\]/g) || []).length;
+  const suitableForBloom =
+    literals.some(lit => lit.length >= 3) && complexity <= 100;
+
   return {
     literals,
     trigrams,
@@ -298,13 +340,16 @@ export function resetRegexSearchStats(): void {
  */
 export function getRegexSearchStats(): RegexSearchStats {
   const stats = { ...regexSearchStats };
-  
+
   // Calculate derived metrics
   if (stats.candidatesBeforeFilter > 0) {
-    stats.falsePositiveRate = stats.candidatesAfterFilter > stats.actualMatches ? 
-      (stats.candidatesAfterFilter - stats.actualMatches) / stats.candidatesAfterFilter : 0;
+    stats.falsePositiveRate =
+      stats.candidatesAfterFilter > stats.actualMatches
+        ? (stats.candidatesAfterFilter - stats.actualMatches) /
+          stats.candidatesAfterFilter
+        : 0;
   }
-  
+
   return stats;
 }
 

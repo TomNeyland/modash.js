@@ -1,6 +1,6 @@
 /**
  * High-Performance $group Implementation
- * 
+ *
  * Combines Robin Hood hash tables with Structure-of-Arrays accumulators
  * for stable 1M+ docs/sec group performance with minimal memory allocation.
  */
@@ -34,7 +34,7 @@ interface AccumulatorSpec {
 export class HighPerformanceGroupEngine {
   private groupsTable = new RobinHoodHashTable<string, Document[]>();
   private keyCache = new Map<Document, string>(); // Cache for group keys
-  
+
   /**
    * Execute high-performance group operation
    */
@@ -47,45 +47,51 @@ export class HighPerformanceGroupEngine {
     }
 
     const startTime = DEBUG ? performance.now() : 0;
-    
+
     // Clear state for new operation
     this.groupsTable.clear();
     this.keyCache.clear();
-    
+
     const { _id: idSpec, ...accumulatorSpecs } = groupSpec;
-    
+
     // Phase 1: Fast grouping with Robin Hood hash table
     const groupingTime = DEBUG ? performance.now() : 0;
     this.performGrouping(collection, idSpec);
-    
+
     if (DEBUG) {
       const groupingDuration = performance.now() - groupingTime;
       logPipelineExecution('HIGH_PERF_GROUP', `Grouping phase completed`, {
         documents: collection.length,
         groups: this.groupsTable.getSize(),
         groupingTimeMs: groupingDuration.toFixed(2),
-        hashStats: this.groupsTable.getStats()
+        hashStats: this.groupsTable.getStats(),
       });
     }
 
     // Phase 2: SoA accumulation for each group
     const accumulationTime = DEBUG ? performance.now() : 0;
     const results = this.performAccumulation(idSpec, accumulatorSpecs);
-    
+
     if (DEBUG) {
       const totalDuration = performance.now() - startTime;
       const accumulationDuration = performance.now() - accumulationTime;
-      
-      logPipelineExecution('HIGH_PERF_GROUP', `High-performance group completed`, {
-        documents: collection.length,
-        groups: results.length,
-        totalTimeMs: totalDuration.toFixed(2),
-        accumulationTimeMs: accumulationDuration.toFixed(2),
-        throughputDocsPerSec: Math.round(collection.length / (totalDuration / 1000)),
-        avgGroupSize: Math.round(collection.length / results.length)
-      });
+
+      logPipelineExecution(
+        'HIGH_PERF_GROUP',
+        `High-performance group completed`,
+        {
+          documents: collection.length,
+          groups: results.length,
+          totalTimeMs: totalDuration.toFixed(2),
+          accumulationTimeMs: accumulationDuration.toFixed(2),
+          throughputDocsPerSec: Math.round(
+            collection.length / (totalDuration / 1000)
+          ),
+          avgGroupSize: Math.round(collection.length / results.length),
+        }
+      );
     }
-    
+
     return results as Collection<Document>;
   }
 
@@ -105,13 +111,13 @@ export class HighPerformanceGroupEngine {
     // General expression-based grouping
     for (const doc of collection) {
       const groupKey = this.getGroupKey(doc, idSpec);
-      
+
       let group = this.groupsTable.get(groupKey);
       if (!group) {
         group = [];
         this.groupsTable.set(groupKey, group);
       }
-      
+
       group.push(doc);
     }
   }
@@ -126,13 +132,13 @@ export class HighPerformanceGroupEngine {
     for (const doc of collection) {
       const value = doc[fieldName];
       const groupKey = JSON.stringify(value);
-      
+
       let group = this.groupsTable.get(groupKey);
       if (!group) {
         group = [];
         this.groupsTable.set(groupKey, group);
       }
-      
+
       group.push(doc);
     }
   }
@@ -145,13 +151,13 @@ export class HighPerformanceGroupEngine {
     if (this.keyCache.has(doc)) {
       return this.keyCache.get(doc)!;
     }
-    
+
     const idValue = $expression(doc, idSpec);
     const key = JSON.stringify(idValue);
-    
+
     // Cache the result
     this.keyCache.set(doc, key);
-    
+
     return key;
   }
 
@@ -163,18 +169,18 @@ export class HighPerformanceGroupEngine {
     accumulatorSpecs: Record<string, any>
   ): GroupResult[] {
     const results: GroupResult[] = [];
-    
+
     // Process each group with SoA accumulators
     for (const [groupKey, documents] of this.groupsTable.entries()) {
       const result: GroupResult = {
-        _id: idSpec ? $expression(documents[0]!, idSpec) : null
+        _id: idSpec ? $expression(documents[0]!, idSpec) : null,
       };
-      
+
       // Use batch SoA accumulator for multiple fields
       if (Object.keys(accumulatorSpecs).length > 0) {
         const batchAccumulator = new BatchSoAAccumulator(documents);
         const operators: Record<string, string> = {};
-        
+
         // Set up accumulators for each field
         for (const [fieldName, spec] of Object.entries(accumulatorSpecs)) {
           if (typeof spec === 'object' && spec !== null) {
@@ -183,15 +189,15 @@ export class HighPerformanceGroupEngine {
             operators[fieldName] = operator;
           }
         }
-        
+
         // Execute all accumulators in batch
         const accumulatedResults = batchAccumulator.execute(operators);
         Object.assign(result, accumulatedResults);
       }
-      
+
       results.push(result);
     }
-    
+
     return results;
   }
 
@@ -206,8 +212,10 @@ export class HighPerformanceGroupEngine {
     return {
       groupCount: this.groupsTable.getSize(),
       hashTableStats: this.groupsTable.getStats(),
-      cacheHitRate: this.keyCache.size > 0 ? 
-        (this.keyCache.size / this.groupsTable.getSize()) : 0
+      cacheHitRate:
+        this.keyCache.size > 0
+          ? this.keyCache.size / this.groupsTable.getSize()
+          : 0,
     };
   }
 }
@@ -230,9 +238,11 @@ export function highPerformanceGroup<T extends Document = Document>(
 /**
  * Check if group operation can use high-performance engine
  */
-export function canUseHighPerformanceGroup(groupSpec: GroupStage['$group']): boolean {
+export function canUseHighPerformanceGroup(
+  groupSpec: GroupStage['$group']
+): boolean {
   const { _id, ...accumulatorSpecs } = groupSpec;
-  
+
   // Support all simple _id specifications
   if (_id === null || _id === undefined) {
     // Single group
@@ -241,26 +251,35 @@ export function canUseHighPerformanceGroup(groupSpec: GroupStage['$group']): boo
   } else if (typeof _id === 'object' && _id !== null) {
     // Complex grouping - can still be optimized
   }
-  
+
   // Check accumulator specifications
   for (const [fieldName, spec] of Object.entries(accumulatorSpecs)) {
     if (typeof spec !== 'object' || spec === null) {
       return false;
     }
-    
+
     const operators = Object.keys(spec);
     if (operators.length !== 1) {
       return false; // Only single operator per field for now
     }
-    
+
     const operator = operators[0];
-    const supportedOperators = ['$sum', '$avg', '$min', '$max', '$first', '$last', '$push', '$addToSet'];
-    
+    const supportedOperators = [
+      '$sum',
+      '$avg',
+      '$min',
+      '$max',
+      '$first',
+      '$last',
+      '$push',
+      '$addToSet',
+    ];
+
     if (!supportedOperators.includes(operator)) {
       return false;
     }
   }
-  
+
   return true;
 }
 

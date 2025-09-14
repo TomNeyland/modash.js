@@ -1,6 +1,6 @@
 /**
  * Structure-of-Arrays (SoA) Accumulators for High-Performance $group Operations
- * 
+ *
  * Provides cache-friendly data layout and vectorized operations
  * for common aggregation functions ($sum, $avg, $min, $max, etc.)
  */
@@ -18,16 +18,16 @@ export class SoAAccumulator {
   private strings: string[];
   private objects: any[];
   private masks: Uint8Array; // Bitmask for which array each element uses
-  
+
   // Type constants
   private static readonly TYPE_NUMBER = 0;
   private static readonly TYPE_STRING = 1;
   private static readonly TYPE_OBJECT = 2;
   private static readonly TYPE_NULL = 3;
-  
+
   private size = 0;
   private capacity: number;
-  
+
   constructor(initialCapacity = 64) {
     this.capacity = initialCapacity;
     this.numbers = new Float64Array(initialCapacity);
@@ -65,21 +65,21 @@ export class SoAAccumulator {
    */
   private resize(): void {
     const newCapacity = this.capacity * 2;
-    
+
     // Resize typed array
     const newNumbers = new Float64Array(newCapacity);
     newNumbers.set(this.numbers);
     this.numbers = newNumbers;
-    
+
     // Resize regular arrays
     this.strings.length = newCapacity;
     this.objects.length = newCapacity;
-    
+
     // Resize mask array
     const newMasks = new Uint8Array(newCapacity);
     newMasks.set(this.masks);
     this.masks = newMasks;
-    
+
     this.capacity = newCapacity;
   }
 
@@ -88,14 +88,14 @@ export class SoAAccumulator {
    */
   sum(): number {
     let sum = 0;
-    
+
     // Vectorized operation over numbers array
     for (let i = 0; i < this.size; i++) {
       if (this.masks[i] === SoAAccumulator.TYPE_NUMBER) {
         sum += this.numbers[i];
       }
     }
-    
+
     return sum;
   }
 
@@ -105,14 +105,14 @@ export class SoAAccumulator {
   avg(): number {
     let sum = 0;
     let count = 0;
-    
+
     for (let i = 0; i < this.size; i++) {
       if (this.masks[i] === SoAAccumulator.TYPE_NUMBER) {
         sum += this.numbers[i];
         count++;
       }
     }
-    
+
     return count > 0 ? sum / count : 0;
   }
 
@@ -121,13 +121,13 @@ export class SoAAccumulator {
    */
   min(): number {
     let min = Infinity;
-    
+
     for (let i = 0; i < this.size; i++) {
       if (this.masks[i] === SoAAccumulator.TYPE_NUMBER) {
         min = Math.min(min, this.numbers[i]);
       }
     }
-    
+
     return min === Infinity ? 0 : min;
   }
 
@@ -136,13 +136,13 @@ export class SoAAccumulator {
    */
   max(): number {
     let max = -Infinity;
-    
+
     for (let i = 0; i < this.size; i++) {
       if (this.masks[i] === SoAAccumulator.TYPE_NUMBER) {
         max = Math.max(max, this.numbers[i]);
       }
     }
-    
+
     return max === -Infinity ? 0 : max;
   }
 
@@ -151,7 +151,7 @@ export class SoAAccumulator {
    */
   first(): DocumentValue {
     if (this.size === 0) return null;
-    
+
     const type = this.masks[0];
     switch (type) {
       case SoAAccumulator.TYPE_NUMBER:
@@ -170,7 +170,7 @@ export class SoAAccumulator {
    */
   last(): DocumentValue {
     if (this.size === 0) return null;
-    
+
     const index = this.size - 1;
     const type = this.masks[index];
     switch (type) {
@@ -190,7 +190,7 @@ export class SoAAccumulator {
    */
   push(): DocumentValue[] {
     const result: DocumentValue[] = [];
-    
+
     for (let i = 0; i < this.size; i++) {
       const type = this.masks[i];
       switch (type) {
@@ -208,7 +208,7 @@ export class SoAAccumulator {
           break;
       }
     }
-    
+
     return result;
   }
 
@@ -218,11 +218,11 @@ export class SoAAccumulator {
   addToSet(): DocumentValue[] {
     const seen = new Set<string>();
     const result: DocumentValue[] = [];
-    
+
     for (let i = 0; i < this.size; i++) {
       const type = this.masks[i];
       let value: DocumentValue;
-      
+
       switch (type) {
         case SoAAccumulator.TYPE_NUMBER:
           value = this.numbers[i];
@@ -237,14 +237,14 @@ export class SoAAccumulator {
           value = null;
           break;
       }
-      
+
       const key = JSON.stringify(value);
       if (!seen.has(key)) {
         seen.add(key);
         result.push(value);
       }
     }
-    
+
     return result;
   }
 
@@ -253,13 +253,13 @@ export class SoAAccumulator {
    */
   count(): number {
     let count = 0;
-    
+
     for (let i = 0; i < this.size; i++) {
       if (this.masks[i] !== SoAAccumulator.TYPE_NULL) {
         count++;
       }
     }
-    
+
     return count;
   }
 
@@ -287,11 +287,11 @@ export function createSoAAccumulator(
   fieldExpression: Expression
 ): SoAAccumulator {
   const accumulator = new SoAAccumulator(documents.length);
-  
+
   // Fast path for simple field references
   if (typeof fieldExpression === 'string' && fieldExpression.startsWith('$')) {
     const fieldName = fieldExpression.slice(1);
-    
+
     // Direct field access - faster than expression evaluation
     for (const doc of documents) {
       accumulator.add(doc[fieldName]);
@@ -303,7 +303,7 @@ export function createSoAAccumulator(
       accumulator.add(value);
     }
   }
-  
+
   return accumulator;
 }
 
@@ -316,7 +316,7 @@ export function executeSoAAccumulator(
   fieldExpression: Expression
 ): DocumentValue {
   const accumulator = createSoAAccumulator(documents, fieldExpression);
-  
+
   switch (operator) {
     case '$sum':
       return accumulator.sum();
@@ -344,14 +344,17 @@ export function executeSoAAccumulator(
  */
 export class BatchSoAAccumulator {
   private accumulators = new Map<string, SoAAccumulator>();
-  
+
   constructor(private documents: Document[]) {}
 
   /**
    * Add accumulator for a field
    */
   addField(fieldName: string, expression: Expression): void {
-    this.accumulators.set(fieldName, createSoAAccumulator(this.documents, expression));
+    this.accumulators.set(
+      fieldName,
+      createSoAAccumulator(this.documents, expression)
+    );
   }
 
   /**
@@ -359,13 +362,13 @@ export class BatchSoAAccumulator {
    */
   execute(operators: Record<string, string>): Record<string, DocumentValue> {
     const result: Record<string, DocumentValue> = {};
-    
+
     for (const [fieldName, operator] of Object.entries(operators)) {
       const accumulator = this.accumulators.get(fieldName);
       if (!accumulator) {
         throw new Error(`No accumulator found for field: ${fieldName}`);
       }
-      
+
       switch (operator) {
         case '$sum':
           result[fieldName] = accumulator.sum();
@@ -395,7 +398,7 @@ export class BatchSoAAccumulator {
           throw new Error(`Unsupported accumulator operator: ${operator}`);
       }
     }
-    
+
     return result;
   }
 }

@@ -54,7 +54,7 @@ const transparentAggregate = <T extends Document = Document>(
   if (!(collection instanceof StreamingCollection)) {
     return optimizedAggregate(collection, pipeline);
   }
-  
+
   // For streaming collections, use streaming path
   return collection.stream(pipeline);
 };
@@ -84,10 +84,12 @@ const Modash: ModashStatic = {
   $set,
   // Streaming methods for advanced users
   createStreamingCollection,
-  
+
   // Hot path performance monitoring
-  getHotPathStats: () => import('./hot-path-aggregation.js').then(m => m.getHotPathStats()),
-  resetHotPathStats: () => import('./hot-path-aggregation.js').then(m => m.resetHotPathStats()),
+  getHotPathStats: () =>
+    import('./hot-path-aggregation.js').then(m => m.getHotPathStats()),
+  resetHotPathStats: () =>
+    import('./hot-path-aggregation.js').then(m => m.resetHotPathStats()),
 };
 
 export default Modash;

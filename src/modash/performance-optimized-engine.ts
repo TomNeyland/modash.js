@@ -1,6 +1,6 @@
 /**
  * Performance-Optimized Engine for Hot Path Processing
- * 
+ *
  * This module implements the P0 performance optimizations:
  * - Delta batching with buffer pools (64-512 batch sizes)
  * - Near-zero allocation hot paths
@@ -9,17 +9,13 @@
  * - Compiled expressions with constant folding
  */
 
-import type { 
-  Collection, 
-  Document, 
-  DocumentValue 
-} from './expressions.js';
-import type { 
-  RowId, 
-  Delta, 
-  CrossfilterStore, 
+import type { Collection, Document, DocumentValue } from './expressions.js';
+import type {
+  RowId,
+  Delta,
+  CrossfilterStore,
   IVMContext,
-  IVMOperator 
+  IVMOperator,
 } from './crossfilter-ivm.js';
 
 /**
@@ -32,7 +28,7 @@ class BufferPool {
   get<T>(type: string, size: number): T[] {
     const poolKey = `${type}_${size}`;
     let pool = this.pools.get(poolKey);
-    
+
     if (!pool) {
       pool = [];
       this.pools.set(poolKey, pool);
@@ -52,7 +48,7 @@ class BufferPool {
     const size = buffer.length;
     const poolKey = `${type}_${size}`;
     let pool = this.pools.get(poolKey);
-    
+
     if (!pool) {
       pool = [];
       this.pools.set(poolKey, pool);
@@ -98,7 +94,7 @@ export class DeltaBatchProcessor {
     fallbacks: 0,
     allocations: 0,
     compiledHits: 0,
-    fusedOperations: 0
+    fusedOperations: 0,
   };
 
   /**
@@ -121,7 +117,7 @@ export class DeltaBatchProcessor {
 
     // Check if we should flush batch
     const totalPending = this.pendingAdds.length + this.pendingRemoves.length;
-    
+
     if (totalPending >= DeltaBatchProcessor.BATCH_SIZE) {
       this.flushBatch(operators, store, context, callback);
     } else if (!this.batchTimer) {
@@ -148,21 +144,24 @@ export class DeltaBatchProcessor {
 
     const addCount = this.pendingAdds.length;
     const removeCount = this.pendingRemoves.length;
-    
+
     if (addCount === 0 && removeCount === 0) return;
 
     this.counters.batchedDeltas += addCount + removeCount;
 
     try {
       // Process adds first, then removes for optimal cache locality
-      let currentRowIds = this.bufferPool.get<RowId>('rowids', Math.max(addCount, removeCount));
-      
+      let currentRowIds = this.bufferPool.get<RowId>(
+        'rowids',
+        Math.max(addCount, removeCount)
+      );
+
       if (addCount > 0) {
         // Process add batch
         for (let i = 0; i < addCount; i++) {
           currentRowIds[i] = this.pendingAdds[i].rowId;
         }
-        
+
         const addResults = this.processBatchThroughPipeline(
           currentRowIds,
           addCount,
@@ -171,7 +170,7 @@ export class DeltaBatchProcessor {
           context,
           1 // Add sign
         );
-        
+
         // Trigger callback with add results
         if (addResults.length > 0) {
           callback(addResults);
@@ -183,7 +182,7 @@ export class DeltaBatchProcessor {
         for (let i = 0; i < removeCount; i++) {
           currentRowIds[i] = this.pendingRemoves[i].rowId;
         }
-        
+
         const removeResults = this.processBatchThroughPipeline(
           currentRowIds,
           removeCount,
@@ -192,7 +191,7 @@ export class DeltaBatchProcessor {
           context,
           -1 // Remove sign
         );
-        
+
         // Trigger callback with remove results
         if (removeResults.length > 0) {
           callback(removeResults);
@@ -201,7 +200,6 @@ export class DeltaBatchProcessor {
 
       // Return buffers to pool
       this.bufferPool.return('rowids', currentRowIds);
-      
     } finally {
       // Clear pending batches
       this.pendingAdds.length = 0;
@@ -222,7 +220,7 @@ export class DeltaBatchProcessor {
   ): RowId[] {
     let currentRowIds = rowIds;
     let currentCount = count;
-    
+
     // Process through each operator
     for (let opIndex = 0; opIndex < operators.length; opIndex++) {
       const operator = operators[opIndex];
@@ -232,11 +230,12 @@ export class DeltaBatchProcessor {
       // Hot path: batch process all rowIds through operator
       for (let i = 0; i < currentCount; i++) {
         const delta: Delta = { rowId: currentRowIds[i], sign };
-        
-        const results = sign === 1 
-          ? operator.onAdd(delta, store, context)
-          : operator.onRemove(delta, store, context);
-          
+
+        const results =
+          sign === 1
+            ? operator.onAdd(delta, store, context)
+            : operator.onRemove(delta, store, context);
+
         // Collect results into next buffer
         for (const resultDelta of results) {
           if (resultDelta.sign === sign) {
@@ -249,10 +248,10 @@ export class DeltaBatchProcessor {
       if (currentRowIds !== rowIds) {
         this.bufferPool.return('rowids', currentRowIds);
       }
-      
+
       currentRowIds = nextRowIds;
       currentCount = nextCount;
-      
+
       // Early exit if no rows remain
       if (currentCount === 0) break;
     }
@@ -290,7 +289,7 @@ export class DeltaBatchProcessor {
       fallbacks: 0,
       allocations: 0,
       compiledHits: 0,
-      fusedOperations: 0
+      fusedOperations: 0,
     };
   }
 }
@@ -308,21 +307,24 @@ export class OptimizedExpressionCompiler {
    */
   compileMatchExpression(expr: any): (doc: Document, rowId: RowId) => boolean {
     const exprKey = JSON.stringify(expr);
-    
+
     if (this.compiledCache.has(exprKey)) {
-      return this.compiledCache.get(exprKey) as (doc: Document, rowId: RowId) => boolean;
+      return this.compiledCache.get(exprKey) as (
+        doc: Document,
+        rowId: RowId
+      ) => boolean;
     }
 
     // Pre-compile regexes
     this.precompileRegexes(expr);
-    
+
     // Perform constant folding
     const optimizedExpr = this.constantFold(expr);
-    
+
     // Generate optimized function
     const compiled = this.generateOptimizedMatchFunction(optimizedExpr);
     this.compiledCache.set(exprKey, compiled);
-    
+
     return compiled;
   }
 
@@ -352,15 +354,17 @@ export class OptimizedExpressionCompiler {
    */
   private constantFold(expr: any): any {
     if (typeof expr !== 'object' || expr === null) return expr;
-    
+
     // Handle arithmetic expressions with constants
     if (expr.$add && Array.isArray(expr.$add)) {
       const constSum = expr.$add
         .filter((item: any) => typeof item === 'number')
         .reduce((sum: number, num: number) => sum + num, 0);
-      
-      const fieldRefs = expr.$add.filter((item: any) => typeof item === 'string' && item.startsWith('$'));
-      
+
+      const fieldRefs = expr.$add.filter(
+        (item: any) => typeof item === 'string' && item.startsWith('$')
+      );
+
       if (constSum !== 0 && fieldRefs.length > 0) {
         // Fold constants: [$field, 5, 3] -> [$field, 8]
         return { $add: [...fieldRefs, constSum] };
@@ -371,9 +375,11 @@ export class OptimizedExpressionCompiler {
       const constProduct = expr.$multiply
         .filter((item: any) => typeof item === 'number')
         .reduce((product: number, num: number) => product * num, 1);
-      
-      const fieldRefs = expr.$multiply.filter((item: any) => typeof item === 'string' && item.startsWith('$'));
-      
+
+      const fieldRefs = expr.$multiply.filter(
+        (item: any) => typeof item === 'string' && item.startsWith('$')
+      );
+
       if (constProduct !== 1 && fieldRefs.length > 0) {
         return { $multiply: [...fieldRefs, constProduct] };
       }
@@ -390,7 +396,9 @@ export class OptimizedExpressionCompiler {
   /**
    * Generate optimized match function with inlined field access
    */
-  private generateOptimizedMatchFunction(expr: any): (doc: Document, rowId: RowId) => boolean {
+  private generateOptimizedMatchFunction(
+    expr: any
+  ): (doc: Document, rowId: RowId) => boolean {
     // Simple field equality - most common case
     if (typeof expr === 'object' && !Array.isArray(expr)) {
       const entries = Object.entries(expr);
@@ -401,9 +409,14 @@ export class OptimizedExpressionCompiler {
           return (doc: Document) => doc[field] === value;
         }
       }
-      
+
       // Multiple field equality
-      if (entries.every(([field, value]) => !field.startsWith('$') && typeof value !== 'object')) {
+      if (
+        entries.every(
+          ([field, value]) =>
+            !field.startsWith('$') && typeof value !== 'object'
+        )
+      ) {
         return (doc: Document) => {
           for (const [field, expectedValue] of entries) {
             if (doc[field] !== expectedValue) return false;
@@ -429,19 +442,23 @@ export class OptimizedExpressionCompiler {
 
     // Handle logical operators
     if (expr.$and) {
-      return expr.$and.every((subExpr: any) => this.evaluateExpression(subExpr, doc, rowId));
+      return expr.$and.every((subExpr: any) =>
+        this.evaluateExpression(subExpr, doc, rowId)
+      );
     }
-    
+
     if (expr.$or) {
-      return expr.$or.some((subExpr: any) => this.evaluateExpression(subExpr, doc, rowId));
+      return expr.$or.some((subExpr: any) =>
+        this.evaluateExpression(subExpr, doc, rowId)
+      );
     }
 
     // Handle field comparisons
     for (const [field, condition] of Object.entries(expr)) {
       if (field.startsWith('$')) continue;
-      
+
       const docValue = doc[field];
-      
+
       if (typeof condition === 'object' && condition !== null) {
         // Complex condition
         for (const [op, value] of Object.entries(condition)) {
@@ -453,22 +470,28 @@ export class OptimizedExpressionCompiler {
               if (docValue === value) return false;
               break;
             case '$gt':
-              if (typeof docValue !== 'number' || docValue <= (value as number)) return false;
+              if (typeof docValue !== 'number' || docValue <= (value as number))
+                return false;
               break;
             case '$gte':
-              if (typeof docValue !== 'number' || docValue < (value as number)) return false;
+              if (typeof docValue !== 'number' || docValue < (value as number))
+                return false;
               break;
             case '$lt':
-              if (typeof docValue !== 'number' || docValue >= (value as number)) return false;
+              if (typeof docValue !== 'number' || docValue >= (value as number))
+                return false;
               break;
             case '$lte':
-              if (typeof docValue !== 'number' || docValue > (value as number)) return false;
+              if (typeof docValue !== 'number' || docValue > (value as number))
+                return false;
               break;
             case '$in':
-              if (!Array.isArray(value) || !value.includes(docValue)) return false;
+              if (!Array.isArray(value) || !value.includes(docValue))
+                return false;
               break;
             case '$nin':
-              if (Array.isArray(value) && value.includes(docValue)) return false;
+              if (Array.isArray(value) && value.includes(docValue))
+                return false;
               break;
             case '$regex':
               const regex = this.regexCache.get(value as string);
@@ -507,7 +530,7 @@ export class OptimizedExpressionCompiler {
 export class FusedMatchProjectOperator {
   private matchFunction: (doc: Document, rowId: RowId) => boolean;
   private projectFunction: (doc: Document, rowId: RowId) => Document;
-  
+
   constructor(
     matchExpr: any,
     projectExpr: any,
@@ -525,7 +548,7 @@ export class FusedMatchProjectOperator {
     if (!this.matchFunction(doc, rowId)) {
       return null; // Filtered out
     }
-    
+
     // Then apply projection
     return this.projectFunction(doc, rowId);
   }
@@ -533,12 +556,14 @@ export class FusedMatchProjectOperator {
   /**
    * Compile project expression for hot path
    */
-  private compileProjectExpression(projectExpr: any): (doc: Document, rowId: RowId) => Document {
+  private compileProjectExpression(
+    projectExpr: any
+  ): (doc: Document, rowId: RowId) => Document {
     // Analyze projection for optimization opportunities
     const includes: string[] = [];
     const excludes: string[] = [];
     const computed: Array<{ field: string; expr: any }> = [];
-    
+
     for (const [field, spec] of Object.entries(projectExpr)) {
       if (spec === 1 || spec === true) {
         includes.push(field);
@@ -576,19 +601,19 @@ export class FusedMatchProjectOperator {
     // Fallback to general projection
     return (doc: Document) => {
       const result: Document = {};
-      
+
       // Handle includes
       for (const field of includes) {
         if (field in doc) {
           result[field] = doc[field];
         }
       }
-      
+
       // Handle computed fields
       for (const { field, expr } of computed) {
         result[field] = this.evaluateProjectExpression(expr, doc);
       }
-      
+
       return result;
     };
   }
@@ -600,7 +625,7 @@ export class FusedMatchProjectOperator {
     if (typeof expr === 'string' && expr.startsWith('$')) {
       return doc[expr.slice(1)];
     }
-    
+
     if (typeof expr === 'object' && expr !== null) {
       // Handle arithmetic expressions
       if (expr.$multiply && Array.isArray(expr.$multiply)) {
@@ -609,7 +634,7 @@ export class FusedMatchProjectOperator {
           return product * (typeof value === 'number' ? value : 0);
         }, 1);
       }
-      
+
       if (expr.$add && Array.isArray(expr.$add)) {
         return expr.$add.reduce((sum: number, item: any) => {
           const value = this.evaluateProjectExpression(item, doc);
@@ -617,7 +642,7 @@ export class FusedMatchProjectOperator {
         }, 0);
       }
     }
-    
+
     return expr; // Literal value
   }
 }

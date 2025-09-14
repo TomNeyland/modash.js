@@ -1,6 +1,6 @@
 /**
  * Text Search Implementation with Bloom Filter Prefiltering
- * 
+ *
  * Implements $text operator with token-based Bloom filtering for Phase 3.5
  * Target: 5x speedup with 90%+ candidate reduction and <1% false positive rate
  */
@@ -69,7 +69,9 @@ const collectionIndexes = new WeakMap<Collection<any>, TextSearchBloomFilter>();
 /**
  * Initialize or get the text search filter for a collection
  */
-function getTextFilterForCollection<T extends Document>(collection: Collection<T>): TextSearchBloomFilter {
+function getTextFilterForCollection<T extends Document>(
+  collection: Collection<T>
+): TextSearchBloomFilter {
   let filter = collectionIndexes.get(collection);
   if (!filter) {
     filter = new TextSearchBloomFilter(defaultConfig.bloomFilterSizeBytes, 3);
@@ -89,9 +91,9 @@ export function $text<T extends Document = Document>(
 ): Collection<T> {
   const startTime = performance.now();
   const mergedConfig = { ...defaultConfig, ...config };
-  
+
   textSearchStats.totalQueries++;
-  
+
   if (!query || typeof query !== 'string') {
     if (DEBUG) {
       console.log('🔍 $text: Empty or invalid query, returning empty result');
@@ -100,15 +102,19 @@ export function $text<T extends Document = Document>(
   }
 
   const queryTokens = extractTokens(query);
-  
+
   // Check if we should use prefiltering
-  if (!mergedConfig.enableBloomFilter || 
-      queryTokens.length < mergedConfig.minQueryTokens ||
-      collection.length < mergedConfig.minCollectionSize) {
+  if (
+    !mergedConfig.enableBloomFilter ||
+    queryTokens.length < mergedConfig.minQueryTokens ||
+    collection.length < mergedConfig.minCollectionSize
+  ) {
     if (DEBUG) {
-      const reason = !mergedConfig.enableBloomFilter ? 'disabled' :
-                    queryTokens.length < mergedConfig.minQueryTokens ? `insufficient tokens (${queryTokens.length} < ${mergedConfig.minQueryTokens})` :
-                    `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
+      const reason = !mergedConfig.enableBloomFilter
+        ? 'disabled'
+        : queryTokens.length < mergedConfig.minQueryTokens
+          ? `insufficient tokens (${queryTokens.length} < ${mergedConfig.minQueryTokens})`
+          : `small collection (${collection.length} < ${mergedConfig.minCollectionSize})`;
       console.log(`🔍 $text: Skipping Bloom prefilter - ${reason}`);
     }
     return performFullTextSearch(collection, queryTokens, mergedConfig);
@@ -117,53 +123,69 @@ export function $text<T extends Document = Document>(
   // Try Bloom filter prefiltering
   const filter = getTextFilterForCollection(collection);
   const prefilterStartTime = performance.now();
-  
+
   const { candidates, falsePositiveRate } = filter.testQuery(query);
   const prefilterEndTime = performance.now();
-  
+
   textSearchStats.candidatesBeforeFilter += collection.length;
   textSearchStats.candidatesAfterFilter += candidates.length;
-  textSearchStats.totalPrefilterTime += (prefilterEndTime - prefilterStartTime);
-  
+  textSearchStats.totalPrefilterTime += prefilterEndTime - prefilterStartTime;
+
   if (DEBUG) {
-    console.log(`🔍 $text Bloom prefilter: ${collection.length} -> ${candidates.length} candidates (${((1 - candidates.length / collection.length) * 100).toFixed(1)}% reduction)`);
-    console.log(`🔍 $text estimated FPR: ${(falsePositiveRate * 100).toFixed(2)}%`);
+    console.log(
+      `🔍 $text Bloom prefilter: ${collection.length} -> ${candidates.length} candidates (${((1 - candidates.length / collection.length) * 100).toFixed(1)}% reduction)`
+    );
+    console.log(
+      `🔍 $text estimated FPR: ${(falsePositiveRate * 100).toFixed(2)}%`
+    );
   }
 
   // If prefiltering didn't help much, fall back to full scan
   if (candidates.length > collection.length * 0.5) {
     if (DEBUG) {
-      console.log('🔍 $text: Prefilter not effective, falling back to full scan');
+      console.log(
+        '🔍 $text: Prefilter not effective, falling back to full scan'
+      );
     }
     return performFullTextSearch(collection, queryTokens, mergedConfig);
   }
 
   textSearchStats.prefilterHits++;
-  
+
   // Filter collection to candidate documents and verify
   const verificationStartTime = performance.now();
   const candidateSet = new Set(candidates);
-  const candidateDocs = collection.filter((doc, index) => 
-    candidateSet.has(index.toString()) || candidateSet.has((doc as any)._id?.toString())
+  const candidateDocs = collection.filter(
+    (doc, index) =>
+      candidateSet.has(index.toString()) ||
+      candidateSet.has((doc as any)._id?.toString())
   );
-  
-  const results = performFullTextSearch(candidateDocs, queryTokens, mergedConfig);
+
+  const results = performFullTextSearch(
+    candidateDocs,
+    queryTokens,
+    mergedConfig
+  );
   const verificationEndTime = performance.now();
-  
-  textSearchStats.totalVerificationTime += (verificationEndTime - verificationStartTime);
+
+  textSearchStats.totalVerificationTime +=
+    verificationEndTime - verificationStartTime;
   textSearchStats.actualMatches += results.length;
-  
+
   const totalTime = performance.now() - startTime;
-  const estimatedFullScanTime = (totalTime / candidateDocs.length) * collection.length;
+  const estimatedFullScanTime =
+    (totalTime / candidateDocs.length) * collection.length;
   const speedupRatio = estimatedFullScanTime / totalTime;
-  
-  textSearchStats.averageSpeedupRatio = (
-    (textSearchStats.averageSpeedupRatio * (textSearchStats.totalQueries - 1) + speedupRatio) / 
-    textSearchStats.totalQueries
-  );
-  
+
+  textSearchStats.averageSpeedupRatio =
+    (textSearchStats.averageSpeedupRatio * (textSearchStats.totalQueries - 1) +
+      speedupRatio) /
+    textSearchStats.totalQueries;
+
   if (DEBUG) {
-    console.log(`🔍 $text: Found ${results.length} matches, estimated speedup: ${speedupRatio.toFixed(1)}x`);
+    console.log(
+      `🔍 $text: Found ${results.length} matches, estimated speedup: ${speedupRatio.toFixed(1)}x`
+    );
   }
 
   return results;
@@ -178,7 +200,7 @@ function buildDocumentIndex<T extends Document>(
 ): void {
   collection.forEach((doc, index) => {
     const docId = (doc as any)._id?.toString() || index.toString();
-    
+
     // Extract text from all string fields in the document
     const textContent = extractTextFromDocument(doc);
     if (textContent) {
@@ -192,7 +214,7 @@ function buildDocumentIndex<T extends Document>(
  */
 function extractTextFromDocument(doc: Document): string {
   const textParts: string[] = [];
-  
+
   function extractRecursive(obj: any): void {
     if (typeof obj === 'string') {
       textParts.push(obj);
@@ -202,7 +224,7 @@ function extractTextFromDocument(doc: Document): string {
       Object.values(obj).forEach(extractRecursive);
     }
   }
-  
+
   extractRecursive(doc);
   return textParts.join(' ');
 }
@@ -216,14 +238,14 @@ function performFullTextSearch<T extends Document>(
   config: TextSearchConfig
 ): Collection<T> {
   if (queryTokens.length === 0) return [];
-  
+
   return collection.filter(doc => {
     const docText = extractTextFromDocument(doc);
     if (!docText) return false;
-    
+
     const docTokens = extractTokens(docText);
     const docTokenSet = new Set(docTokens);
-    
+
     // Simple AND matching - all query tokens must be present
     return queryTokens.every(token => docTokenSet.has(token));
   });
@@ -251,14 +273,18 @@ export function resetTextSearchStats(): void {
  */
 export function getTextSearchStats(): TextSearchStats {
   const stats = { ...textSearchStats };
-  
+
   // Calculate derived metrics
   if (stats.candidatesBeforeFilter > 0) {
-    const reductionRate = 1 - (stats.candidatesAfterFilter / stats.candidatesBeforeFilter);
-    stats.falsePositiveRate = stats.candidatesAfterFilter > stats.actualMatches ? 
-      (stats.candidatesAfterFilter - stats.actualMatches) / stats.candidatesAfterFilter : 0;
+    const reductionRate =
+      1 - stats.candidatesAfterFilter / stats.candidatesBeforeFilter;
+    stats.falsePositiveRate =
+      stats.candidatesAfterFilter > stats.actualMatches
+        ? (stats.candidatesAfterFilter - stats.actualMatches) /
+          stats.candidatesAfterFilter
+        : 0;
   }
-  
+
   return stats;
 }
 

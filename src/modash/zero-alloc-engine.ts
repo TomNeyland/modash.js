@@ -1,6 +1,6 @@
 /**
  * Zero-Allocation Engine for Hot Path Operations
- * 
+ *
  * This engine implements the P0 performance requirements:
  * - Row IDs only in hot path, materialization only at end
  * - Near-zero allocations in steady state
@@ -11,7 +11,10 @@
 import type { Collection, Document, DocumentValue } from './expressions.js';
 import { $expressionObject } from './expressions.js';
 import type { Pipeline } from '../index.js';
-import { highPerformanceGroup, canUseHighPerformanceGroup } from './high-performance-group.js';
+import {
+  highPerformanceGroup,
+  canUseHighPerformanceGroup,
+} from './high-performance-group.js';
 
 /**
  * Minimal hot path context - no object allocations
@@ -35,6 +38,7 @@ type CompiledStage = (context: HotPathContext) => number;
  */
 export class ZeroAllocEngine {
   private compiledPipelines = new Map<string, CompiledStage[]>();
+  private stageMetadata = new Map<CompiledStage, { name: string }>();
   private contextPool: HotPathContext[] = [];
   private activeRowIdsPool: Uint32Array[] = [];
   private scratchBufferPool: Uint32Array[] = [];
@@ -44,7 +48,7 @@ export class ZeroAllocEngine {
    */
   execute(documents: Collection, pipeline: Pipeline): Collection {
     const pipelineKey = JSON.stringify(pipeline);
-    
+
     // Get or compile pipeline
     let compiledStages = this.compiledPipelines.get(pipelineKey);
     if (!compiledStages) {
@@ -54,21 +58,37 @@ export class ZeroAllocEngine {
 
     // Get context from pool
     const context = this.getContext(documents, pipeline);
-    
+
     try {
       // Execute each compiled stage in sequence
       context.activeCount = documents.length;
-      
+
       for (let i = 0; i < compiledStages.length; i++) {
         const stage = compiledStages[i];
+
+        // Check for buffer growth needs before stage execution
+        const metadata = this.stageMetadata.get(stage);
+        const stageName = metadata?.name || `stage_${i}`;
         
+        if (stageName.includes('$unwind')) {
+          // Estimate potential expansion for $unwind operations
+          const potentialSize = context.activeCount * 4; // Conservative estimate
+          this.growBufferIfNeeded(context, potentialSize);
+        }
+
         // Execute stage - modifies context.scratchBuffer and returns count
         context.scratchCount = stage(context);
-        
+
+        // Add DEBUG_IVM invariant checks
+        this.checkBufferBounds(context, stageName);
+
         // Swap buffers for next stage
-        [context.activeRowIds, context.scratchBuffer] = [context.scratchBuffer, context.activeRowIds];
+        [context.activeRowIds, context.scratchBuffer] = [
+          context.scratchBuffer,
+          context.activeRowIds,
+        ];
         context.activeCount = context.scratchCount;
-        
+
         // Early exit if no rows remain
         if (context.activeCount === 0) break;
       }
@@ -80,23 +100,22 @@ export class ZeroAllocEngine {
         const groupResults = (context as any)._groupResults;
         return groupResults as Collection;
       }
-      
+
       const result: Document[] = new Array(context.activeCount);
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
         let doc = this.getEffectiveDocument(context, rowId);
-        
+
         // Apply projection if it exists
         const projectionSpec = (context as any)._projectionSpec;
         if (projectionSpec) {
           doc = this.applyProjection(doc, projectionSpec);
         }
-        
+
         result[i] = doc;
       }
-      
+
       return result as Collection;
-      
     } finally {
       // Return context to pool
       this.returnContext(context);
@@ -109,15 +128,17 @@ export class ZeroAllocEngine {
    */
   private compilePipeline(pipeline: Pipeline): CompiledStage[] {
     const stages: CompiledStage[] = [];
-    
+
     for (let i = 0; i < pipeline.length; i++) {
       const stage = pipeline[i];
       const nextStage = i < pipeline.length - 1 ? pipeline[i + 1] : null;
-      
+
       // Check for Phase 3 fusion opportunities
       if (stage.$match && nextStage?.$project) {
         // Fuse $match + $project
-        stages.push(this.compileFusedMatchProject(stage.$match, nextStage.$project));
+        stages.push(
+          this.compileFusedMatchProject(stage.$match, nextStage.$project)
+        );
         i++; // Skip next stage
       } else if (stage.$sort && nextStage?.$limit) {
         // Fuse $sort + $limit for Top-K
@@ -125,7 +146,9 @@ export class ZeroAllocEngine {
         i++; // Skip next stage
       } else if (stage.$unwind && nextStage?.$group) {
         // Phase 3: Fuse $unwind + $group to avoid repeated materialization
-        stages.push(this.compileFusedUnwindGroup(stage.$unwind, nextStage.$group));
+        stages.push(
+          this.compileFusedUnwindGroup(stage.$unwind, nextStage.$group)
+        );
         i++; // Skip next stage
       } else if (stage.$match) {
         stages.push(this.compileMatch(stage.$match));
@@ -146,7 +169,7 @@ export class ZeroAllocEngine {
         throw new Error(`Unsupported stage: ${Object.keys(stage)[0]}`);
       }
     }
-    
+
     return stages;
   }
 
@@ -216,7 +239,7 @@ export class ZeroAllocEngine {
     return (context: HotPathContext): number => {
       // Store projection spec for later materialization
       (context as any)._projectionSpec = spec;
-      
+
       // Copy all active row IDs to scratch buffer (no filtering at this stage)
       for (let i = 0; i < context.activeCount; i++) {
         context.scratchBuffer[i] = context.activeRowIds[i];
@@ -233,7 +256,7 @@ export class ZeroAllocEngine {
     if (!canUseHighPerformanceGroup(spec)) {
       throw new Error('Group operation not supported in zero-alloc path');
     }
-    
+
     return (context: HotPathContext): number => {
       // Materialize active documents for grouping using effective document resolution
       const activeDocuments = [];
@@ -241,13 +264,13 @@ export class ZeroAllocEngine {
         const rowId = context.activeRowIds[i];
         activeDocuments.push(this.getEffectiveDocument(context, rowId));
       }
-      
+
       // Use high-performance group engine
       const groupResults = highPerformanceGroup(activeDocuments, spec);
-      
+
       // Store results in context for materialization
       (context as any)._groupResults = groupResults;
-      
+
       return groupResults.length;
     };
   }
@@ -257,15 +280,17 @@ export class ZeroAllocEngine {
    */
   private compileSort(spec: any): CompiledStage {
     const [field, order] = Object.entries(spec)[0] as [string, 1 | -1];
-    
+
     return (context: HotPathContext): number => {
       // Create sorting pairs
-      const pairs: Array<{ rowId: number; value: any }> = new Array(context.activeCount);
+      const pairs: Array<{ rowId: number; value: any }> = new Array(
+        context.activeCount
+      );
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
         pairs[i] = { rowId, value: context.documents[rowId][field] };
       }
-      
+
       // Sort pairs
       pairs.sort((a, b) => {
         let comparison = 0;
@@ -273,12 +298,12 @@ export class ZeroAllocEngine {
         else if (a.value > b.value) comparison = 1;
         return order * comparison;
       });
-      
+
       // Extract sorted row IDs
       for (let i = 0; i < pairs.length; i++) {
         context.scratchBuffer[i] = pairs[i].rowId;
       }
-      
+
       return context.activeCount;
     };
   }
@@ -313,16 +338,19 @@ export class ZeroAllocEngine {
   /**
    * Compile fused $match + $project
    */
-  private compileFusedMatchProject(matchExpr: any, projectSpec: any): CompiledStage {
+  private compileFusedMatchProject(
+    matchExpr: any,
+    projectSpec: any
+  ): CompiledStage {
     const matchFn = this.compileMatch(matchExpr);
-    
+
     return (context: HotPathContext): number => {
       // Apply match filtering first
       const matchedCount = matchFn(context);
-      
+
       // Store projection spec for final materialization
       (context as any)._projectionSpec = projectSpec;
-      
+
       return matchedCount;
     };
   }
@@ -332,25 +360,25 @@ export class ZeroAllocEngine {
    */
   private compileFusedSortLimit(sortSpec: any, limit: number): CompiledStage {
     const [field, order] = Object.entries(sortSpec)[0] as [string, 1 | -1];
-    
+
     return (context: HotPathContext): number => {
       // Use Top-K algorithm for better performance when limit << activeCount
       if (limit >= context.activeCount * 0.5) {
         // Use regular sort for large limits
         const sortStage = this.compileSort(sortSpec);
         const sortedCount = sortStage(context);
-        
+
         // Apply limit
         const finalCount = Math.min(limit, sortedCount);
         return finalCount;
       } else {
         // Use Top-K heap for small limits
         const heap: Array<{ rowId: number; value: any }> = [];
-        
+
         for (let i = 0; i < context.activeCount; i++) {
           const rowId = context.activeRowIds[i];
           const value = context.documents[rowId][field];
-          
+
           if (heap.length < limit) {
             heap.push({ rowId, value });
             if (heap.length === limit) {
@@ -361,21 +389,21 @@ export class ZeroAllocEngine {
             // Check if this item should replace heap root
             const comparison = this.compareValues(value, heap[0].value);
             const shouldReplace = order === 1 ? comparison < 0 : comparison > 0;
-            
+
             if (shouldReplace) {
               heap[0] = { rowId, value };
               this.siftDown(heap, 0, order);
             }
           }
         }
-        
+
         // Extract sorted results
         heap.sort((a, b) => order * this.compareValues(a.value, b.value));
-        
+
         for (let i = 0; i < heap.length; i++) {
           context.scratchBuffer[i] = heap[i].rowId;
         }
-        
+
         return heap.length;
       }
     };
@@ -384,20 +412,27 @@ export class ZeroAllocEngine {
   /**
    * Estimate buffer size needed for pipeline
    * $unwind can expand results, so we need larger buffers
+   * Enhanced with dynamic growth capabilities
    */
-  private estimateBufferSize(documents: Document[], pipeline: Pipeline): number {
+  private estimateBufferSize(
+    documents: Document[],
+    pipeline: Pipeline
+  ): number {
     let estimatedSize = documents.length;
-    
+
     // Check for $unwind operations that can expand results
     for (const stage of pipeline) {
       if ('$unwind' in stage) {
-        const path = typeof stage.$unwind === 'string' ? stage.$unwind : stage.$unwind.path;
+        const path =
+          typeof stage.$unwind === 'string'
+            ? stage.$unwind
+            : stage.$unwind.path;
         const fieldName = path.startsWith('$') ? path.slice(1) : path;
-        
+
         // Estimate expansion factor by examining array lengths
         let totalExpansion = 0;
         for (const doc of documents) {
-          const arrayValue = doc[fieldName];
+          const arrayValue = this.getFieldValue(doc, fieldName);
           if (Array.isArray(arrayValue)) {
             totalExpansion += arrayValue.length;
           } else if (arrayValue != null) {
@@ -408,15 +443,50 @@ export class ZeroAllocEngine {
         estimatedSize = totalExpansion;
       }
     }
-    
-    // Add some buffer for safety
-    return Math.max(estimatedSize * 1.2, 16);
+
+    // Use power-of-two sizing for better memory allocation
+    return this.nextPowerOfTwo(Math.max(estimatedSize * 1.5, 32));
+  }
+
+  /**
+   * Get next power of two for optimal buffer sizing
+   */
+  private nextPowerOfTwo(n: number): number {
+    if (n <= 0) return 1;
+    n = n - 1;
+    n = n | (n >> 1);
+    n = n | (n >> 2);
+    n = n | (n >> 4);
+    n = n | (n >> 8);
+    n = n | (n >> 16);
+    return n + 1;
+  }
+
+  /**
+   * Get field value supporting dot notation
+   */
+  private getFieldValue(doc: Document, fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let value = doc;
+
+    for (const part of parts) {
+      if (value && typeof value === 'object' && part in value) {
+        value = (value as any)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return value;
   }
 
   /**
    * Get context from pool or create new one
    */
-  private getContext(documents: Document[], pipeline: Pipeline): HotPathContext {
+  private getContext(
+    documents: Document[],
+    pipeline: Pipeline
+  ): HotPathContext {
     let context = this.contextPool.pop();
     if (!context) {
       context = {
@@ -424,14 +494,14 @@ export class ZeroAllocEngine {
         activeRowIds: new Uint32Array(0),
         activeCount: 0,
         scratchBuffer: new Uint32Array(0),
-        scratchCount: 0
+        scratchCount: 0,
       };
     }
 
     // Update context for current operation
     context.documents = documents as Document[];
     const estimatedSize = this.estimateBufferSize(documents, pipeline);
-    
+
     if (context.activeRowIds.length < estimatedSize) {
       context.activeRowIds = this.getActiveRowIds(estimatedSize);
       context.scratchBuffer = this.getScratchBuffer(estimatedSize);
@@ -442,7 +512,7 @@ export class ZeroAllocEngine {
     for (let i = 0; i < initialSize; i++) {
       context.activeRowIds[i] = i;
     }
-    
+
     return context;
   }
 
@@ -456,17 +526,64 @@ export class ZeroAllocEngine {
   }
 
   /**
-   * Get Uint32Array from pool for active row IDs
+   * Get Uint32Array from pool for active row IDs with dynamic growth
    */
   private getActiveRowIds(size: number): Uint32Array {
+    // Use power-of-two sizing for better allocation
+    const optimalSize = this.nextPowerOfTwo(size);
+
     for (let i = 0; i < this.activeRowIdsPool.length; i++) {
       const buffer = this.activeRowIdsPool[i];
-      if (buffer.length >= size) {
+      if (buffer.length >= optimalSize) {
         this.activeRowIdsPool.splice(i, 1);
         return buffer;
       }
     }
-    return new Uint32Array(size);
+    return new Uint32Array(optimalSize);
+  }
+
+  /**
+   * Dynamically grow buffer if needed during $unwind expansion
+   */
+  private growBufferIfNeeded(
+    context: HotPathContext,
+    requiredSize: number
+  ): void {
+    if (context.activeRowIds.length < requiredSize) {
+      const newSize = this.nextPowerOfTwo(requiredSize);
+
+      if (process.env.DEBUG_IVM) {
+        console.log(
+          `[IVM DEBUG] Growing buffer from ${context.activeRowIds.length} to ${newSize}`
+        );
+      }
+
+      // Return old buffers to pool
+      this.returnActiveRowIds(context.activeRowIds);
+      this.returnScratchBuffer(context.scratchBuffer);
+
+      // Get new larger buffers
+      context.activeRowIds = this.getActiveRowIds(newSize);
+      context.scratchBuffer = this.getScratchBuffer(newSize);
+    }
+  }
+
+  /**
+   * Add DEBUG_IVM invariant check for buffer overrun prevention
+   */
+  private checkBufferBounds(context: HotPathContext, operation: string): void {
+    if (process.env.DEBUG_IVM) {
+      if (context.activeCount > context.activeRowIds.length) {
+        throw new Error(
+          `[IVM INVARIANT VIOLATION] ${operation}: activeCount ${context.activeCount} exceeds buffer length ${context.activeRowIds.length}`
+        );
+      }
+      if (context.scratchCount > context.scratchBuffer.length) {
+        throw new Error(
+          `[IVM INVARIANT VIOLATION] ${operation}: scratchCount ${context.scratchCount} exceeds buffer length ${context.scratchBuffer.length}`
+        );
+      }
+    }
   }
 
   /**
@@ -479,17 +596,20 @@ export class ZeroAllocEngine {
   }
 
   /**
-   * Get Uint32Array from pool for scratch buffer
+   * Get Uint32Array from pool for scratch buffer with dynamic growth
    */
   private getScratchBuffer(size: number): Uint32Array {
+    // Use power-of-two sizing for better allocation
+    const optimalSize = this.nextPowerOfTwo(size);
+
     for (let i = 0; i < this.scratchBufferPool.length; i++) {
       const buffer = this.scratchBufferPool[i];
-      if (buffer.length >= size) {
+      if (buffer.length >= optimalSize) {
         this.scratchBufferPool.splice(i, 1);
         return buffer;
       }
     }
-    return new Uint32Array(size);
+    return new Uint32Array(optimalSize);
   }
 
   /**
@@ -506,7 +626,7 @@ export class ZeroAllocEngine {
    */
   private isSimpleEquality(expr: any): boolean {
     if (typeof expr !== 'object' || expr === null) return false;
-    
+
     for (const [key, value] of Object.entries(expr)) {
       if (key.startsWith('$')) return false;
       if (typeof value === 'object' && value !== null) return false;
@@ -560,7 +680,8 @@ export class ZeroAllocEngine {
                   if (docValue === value) return false;
                   break;
                 case '$in':
-                  if (!Array.isArray(value) || !value.includes(docValue)) return false;
+                  if (!Array.isArray(value) || !value.includes(docValue))
+                    return false;
                   break;
                 default:
                   return false; // Unsupported operator
@@ -583,7 +704,7 @@ export class ZeroAllocEngine {
     if (a === b) return 0;
     if (a == null) return -1;
     if (b == null) return 1;
-    
+
     if (typeof a === 'number' && typeof b === 'number') {
       return a - b;
     } else if (typeof a === 'string' && typeof b === 'string') {
@@ -596,7 +717,10 @@ export class ZeroAllocEngine {
   /**
    * Build heap for Top-K
    */
-  private heapify(heap: Array<{ rowId: number; value: any }>, order: 1 | -1): void {
+  private heapify(
+    heap: Array<{ rowId: number; value: any }>,
+    order: 1 | -1
+  ): void {
     const n = heap.length;
     for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
       this.siftDown(heap, i, order);
@@ -606,29 +730,39 @@ export class ZeroAllocEngine {
   /**
    * Sift down for heap maintenance
    */
-  private siftDown(heap: Array<{ rowId: number; value: any }>, start: number, order: 1 | -1): void {
+  private siftDown(
+    heap: Array<{ rowId: number; value: any }>,
+    start: number,
+    order: 1 | -1
+  ): void {
     let parent = start;
     const n = heap.length;
-    
+
     while (true) {
       const left = 2 * parent + 1;
       const right = 2 * parent + 2;
       let target = parent;
-      
+
       if (left < n) {
-        const comparison = this.compareValues(heap[left].value, heap[target].value);
+        const comparison = this.compareValues(
+          heap[left].value,
+          heap[target].value
+        );
         const shouldPreferLeft = order === 1 ? comparison > 0 : comparison < 0;
         if (shouldPreferLeft) target = left;
       }
-      
+
       if (right < n) {
-        const comparison = this.compareValues(heap[right].value, heap[target].value);
+        const comparison = this.compareValues(
+          heap[right].value,
+          heap[target].value
+        );
         const shouldPreferRight = order === 1 ? comparison > 0 : comparison < 0;
         if (shouldPreferRight) target = right;
       }
-      
+
       if (target === parent) break;
-      
+
       [heap[parent], heap[target]] = [heap[target], heap[parent]];
       parent = target;
     }
@@ -641,36 +775,63 @@ export class ZeroAllocEngine {
   private compileUnwind(unwindSpec: any): CompiledStage {
     const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
     const fieldName = path.startsWith('$') ? path.slice(1) : path;
-    
-    return (context: HotPathContext): number => {
+
+    const compiledStage = (context: HotPathContext): number => {
       let count = 0;
-      
+
+      // Estimate expansion to check for buffer growth needs
+      let estimatedExpansion = 0;
+      for (let i = 0; i < context.activeCount; i++) {
+        const rowId = context.activeRowIds[i];
+        const doc = context.documents[rowId];
+        const arrayValue = this.getFieldValue(doc, fieldName);
+        if (Array.isArray(arrayValue)) {
+          estimatedExpansion += arrayValue.length;
+        } else if (arrayValue != null) {
+          estimatedExpansion += 1;
+        }
+      }
+
+      // Grow buffer if needed for expansion
+      if (estimatedExpansion > context.scratchBuffer.length) {
+        this.growBufferIfNeeded(context, estimatedExpansion);
+      }
+
       // Generate virtual row IDs for unwound elements
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
         const doc = context.documents[rowId];
-        const arrayValue = doc[fieldName];
-        
+        const arrayValue = this.getFieldValue(doc, fieldName);
+
         if (Array.isArray(arrayValue) && arrayValue.length > 0) {
           // Generate virtual IDs for each array element
           for (let elemIdx = 0; elemIdx < arrayValue.length; elemIdx++) {
-            if (count < context.scratchBuffer.length) {
-              // Create virtual row ID: "parentRowId:fieldName:elemIdx"
-              const virtualRowId = `${rowId}:${fieldName}:${elemIdx}`;
-              // Store as number by hashing for efficient lookup
-              const virtualId = this.hashVirtualRowId(virtualRowId);
-              context.scratchBuffer[count++] = virtualId;
-              
-              // Store virtual row mapping for getValue resolution
-              if (!(context as any)._virtualRows) {
-                (context as any)._virtualRows = new Map();
+            if (count >= context.scratchBuffer.length) {
+              // This should not happen with proper buffer growth, but safety check
+              if (process.env.DEBUG_IVM) {
+                throw new Error(
+                  `[IVM INVARIANT VIOLATION] $unwind buffer overflow: ${count} >= ${context.scratchBuffer.length}`
+                );
               }
-              (context as any)._virtualRows.set(virtualId, {
-                parentRowId: rowId,
-                fieldName,
-                elemIdx
-              });
+              break;
             }
+
+            // Create virtual row ID: "parentRowId:fieldName:elemIdx"
+            const virtualRowId = `${rowId}:${fieldName}:${elemIdx}`;
+            // Store as number by hashing for efficient lookup
+            const virtualId = this.hashVirtualRowId(virtualRowId);
+            context.scratchBuffer[count++] = virtualId;
+
+            // Store virtual row mapping for getValue resolution
+            if (!(context as any)._virtualRows) {
+              (context as any)._virtualRows = new Map();
+            }
+            (context as any)._virtualRows.set(virtualId, {
+              parentRowId: rowId,
+              fieldName,
+              elemIdx,
+              arrayValue: arrayValue[elemIdx],
+            });
           }
         } else if (arrayValue != null) {
           // Non-array value, keep original row ID
@@ -680,9 +841,13 @@ export class ZeroAllocEngine {
         }
         // Skip if arrayValue is null/undefined (MongoDB behavior)
       }
-      
+
       return count;
     };
+
+    // Add metadata for debugging
+    this.stageMetadata.set(compiledStage, { name: '$unwind' });
+    return compiledStage;
   }
 
   /**
@@ -692,12 +857,12 @@ export class ZeroAllocEngine {
     let hash = 0;
     for (let i = 0; i < virtualRowId.length; i++) {
       const char = virtualRowId.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash);
   }
-  
+
   /**
    * Apply projection specification to document
    */
@@ -707,24 +872,27 @@ export class ZeroAllocEngine {
     if (!('_id' in specs)) {
       specs._id = 1;
     }
-    
+
     return $expressionObject(doc, specs, doc);
   }
-  private getEffectiveDocument(context: HotPathContext, rowId: number): Document {
+  private getEffectiveDocument(
+    context: HotPathContext,
+    rowId: number
+  ): Document {
     // Check if this is a virtual row ID
     const virtualRows = (context as any)._virtualRows;
     if (virtualRows && virtualRows.has(rowId)) {
       const virtualInfo = virtualRows.get(rowId);
       const parentDoc = context.documents[virtualInfo.parentRowId];
       const arrayValue = parentDoc[virtualInfo.fieldName];
-      
+
       // Create unwound document view
       return {
         ...parentDoc,
-        [virtualInfo.fieldName]: arrayValue[virtualInfo.elemIdx]
+        [virtualInfo.fieldName]: arrayValue[virtualInfo.elemIdx],
       };
     }
-    
+
     // Regular row ID
     return context.documents[rowId];
   }
@@ -733,19 +901,22 @@ export class ZeroAllocEngine {
    * Phase 3: Compile fused $unwind + $group for optimization
    * Avoids repeated materialization by processing arrays directly
    */
-  private compileFusedUnwindGroup(unwindSpec: any, groupSpec: any): CompiledStage {
+  private compileFusedUnwindGroup(
+    unwindSpec: any,
+    groupSpec: any
+  ): CompiledStage {
     const path = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
     const fieldName = path.startsWith('$') ? path.slice(1) : path;
-    
-    return (context: HotPathContext): number => {
+
+    const compiledStage = (context: HotPathContext): number => {
       const groupMap = new Map<string, any>();
-      
+
       // Process each document and unwind + group in one pass
       for (let i = 0; i < context.activeCount; i++) {
         const rowId = context.activeRowIds[i];
         const doc = context.documents[rowId];
-        const arrayValue = doc[fieldName];
-        
+        const arrayValue = this.getFieldValue(doc, fieldName);
+
         if (Array.isArray(arrayValue)) {
           for (const element of arrayValue) {
             const unwoundDoc = { ...doc, [fieldName]: element };
@@ -755,38 +926,46 @@ export class ZeroAllocEngine {
           this.processGroupDocument(doc, groupSpec, groupMap);
         }
       }
-      
+
       // Convert group results to array
       const groupResults = Array.from(groupMap.values());
-      
+
       // Finalize all accumulators
       for (const group of groupResults) {
         this.finalizeAccumulators(group, groupSpec);
       }
-      
+
       (context as any)._groupResults = groupResults;
-      
+
       return groupResults.length;
     };
+
+    // Add metadata for debugging
+    this.stageMetadata.set(compiledStage, { name: '$unwind+$group' });
+    return compiledStage;
   }
 
   /**
    * Process a single document for grouping (helper for fused operations)
    */
-  private processGroupDocument(doc: Document, groupSpec: any, groupMap: Map<string, any>): void {
+  private processGroupDocument(
+    doc: Document,
+    groupSpec: any,
+    groupMap: Map<string, any>
+  ): void {
     // Extract group key
     const groupKey = this.extractGroupKey(doc, groupSpec._id);
     const keyStr = JSON.stringify(groupKey);
-    
+
     // Get or create group
     let group = groupMap.get(keyStr);
     if (!group) {
       group = { _id: groupKey };
-      
+
       // Initialize accumulators
       for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
         if (field === '_id') continue;
-        
+
         const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
         switch (accumulatorOp) {
           case '$sum':
@@ -813,10 +992,10 @@ export class ZeroAllocEngine {
             break;
         }
       }
-      
+
       groupMap.set(keyStr, group);
     }
-    
+
     // Update accumulators
     this.updateAccumulators(doc, groupSpec, group);
   }
@@ -828,12 +1007,12 @@ export class ZeroAllocEngine {
     if (idSpec === null || idSpec === undefined) {
       return null;
     }
-    
+
     if (typeof idSpec === 'string' && idSpec.startsWith('$')) {
       const field = idSpec.slice(1);
       return doc[field];
     }
-    
+
     if (typeof idSpec === 'object' && idSpec !== null) {
       const result: any = {};
       for (const [key, value] of Object.entries(idSpec)) {
@@ -846,7 +1025,7 @@ export class ZeroAllocEngine {
       }
       return result;
     }
-    
+
     return idSpec;
   }
 
@@ -856,10 +1035,10 @@ export class ZeroAllocEngine {
   private updateAccumulators(doc: Document, groupSpec: any, group: any): void {
     for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
       if (field === '_id') continue;
-      
+
       const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
       const valueExpr = (accumulatorSpec as any)[accumulatorOp];
-      
+
       let value: any;
       if (typeof valueExpr === 'string' && valueExpr.startsWith('$')) {
         const fieldName = valueExpr.slice(1);
@@ -869,10 +1048,10 @@ export class ZeroAllocEngine {
       } else {
         value = 1; // Default for counting
       }
-      
+
       switch (accumulatorOp) {
         case '$sum':
-          group[field] += (typeof value === 'number') ? value : 0;
+          group[field] += typeof value === 'number' ? value : 0;
           break;
         case '$avg':
           if (typeof value === 'number') {
@@ -919,9 +1098,14 @@ export class ZeroAllocEngine {
     // Finalize $avg calculations and convert Sets to Arrays
     for (const [field, accumulatorSpec] of Object.entries(groupSpec)) {
       if (field === '_id') continue;
-      
+
       const accumulatorOp = Object.keys(accumulatorSpec as object)[0];
-      if (accumulatorOp === '$avg' && group[field] && typeof group[field] === 'object' && group[field].count > 0) {
+      if (
+        accumulatorOp === '$avg' &&
+        group[field] &&
+        typeof group[field] === 'object' &&
+        group[field].count > 0
+      ) {
         const avgData = group[field];
         group[field] = avgData.sum / avgData.count;
       } else if (accumulatorOp === '$addToSet') {

@@ -21,9 +21,9 @@ import {
   wrapOperatorSnapshot,
   logPipelineExecution,
 } from './debug.js';
-import { 
+import {
   ExpressionCompilerImpl,
-  PerformanceEngineImpl 
+  PerformanceEngineImpl,
 } from './crossfilter-compiler.js';
 import { OptimizedIVMOperatorFactory } from './crossfilter-operators.js';
 
@@ -77,18 +77,18 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
     // Compile operators with fusion optimization
     const operators: IVMOperator[] = [];
-    
+
     // Process stages with fusion detection
     for (let i = 0; i < plan.stages.length; i++) {
       const stage = plan.stages[i];
       const nextStage = i < plan.stages.length - 1 ? plan.stages[i + 1] : null;
-      
+
       // Check for operator fusion opportunities
       if (nextStage && this.operatorFactory.canFuseStages(stage, nextStage)) {
         if (DEBUG) {
           console.log(`🔗 Fusing stages: ${stage.type} + ${nextStage.type}`);
         }
-        
+
         // Create fused operator
         if (stage.type === '$match' && nextStage.type === '$project') {
           const operator = this.operatorFactory.createFusedMatchProjectOperator(
@@ -100,15 +100,15 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           continue;
         }
       }
-      
+
       // Check for $sort + $limit fusion (Top-K optimization)
       if (stage.type === '$sort' && nextStage?.type === '$limit') {
         if (DEBUG) {
           console.log(`🔗 Fusing $sort + $limit for Top-K optimization`);
         }
-        
+
         const operator = this.operatorFactory.createSortOperator(
-          stage.stageData, 
+          stage.stageData,
           nextStage.stageData // Pass limit to sort operator
         );
         operators.push(operator);

@@ -1,6 +1,6 @@
 /**
  * High-Performance Delta Batching Optimizer for Streaming Operations
- * 
+ *
  * Phase 3 Enhanced Features:
  * - Provides 250k+ deltas/sec throughput with <5ms P99 latency through:
  * - Batched delta processing with adaptive batch sizes
@@ -121,7 +121,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   private batchTimer: NodeJS.Timeout | null = null;
   private processingBatch = false;
   private batchIdCounter = 0;
-  
+
   // Performance tracking
   private metrics: DeltaMetrics = {
     totalDeltas: 0,
@@ -129,20 +129,20 @@ export class StreamingDeltaOptimizer extends EventEmitter {
     throughputDeltasPerSec: 0,
     avgBatchSize: 0,
     p99LatencyMs: 0,
-    adaptiveBatchSize: 32
+    adaptiveBatchSize: 32,
   };
-  
+
   private latencyHistory: number[] = [];
   private throughputWindow: Array<{ timestamp: number; deltas: number }> = [];
-  
+
   // Adaptive batching state
   private lastBatchTime = 0;
   private adaptiveBatchSize = 32;
   private targetThroughput = 250_000; // 250k deltas/sec
-  
+
   constructor(private config: BatchConfig) {
     super();
-    
+
     // Start processing timer
     this.scheduleNextBatch();
   }
@@ -152,7 +152,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
    */
   queueDelta(delta: Delta): boolean {
     delta.timestamp = performance.now();
-    
+
     // Try to enqueue
     if (!this.deltaBuffer.enqueue(delta)) {
       // Buffer full - apply backpressure
@@ -161,12 +161,12 @@ export class StreamingDeltaOptimizer extends EventEmitter {
     }
 
     this.metrics.totalDeltas++;
-    
+
     // Check if we should trigger immediate processing
     if (this.shouldTriggerImmediateProcessing()) {
       this.processBatch();
     }
-    
+
     return true;
   }
 
@@ -178,15 +178,15 @@ export class StreamingDeltaOptimizer extends EventEmitter {
     if (this.deltaBuffer.getSize() >= this.adaptiveBatchSize) {
       return true;
     }
-    
+
     // Trigger if we're behind on throughput targets
     const now = performance.now();
     const timeSinceLastBatch = now - this.lastBatchTime;
-    
+
     if (timeSinceLastBatch > this.config.maxBatchDelayMs) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -200,7 +200,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
 
     this.processingBatch = true;
     const batchStartTime = performance.now();
-    
+
     try {
       // Dequeue batch
       const batch = this.deltaBuffer.dequeueBatch(this.adaptiveBatchSize);
@@ -209,13 +209,13 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       }
 
       const batchId = ++this.batchIdCounter;
-      
+
       if (DEBUG) {
         logPipelineExecution('DELTA_OPTIMIZER', `Processing delta batch`, {
           batchId,
           batchSize: batch.length,
           queueSize: this.deltaBuffer.getSize(),
-          adaptiveBatchSize: this.adaptiveBatchSize
+          adaptiveBatchSize: this.adaptiveBatchSize,
         });
       }
 
@@ -242,11 +242,11 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       if (addDeltas.length > 0) {
         this.emit('batch-add', { documents: addDeltas, batchId });
       }
-      
+
       if (removeDeltas.length > 0) {
         this.emit('batch-remove', { documents: removeDeltas, batchId });
       }
-      
+
       if (updateDeltas.length > 0) {
         this.emit('batch-update', { documents: updateDeltas, batchId });
       }
@@ -254,14 +254,13 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       // Update metrics
       const batchDuration = performance.now() - batchStartTime;
       this.updateMetrics(batch, batchDuration);
-      
+
       // Adapt batch size based on performance
       this.adaptBatchSize(batch.length, batchDuration);
-      
     } finally {
       this.processingBatch = false;
       this.lastBatchTime = performance.now();
-      
+
       // Schedule next batch if there are more deltas
       if (this.deltaBuffer.getSize() > 0) {
         setImmediate(() => this.processBatch());
@@ -274,38 +273,42 @@ export class StreamingDeltaOptimizer extends EventEmitter {
    */
   private updateMetrics(batch: Delta[], batchDuration: number): void {
     this.metrics.totalBatches++;
-    this.metrics.avgBatchSize = this.metrics.totalDeltas / this.metrics.totalBatches;
-    
+    this.metrics.avgBatchSize =
+      this.metrics.totalDeltas / this.metrics.totalBatches;
+
     // Calculate latency for each delta in batch
     const batchEndTime = performance.now();
     for (const delta of batch) {
       const latency = batchEndTime - delta.timestamp;
       this.latencyHistory.push(latency);
     }
-    
+
     // Keep only recent latency history (last 1000 deltas)
     if (this.latencyHistory.length > 1000) {
       this.latencyHistory = this.latencyHistory.slice(-1000);
     }
-    
+
     // Calculate P99 latency
     if (this.latencyHistory.length > 0) {
       const sorted = [...this.latencyHistory].sort((a, b) => a - b);
       const p99Index = Math.floor(sorted.length * 0.99);
       this.metrics.p99LatencyMs = sorted[p99Index];
     }
-    
+
     // Calculate throughput
     const now = Date.now();
     this.throughputWindow.push({ timestamp: now, deltas: batch.length });
-    
+
     // Keep throughput window to last 5 seconds
     this.throughputWindow = this.throughputWindow.filter(
       entry => now - entry.timestamp < 5000
     );
-    
+
     if (this.throughputWindow.length > 1) {
-      const totalDeltas = this.throughputWindow.reduce((sum, entry) => sum + entry.deltas, 0);
+      const totalDeltas = this.throughputWindow.reduce(
+        (sum, entry) => sum + entry.deltas,
+        0
+      );
       const timeSpanSec = (now - this.throughputWindow[0].timestamp) / 1000;
       this.metrics.throughputDeltasPerSec = totalDeltas / timeSpanSec;
     }
@@ -322,14 +325,14 @@ export class StreamingDeltaOptimizer extends EventEmitter {
     const currentThroughput = this.metrics.throughputDeltasPerSec;
     const targetThroughput = this.targetThroughput;
     const queuePressure = this.deltaBuffer.getSize() / 2048; // Normalized queue pressure
-    
+
     // Phase 3: Multi-factor adaptive batching
     const latencyOk = this.metrics.p99LatencyMs < 5.0; // Target: <5ms P99
     const throughputOk = currentThroughput >= targetThroughput * 0.9; // 90% of target
-    
+
     let adjustmentFactor = 1.0;
     let reason = 'stable';
-    
+
     if (!latencyOk && this.adaptiveBatchSize > 8) {
       // P99 latency too high - reduce batch size aggressively
       adjustmentFactor = 0.7;
@@ -351,25 +354,32 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       adjustmentFactor = 0.85;
       reason = 'processing_slow';
     }
-    
+
     // Apply adjustment with bounds
     const oldSize = this.adaptiveBatchSize;
-    this.adaptiveBatchSize = Math.max(8, Math.min(512, Math.round(this.adaptiveBatchSize * adjustmentFactor)));
+    this.adaptiveBatchSize = Math.max(
+      8,
+      Math.min(512, Math.round(this.adaptiveBatchSize * adjustmentFactor))
+    );
     this.metrics.adaptiveBatchSize = this.adaptiveBatchSize;
-    
+
     if (DEBUG && Math.abs(adjustmentFactor - 1.0) > 0.05) {
-      logPipelineExecution('DELTA_OPTIMIZER', `Adaptive batch size adjustment`, {
-        reason,
-        oldSize,
-        newSize: this.adaptiveBatchSize,
-        adjustmentFactor: adjustmentFactor.toFixed(2),
-        latencyOk,
-        throughputOk,
-        queuePressure: Math.round(queuePressure * 100) + '%',
-        p99Latency: this.metrics.p99LatencyMs.toFixed(2) + 'ms',
-        throughput: Math.round(currentThroughput) + ' deltas/sec',
-        batchDuration: batchDuration.toFixed(1) + 'ms'
-      });
+      logPipelineExecution(
+        'DELTA_OPTIMIZER',
+        `Adaptive batch size adjustment`,
+        {
+          reason,
+          oldSize,
+          newSize: this.adaptiveBatchSize,
+          adjustmentFactor: adjustmentFactor.toFixed(2),
+          latencyOk,
+          throughputOk,
+          queuePressure: Math.round(queuePressure * 100) + '%',
+          p99Latency: this.metrics.p99LatencyMs.toFixed(2) + 'ms',
+          throughput: Math.round(currentThroughput) + ' deltas/sec',
+          batchDuration: batchDuration.toFixed(1) + 'ms',
+        }
+      );
     }
   }
 
@@ -387,7 +397,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
     }
-    
+
     this.batchTimer = setTimeout(() => {
       this.processBatch().then(() => {
         this.scheduleNextBatch();
@@ -401,7 +411,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   getMetrics(): DeltaMetrics & { queueSize: number } {
     return {
       ...this.metrics,
-      queueSize: this.deltaBuffer.getSize()
+      queueSize: this.deltaBuffer.getSize(),
     };
   }
 
@@ -415,9 +425,9 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       throughputDeltasPerSec: 0,
       avgBatchSize: 0,
       p99LatencyMs: 0,
-      adaptiveBatchSize: this.adaptiveBatchSize
+      adaptiveBatchSize: this.adaptiveBatchSize,
     };
-    
+
     this.latencyHistory = [];
     this.throughputWindow = [];
   }
@@ -430,7 +440,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-    
+
     this.removeAllListeners();
   }
 }
@@ -438,13 +448,15 @@ export class StreamingDeltaOptimizer extends EventEmitter {
 /**
  * Create optimized delta processor
  */
-export function createDeltaOptimizer(config: Partial<BatchConfig> = {}): StreamingDeltaOptimizer {
+export function createDeltaOptimizer(
+  config: Partial<BatchConfig> = {}
+): StreamingDeltaOptimizer {
   const defaultConfig: BatchConfig = {
     maxBatchSize: 128,
     maxBatchDelayMs: 2,
     adaptiveSizing: true,
-    targetThroughput: 250_000
+    targetThroughput: 250_000,
   };
-  
+
   return new StreamingDeltaOptimizer({ ...defaultConfig, ...config });
 }

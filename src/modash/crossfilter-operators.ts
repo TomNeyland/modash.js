@@ -14,10 +14,10 @@ import type {
 import type { Document, DocumentValue } from './expressions.js';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl.js';
 import { ExpressionCompilerImpl } from './crossfilter-compiler.js';
-import { 
-  OptimizedExpressionCompiler, 
+import {
+  OptimizedExpressionCompiler,
   FusedMatchProjectOperator,
-  DeltaBatchProcessor 
+  DeltaBatchProcessor,
 } from './performance-optimized-engine.js';
 import { optimizedSortLimit } from './topk-heap.js';
 
@@ -42,7 +42,8 @@ export class OptimizedMatchOperator implements IVMOperator {
       this.compiledExpr = compiler.compileMatchExpression(matchExpr);
     } else {
       this.optimizedCompiler = new OptimizedExpressionCompiler();
-      this.compiledExpr = this.optimizedCompiler.compileMatchExpression(matchExpr);
+      this.compiledExpr =
+        this.optimizedCompiler.compileMatchExpression(matchExpr);
     }
   }
 
@@ -429,7 +430,10 @@ export class OptimizedSortOperator implements IVMOperator {
   private limit?: number;
   private useTopKHeap: boolean;
 
-  constructor(private sortExpr: any, limit?: number) {
+  constructor(
+    private sortExpr: any,
+    limit?: number
+  ) {
     this.limit = limit;
     // Use Top-K heap when limit is specified and beneficial
     this.useTopKHeap = limit !== undefined && limit <= 1000;
@@ -474,8 +478,12 @@ export class OptimizedSortOperator implements IVMOperator {
     // Use Top-K heap optimization when beneficial
     if (this.useTopKHeap && this.limit && docsWithIds.length > 1000) {
       const documents = docsWithIds.map(item => item.doc);
-      const sortedDocs = optimizedSortLimit(documents, this.sortExpr, this.limit);
-      
+      const sortedDocs = optimizedSortLimit(
+        documents,
+        this.sortExpr,
+        this.limit
+      );
+
       // Map back to rowIds (this is the limitation - need to find original rowIds)
       // For now, fallback to regular sort with limit
       docsWithIds.sort((a, b) => this.compareDocuments(a.doc, b.doc));
@@ -500,7 +508,7 @@ export class OptimizedSortOperator implements IVMOperator {
       const bVal = this.getFieldValue(b, field);
 
       let comparison = 0;
-      
+
       // Handle nulls
       if (aVal == null && bVal == null) continue;
       if (aVal == null) comparison = -1;
@@ -971,6 +979,86 @@ export class UnwindOperator implements IVMOperator {
     return deltas;
   }
 
+  /**
+   * Handle array replacement for streaming delta symmetry
+   * This addresses the edge case: tags: ['a'] → ['b','c']
+   * Should generate proper remove+add events for virtual rows
+   */
+  onUpdate(
+    _oldDoc: Document,
+    newDoc: Document,
+    parentRowId: RowId,
+    _store: CrossfilterStore,
+    _context: IVMContext
+  ): Delta[] {
+    const newArrayValue = this.getFieldValue(newDoc, this.path);
+
+    const deltas: Delta[] = [];
+
+    // First, remove all existing child documents
+    const existingChildIds = this.parentToChildren.get(parentRowId);
+    if (existingChildIds) {
+      existingChildIds.forEach(childId => {
+        if (_store.liveSet.isSet(childId)) {
+          _store.liveSet.unset(childId);
+          delete _store.documents[childId];
+          this.childToParent.delete(childId);
+          deltas.push({ rowId: childId, sign: -1 });
+        }
+      });
+      this.parentToChildren.delete(parentRowId);
+    }
+
+    // Then, add new child documents based on new array
+    if (Array.isArray(newArrayValue) && newArrayValue.length > 0) {
+      const childIds: RowId[] = [];
+
+      newArrayValue.forEach((element, index) => {
+        const childId = this.nextChildId++;
+        const childDoc = { ...newDoc };
+
+        // Set the unwound field to the array element
+        this.setFieldValue(childDoc, this.path, element);
+
+        // Add array index if requested
+        if (this.options?.includeArrayIndex) {
+          childDoc[this.options.includeArrayIndex] = index;
+        }
+
+        // Store the child document
+        _store.documents[childId] = childDoc;
+        _store.liveSet.set(childId);
+
+        childIds.push(childId);
+        this.childToParent.set(childId, parentRowId);
+
+        deltas.push({ rowId: childId, sign: 1 });
+      });
+
+      this.parentToChildren.set(parentRowId, childIds);
+    } else if (this.options?.preserveNullAndEmptyArrays) {
+      // Keep the document but set the unwound field to null
+      const childDoc = { ...newDoc };
+      this.setFieldValue(childDoc, this.path, null);
+
+      // Add array index if requested
+      if (this.options?.includeArrayIndex) {
+        childDoc[this.options.includeArrayIndex] = null;
+      }
+
+      const childId = this.nextChildId++;
+      _store.documents[childId] = childDoc;
+      _store.liveSet.set(childId);
+
+      this.parentToChildren.set(parentRowId, [childId]);
+      this.childToParent.set(childId, parentRowId);
+
+      deltas.push({ rowId: childId, sign: 1 });
+    }
+
+    return deltas;
+  }
+
   snapshot(_store: CrossfilterStore, _context: IVMContext): RowId[] {
     const result: RowId[] = [];
 
@@ -1235,7 +1323,10 @@ export class OptimizedIVMOperatorFactory implements IVMOperatorFactory {
   /**
    * Create fused operator for $match + $project combination
    */
-  createFusedMatchProjectOperator(matchExpr: any, projectExpr: any): IVMOperator {
+  createFusedMatchProjectOperator(
+    matchExpr: any,
+    projectExpr: any
+  ): IVMOperator {
     return new FusedOperator(matchExpr, projectExpr, this.optimizedCompiler);
   }
 
@@ -1250,18 +1341,18 @@ export class OptimizedIVMOperatorFactory implements IVMOperatorFactory {
       // 2. No computed fields dependency on match results
       return this.isSafeMatchProjectFusion(stage1.$match, stage2.$project);
     }
-    
+
     return false;
   }
 
   private isSafeMatchProjectFusion(matchExpr: any, projectExpr: any): boolean {
     // Extract fields used in match
     const matchFields = this.extractFieldsFromExpression(matchExpr);
-    
+
     // Extract fields projected and computed
     const projectedFields = new Set<string>();
     const computedFields = new Set<string>();
-    
+
     for (const [field, spec] of Object.entries(projectExpr)) {
       projectedFields.add(field);
       if (typeof spec === 'object' && spec !== null) {
@@ -1292,7 +1383,7 @@ export class OptimizedIVMOperatorFactory implements IVMOperatorFactory {
 
   private extractFieldsFromExpression(expr: any): string[] {
     const fields = new Set<string>();
-    
+
     if (typeof expr === 'string' && expr.startsWith('$')) {
       fields.add(expr.slice(1));
     } else if (typeof expr === 'object' && expr !== null) {
@@ -1333,7 +1424,11 @@ export class FusedOperator implements IVMOperator {
     private projectExpr: any,
     compiler: OptimizedExpressionCompiler
   ) {
-    this.fusedFunction = new FusedMatchProjectOperator(matchExpr, projectExpr, compiler);
+    this.fusedFunction = new FusedMatchProjectOperator(
+      matchExpr,
+      projectExpr,
+      compiler
+    );
   }
 
   onAdd(
@@ -1464,7 +1559,7 @@ export class FusedOperator implements IVMOperator {
 
   private extractFieldsFromProject(expr: any): string[] {
     const fields = new Set<string>();
-    
+
     for (const [field, spec] of Object.entries(expr)) {
       if (typeof spec === 'object' && spec !== null) {
         // Extract fields from computed expressions
@@ -1479,7 +1574,7 @@ export class FusedOperator implements IVMOperator {
 
   private extractFieldsFromExpression(expr: any): string[] {
     const fields = new Set<string>();
-    
+
     if (typeof expr === 'string' && expr.startsWith('$')) {
       fields.add(expr.slice(1));
     } else if (typeof expr === 'object' && expr !== null) {
