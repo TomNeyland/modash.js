@@ -366,18 +366,24 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   ): void {
     let currentDeltas = [_delta];
 
+    // Create a single persistent context that will be shared across all stages
+    // This ensures that projected documents from upstream stages are available to downstream stages
+    const persistentContext: IVMContext = {
+      pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+      stageIndex: 0, // Will be updated for each stage
+      compiledStage: plan.stages[0], // Will be updated for each stage
+      executionPlan: plan,
+      tempState: new Map(), // Persistent across all stages - this is key for cross-stage data sharing
+    };
+
     // Apply delta through each stage
     for (let i = 0; i < operators.length; i++) {
       const operator = operators[i];
       const stage = plan.stages[i];
 
-      const _context: IVMContext = {
-        pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
-        stageIndex: i,
-        compiledStage: stage,
-        executionPlan: plan,
-        tempState: new Map(),
-      };
+      // Update context for current stage (but keep persistent tempState)
+      persistentContext.stageIndex = i;
+      persistentContext.compiledStage = stage;
 
       const nextDeltas: Delta[] = [];
 
@@ -385,9 +391,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         let stageDeltas: Delta[];
 
         if (currentDelta.sign === 1) {
-          stageDeltas = operator.onAdd(currentDelta, this.store, _context);
+          stageDeltas = operator.onAdd(currentDelta, this.store, persistentContext);
         } else {
-          stageDeltas = operator.onRemove(currentDelta, this.store, _context);
+          stageDeltas = operator.onRemove(currentDelta, this.store, persistentContext);
         }
 
         nextDeltas.push(...stageDeltas);
@@ -422,54 +428,59 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
     operators: IVMOperator[],
     plan: ExecutionPlan
   ): Collection<Document> {
-    let currentResult: Collection<Document> = [];
+    // Create a single persistent context for snapshot operations
+    // This ensures that projected documents from upstream stages are available to downstream stages
+    const persistentContext: IVMContext = {
+      pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
+      stageIndex: 0, // Will be updated for each stage
+      compiledStage: plan.stages[0], // Will be updated for each stage
+      executionPlan: plan,
+      tempState: new Map(), // Persistent across all stages for cross-stage data sharing
+    };
 
-    // Get live documents
+    // Process snapshot through pipeline stages to build up projected documents
+    // We need to simulate the pipeline execution to ensure projected documents are cached
     for (const rowId of this.store.liveSet) {
-      const doc = this.store.documents[rowId];
-      if (doc) {
-        currentResult.push(doc);
-      }
-    }
+      const _delta: Delta = { rowId, sign: 1 };
+      let currentDeltas = [_delta];
 
-    // Apply each operator's snapshot
-    for (let i = 0; i < operators.length; i++) {
-      const operator = operators[i];
-      const stage = plan.stages[i];
+      // Process through each stage to ensure projected documents are cached
+      for (let i = 0; i < operators.length; i++) {
+        const operator = operators[i];
+        
+        // Update context for current stage
+        persistentContext.stageIndex = i;
+        persistentContext.compiledStage = plan.stages[i];
 
-      const _context: IVMContext = {
-        pipeline: plan.stages.map(s => ({ [s.type]: s.stageData })) as Pipeline,
-        stageIndex: i,
-        compiledStage: stage,
-        executionPlan: plan,
-        tempState: new Map(),
-      };
-
-      // For most operators, we use their snapshot method
-      // For some operators like $group, the snapshot comes from the store state
-      if (operator.type === '$group') {
-        currentResult = operator.snapshot(this.store, _context);
-      } else if (operator.type === '$match') {
-        // If this is the first stage, start with entire store, otherwise filter currentResult
-        if (i === 0) {
-          currentResult = operator.snapshot(this.store, _context);
-        } else {
-          currentResult = this.applyMatching(currentResult, stage.stageData);
+        const nextDeltas: Delta[] = [];
+        for (const currentDelta of currentDeltas) {
+          if (currentDelta.sign === 1) {
+            const stageDeltas = operator.onAdd(currentDelta, this.store, persistentContext);
+            nextDeltas.push(...stageDeltas);
+          }
         }
-      } else if (operator.type === '$project') {
-        // Apply projection to current result
-        currentResult = this.applyProjection(currentResult, stage.stageData);
-      } else if (operator.type === '$sort') {
-        // Sort the current pipeline result, not the entire store
-        currentResult = this.applySorting(currentResult, stage.stageData);
-      } else if (operator.type === '$limit') {
-        currentResult = currentResult.slice(0, stage.stageData);
-      } else if (operator.type === '$skip') {
-        currentResult = currentResult.slice(stage.stageData);
+        currentDeltas = nextDeltas;
+
+        // If no deltas pass through this stage, break for this document
+        if (currentDeltas.length === 0) {
+          break;
+        }
       }
     }
 
-    return currentResult;
+    // Now take snapshot from the final operator
+    if (operators.length === 0) {
+      return [];
+    }
+
+    const finalOperator = operators[operators.length - 1];
+    const finalStage = plan.stages[plan.stages.length - 1];
+    
+    // Update context for final stage
+    persistentContext.stageIndex = operators.length - 1;
+    persistentContext.compiledStage = finalStage;
+
+    return finalOperator.snapshot(this.store, persistentContext);
   }
 
   private applyProjection(

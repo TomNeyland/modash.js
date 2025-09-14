@@ -75,7 +75,8 @@ export class MatchOperator implements IVMOperator {
 
     // Iterate through all live documents
     for (const rowId of _store.liveSet) {
-      const doc = _store.documents[rowId];
+      // Use effective document which may have been projected by upstream stages
+      const doc = this.getEffectiveDocument(rowId, _store, _context);
       if (doc && this.compiledExpr(doc, rowId)) {
         result.push(doc);
       }
@@ -115,6 +116,21 @@ export class MatchOperator implements IVMOperator {
     }
 
     return Array.from(fields);
+  }
+
+  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+    // Check if there are projected documents from upstream stages
+    // Look backwards through stages to find the most recent projection
+    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+      const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
+      const projectedDocs = _context.tempState.get(projectedDocsKey);
+      if (projectedDocs && projectedDocs.has(rowId)) {
+        return projectedDocs.get(rowId);
+      }
+    }
+    
+    // Fallback to original document
+    return _store.documents[rowId] || null;
   }
 }
 
@@ -369,7 +385,8 @@ export class SortOperator implements IVMOperator {
     const documents: Document[] = [];
 
     for (const rowId of _store.liveSet) {
-      const doc = _store.documents[rowId];
+      // Use effective document which may have been projected by upstream stages
+      const doc = this.getEffectiveDocument(rowId, _store, _context);
       if (doc) {
         documents.push(doc);
       }
@@ -418,6 +435,21 @@ export class SortOperator implements IVMOperator {
     }
 
     return value;
+  }
+
+  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+    // Check if there are projected documents from upstream stages
+    // Look backwards through stages to find the most recent projection
+    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+      const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
+      const projectedDocs = _context.tempState.get(projectedDocsKey);
+      if (projectedDocs && projectedDocs.has(rowId)) {
+        return projectedDocs.get(rowId);
+      }
+    }
+    
+    // Fallback to original document
+    return _store.documents[rowId] || null;
   }
 }
 
@@ -487,7 +519,8 @@ export class ProjectOperator implements IVMOperator {
     const result: Document[] = [];
 
     for (const rowId of _store.liveSet) {
-      const doc = _store.documents[rowId];
+      // Use effective document which may have been projected by upstream stages
+      const doc = this.getEffectiveDocument(rowId, _store, _context);
       if (doc) {
         result.push(this.compiledExpr(doc, rowId));
       }
@@ -519,6 +552,21 @@ export class ProjectOperator implements IVMOperator {
       field =>
         this.projectExpr[field] !== 0 && this.projectExpr[field] !== false
     );
+  }
+
+  private getEffectiveDocument(rowId: RowId, _store: CrossfilterStore, _context: IVMContext): Document | null {
+    // Check if there are projected documents from upstream stages
+    // Look backwards through stages to find the most recent projection
+    for (let stageIndex = _context.stageIndex - 1; stageIndex >= 0; stageIndex--) {
+      const projectedDocsKey = `projected_docs_stage_${stageIndex}`;
+      const projectedDocs = _context.tempState.get(projectedDocsKey);
+      if (projectedDocs && projectedDocs.has(rowId)) {
+        return projectedDocs.get(rowId);
+      }
+    }
+    
+    // Fallback to original document
+    return _store.documents[rowId] || null;
   }
 }
 
