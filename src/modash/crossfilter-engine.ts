@@ -15,6 +15,7 @@ import type { Document, Collection } from './expressions.js';
 import type { Pipeline } from '../index.js';
 
 import { LiveSetImpl, DimensionImpl } from './crossfilter-impl.js';
+import { DEBUG, wrapOperator, logPipelineExecution } from './debug.js';
 import {
   ExpressionCompilerImpl,
   PerformanceEngineImpl,
@@ -128,7 +129,9 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           throw new Error(`Unsupported stage type: ${stage.type}`);
       }
 
-      operators.push(operator);
+      // Wrap operator with debug tracing if DEBUG is enabled
+      const wrappedOperator = DEBUG ? wrapOperator(stage.type, operator) : operator;
+      operators.push(wrappedOperator);
     }
 
     this.executionPlans.set(pipelineKey, plan);
@@ -256,6 +259,8 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   }
 
   execute(pipeline: Pipeline): Collection<Document> {
+    logPipelineExecution('execute', 'Starting execution', { pipelineLength: pipeline.length });
+
     const plan = this.compilePipeline(pipeline);
 
     // For full execution, take snapshot of final pipeline state
@@ -264,6 +269,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
     if (!operators) {
       // If pipeline isn't found, try compiling again
+      logPipelineExecution('execute', 'Operators not found, recompiling');
       this.compilePipeline(pipeline);
       const newOperators = this.compiledOperators.get(pipelineKey);
       if (!newOperators) {
@@ -272,6 +278,7 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
       return this.snapshotPipeline(newOperators, plan);
     }
 
+    logPipelineExecution('execute', 'Executing snapshot with operators', { operatorCount: operators.length });
     return this.snapshotPipeline(operators, plan);
   }
 

@@ -14,6 +14,7 @@ import type { Pipeline } from '../index.js';
 import { aggregate } from './aggregation.js';
 import { createCrossfilterEngine } from './crossfilter-engine.js';
 import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm.js';
+import { DEBUG, recordFallback, logPipelineExecution } from './debug.js';
 
 /**
  * Events emitted by StreamingCollection
@@ -381,13 +382,14 @@ export class StreamingCollection<
 
     try {
       // Compile pipeline with IVM engine
+      logPipelineExecution('compile', 'Compiling pipeline', pipeline);
       const executionPlan = this.ivmEngine.compilePipeline(pipeline);
 
       // Check if pipeline can be handled incrementally
       if (!executionPlan.canIncrement || !executionPlan.canDecrement) {
-        console.warn(
-          'Pipeline contains unsupported operations for IVM, falling back to standard aggregation'
-        );
+        const msg = 'Pipeline contains unsupported operations for IVM, falling back to standard aggregation';
+        console.warn(msg);
+        recordFallback(pipeline, msg);
         throw new Error('Pipeline not fully supported by IVM engine');
       }
 
@@ -405,15 +407,25 @@ export class StreamingCollection<
       this.aggregationStates.set(pipelineKey, state);
 
       // Calculate initial result using IVM engine
+      logPipelineExecution('execute', 'Executing pipeline with IVM');
       const result = this.ivmEngine.execute(pipeline);
       state.lastResult = result;
 
       return result;
     } catch (error) {
+      const errorMsg = error?.message || String(error);
+      const errorDetails = error instanceof Error ? error.stack : errorMsg;
+
       console.warn(
         'IVM engine failed, falling back to standard aggregation:',
-        error?.message || error
+        errorMsg
       );
+
+      if (DEBUG) {
+        console.error('Full error details:', errorDetails);
+      }
+
+      recordFallback(pipeline, error);
 
       // Fallback to standard aggregation for now
       const result = aggregate(this.documents, pipeline);
