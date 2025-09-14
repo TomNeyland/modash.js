@@ -356,8 +356,14 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
       const streamingTime = endStreaming - startStreaming;
 
       // Results should be identical
-      const sortByCategory = arr =>
-        [...arr].sort((a, b) => a._id.localeCompare(b._id));
+      const sortByCategory = arr => {
+        const cmpString = (a, b) => {
+          const sa = a == null ? '' : String(a);
+          const sb = b == null ? '' : String(b);
+          return sa.localeCompare(sb);
+        };
+        return [...arr].sort((a, b) => cmpString(a._id, b._id));
+      };
       expect(sortByCategory(streamingResult)).to.deep.equal(
         sortByCategory(nonStreamingResult)
       );

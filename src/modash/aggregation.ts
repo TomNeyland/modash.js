@@ -251,6 +251,15 @@ function $skip<T extends Document = Document>(
 }
 
 /**
+ * Helper function for safe string comparison that handles mixed types
+ */
+function cmpString(a: unknown, b: unknown): number {
+  const sa = a == null ? '' : String(a);
+  const sb = b == null ? '' : String(b);
+  return sa.localeCompare(sb);
+}
+
+/**
  * Reorders the document stream by a specified sort key.
  */
 function $sort<T extends Document = Document>(
@@ -278,10 +287,15 @@ function $sort<T extends Document = Document>(
       if (valueA === null || valueA === undefined) return -direction;
       if (valueB === null || valueB === undefined) return direction;
 
-      // Compare values
+      // Compare values - use string comparison for consistent behavior
       let result = 0;
-      if (valueA < valueB) result = -1;
-      else if (valueA > valueB) result = 1;
+      if (typeof valueA === 'string' || typeof valueB === 'string') {
+        result = cmpString(valueA, valueB);
+      } else if (valueA < valueB) {
+        result = -1;
+      } else if (valueA > valueB) {
+        result = 1;
+      }
 
       if (result !== 0) {
         return result * direction;
