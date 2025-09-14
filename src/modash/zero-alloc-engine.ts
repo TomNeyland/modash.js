@@ -498,6 +498,10 @@ export class ZeroAllocEngine {
       };
     }
 
+    // Clear any stale data from previous executions
+    delete (context as any)._virtualRows;
+    delete (context as any)._groupResults;
+
     // Update context for current operation
     context.documents = documents as Document[];
     const estimatedSize = this.estimateBufferSize(documents, pipeline);
@@ -509,6 +513,7 @@ export class ZeroAllocEngine {
 
     // Initialize active row IDs (0, 1, 2, ...)
     const initialSize = documents.length;
+    context.activeCount = initialSize;
     for (let i = 0; i < initialSize; i++) {
       context.activeRowIds[i] = i;
     }
@@ -778,6 +783,7 @@ export class ZeroAllocEngine {
 
     const compiledStage = (context: HotPathContext): number => {
       let count = 0;
+      let virtualIdCounter = 1000000; // Start virtual IDs from high numbers
 
       // Estimate expansion to check for buffer growth needs
       let estimatedExpansion = 0;
@@ -803,43 +809,44 @@ export class ZeroAllocEngine {
         const doc = context.documents[rowId];
         const arrayValue = this.getFieldValue(doc, fieldName);
 
-        if (Array.isArray(arrayValue) && arrayValue.length > 0) {
-          // Generate virtual IDs for each array element
-          for (let elemIdx = 0; elemIdx < arrayValue.length; elemIdx++) {
-            if (count >= context.scratchBuffer.length) {
-              // This should not happen with proper buffer growth, but safety check
-              if (process.env.DEBUG_IVM) {
-                throw new Error(
-                  `[IVM INVARIANT VIOLATION] $unwind buffer overflow: ${count} >= ${context.scratchBuffer.length}`
-                );
+        if (Array.isArray(arrayValue)) {
+          if (arrayValue.length > 0) {
+            // Generate virtual IDs for each array element
+            for (let elemIdx = 0; elemIdx < arrayValue.length; elemIdx++) {
+              if (count >= context.scratchBuffer.length) {
+                // This should not happen with proper buffer growth, but safety check
+                if (process.env.DEBUG_IVM) {
+                  throw new Error(
+                    `[IVM INVARIANT VIOLATION] $unwind buffer overflow: ${count} >= ${context.scratchBuffer.length}`
+                  );
+                }
+                break;
               }
-              break;
-            }
 
-            // Create virtual row ID: "parentRowId:fieldName:elemIdx"
-            const virtualRowId = `${rowId}:${fieldName}:${elemIdx}`;
-            // Store as number by hashing for efficient lookup
-            const virtualId = this.hashVirtualRowId(virtualRowId);
-            context.scratchBuffer[count++] = virtualId;
+              // Use simple incremental virtual ID
+              const virtualId = virtualIdCounter++;
+              context.scratchBuffer[count++] = virtualId;
 
-            // Store virtual row mapping for getValue resolution
-            if (!(context as any)._virtualRows) {
-              (context as any)._virtualRows = new Map();
+              // Store virtual row mapping for getValue resolution
+              if (!(context as any)._virtualRows) {
+                (context as any)._virtualRows = new Map();
+              }
+              (context as any)._virtualRows.set(virtualId, {
+                parentRowId: rowId,
+                fieldName,
+                elemIdx,
+                arrayValue: arrayValue[elemIdx],
+              });
             }
-            (context as any)._virtualRows.set(virtualId, {
-              parentRowId: rowId,
-              fieldName,
-              elemIdx,
-              arrayValue: arrayValue[elemIdx],
-            });
           }
+          // Empty arrays are skipped (MongoDB behavior)
         } else if (arrayValue != null) {
           // Non-array value, keep original row ID
           if (count < context.scratchBuffer.length) {
             context.scratchBuffer[count++] = rowId;
           }
         }
-        // Skip if arrayValue is null/undefined (MongoDB behavior)
+        // Skip if arrayValue is null/undefined or empty array (MongoDB behavior)
       }
 
       return count;
@@ -884,13 +891,27 @@ export class ZeroAllocEngine {
     if (virtualRows && virtualRows.has(rowId)) {
       const virtualInfo = virtualRows.get(rowId);
       const parentDoc = context.documents[virtualInfo.parentRowId];
-      const arrayValue = parentDoc[virtualInfo.fieldName];
 
-      // Create unwound document view
-      return {
-        ...parentDoc,
-        [virtualInfo.fieldName]: arrayValue[virtualInfo.elemIdx],
-      };
+      // Create unwound document view with the correct unwound value
+      const doc = JSON.parse(JSON.stringify(parentDoc)); // Deep clone
+
+      // Handle nested field paths
+      if (virtualInfo.fieldName.includes('.')) {
+        const parts = virtualInfo.fieldName.split('.');
+        let current = doc;
+        
+        // Navigate to the parent object
+        for (let i = 0; i < parts.length - 1; i++) {
+          current = current[parts[i]];
+        }
+        
+        // Set the final field value
+        current[parts[parts.length - 1]] = virtualInfo.arrayValue;
+      } else {
+        doc[virtualInfo.fieldName] = virtualInfo.arrayValue;
+      }
+
+      return doc;
     }
 
     // Regular row ID

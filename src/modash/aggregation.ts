@@ -397,14 +397,24 @@ function $sort<T extends Document = Document>(
 /**
  * Deconstructs an array field from the input documents to output a document
  * for each element. Each output document replaces the array with an element value.
+ * Supports both string and object forms with options.
  */
 function $unwind<T extends Document = Document>(
   collection: Collection<T>,
-  fieldPath: string
+  unwindSpec: string | {
+    path: string;
+    includeArrayIndex?: string;
+    preserveNullAndEmptyArrays?: boolean;
+  }
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
   }
+
+  // Parse unwind specification
+  const fieldPath = typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
+  const options = typeof unwindSpec === 'object' ? unwindSpec : {};
+
   // Remove $ prefix if present
   const cleanPath = fieldPath.startsWith('$') ? fieldPath.slice(1) : fieldPath;
 
@@ -417,19 +427,87 @@ function $unwind<T extends Document = Document>(
       : doc[cleanPath];
 
     if (!Array.isArray(arrayValue)) {
-      result.push(doc); // Return original document if field is not an array
+      if (arrayValue != null) {
+        // Non-array value, keep document as-is
+        result.push(doc);
+      } else if (options.preserveNullAndEmptyArrays) {
+        // Null/undefined field with preserveNullAndEmptyArrays
+        const newDoc = JSON.parse(JSON.stringify(doc));
+        if (cleanPath.includes('.')) {
+          // For nested paths, set the final property to null
+          const parts = cleanPath.split('.');
+          let current = newDoc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]]) current[parts[i]] = {};
+            current = current[parts[i]];
+          }
+          current[parts[parts.length - 1]] = null;
+        } else {
+          newDoc[cleanPath] = null;
+        }
+        if (options.includeArrayIndex) {
+          newDoc[options.includeArrayIndex] = null;
+        }
+        result.push(newDoc);
+      }
+      // Otherwise skip (null/undefined without preserveNullAndEmptyArrays)
       continue;
     }
 
     if (arrayValue.length === 0) {
-      continue; // Skip documents with empty arrays
+      if (options.preserveNullAndEmptyArrays) {
+        // Empty array with preserveNullAndEmptyArrays
+        const newDoc = { ...doc };
+        if (cleanPath.includes('.')) {
+          const parts = cleanPath.split('.');
+          let current = newDoc;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]]) current[parts[i]] = {};
+            current = current[parts[i]];
+          }
+          current[parts[parts.length - 1]] = null;
+        } else {
+          newDoc[cleanPath] = null;
+        }
+        if (options.includeArrayIndex) {
+          newDoc[options.includeArrayIndex] = null;
+        }
+        result.push(newDoc);
+      }
+      continue; // Skip empty arrays unless preserveNullAndEmptyArrays
     }
 
-    const newDocs = arrayValue.map(item => ({
-      ...doc,
-      [cleanPath]: item,
-    }));
-    result.push(...newDocs);
+    // Unwind the array
+    arrayValue.forEach((item, index) => {
+      // Deep clone the document to avoid mutations
+      const newDoc = JSON.parse(JSON.stringify(doc));
+      
+      // Set the unwound field value - preserve nested structure
+      if (cleanPath.includes('.')) {
+        const parts = cleanPath.split('.');
+        let current = newDoc;
+        
+        // Navigate to the parent object
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
+            current[parts[i]] = {};
+          }
+          current = current[parts[i]];
+        }
+        
+        // Set the final field value
+        current[parts[parts.length - 1]] = item;
+      } else {
+        newDoc[cleanPath] = item;
+      }
+
+      // Add array index if requested
+      if (options.includeArrayIndex) {
+        newDoc[options.includeArrayIndex] = index;
+      }
+
+      result.push(newDoc);
+    });
   }
 
   return result as Collection<T>;
@@ -587,10 +665,14 @@ function traditionalAggregate<T extends Document = Document>(
       result = $limit(result, stage.$limit);
     }
     if ('$unwind' in stage) {
-      const unwindSpec = stage.$unwind;
-      const fieldPath =
-        typeof unwindSpec === 'string' ? unwindSpec : unwindSpec.path;
-      result = $unwind(result, fieldPath);
+      if (process.env.DEBUG_UNWIND) {
+        console.log('[DEBUG] Processing $unwind stage with spec:', stage.$unwind);
+        console.log('[DEBUG] Input collection length:', result.length);
+      }
+      result = $unwind(result, stage.$unwind);
+      if (process.env.DEBUG_UNWIND) {
+        console.log('[DEBUG] Output collection length:', result.length);
+      }
     }
     if ('$lookup' in stage) {
       result = $lookup(result, stage.$lookup);

@@ -520,6 +520,9 @@ export function hotPathAggregate<T extends Document = Document>(
   let result: Collection<Document>;
 
   if (canUseHotPath(pipeline)) {
+    if (process.env.DEBUG_UNWIND) {
+      console.log('[DEBUG] Using hot path for pipeline:', pipeline);
+    }
     try {
       // Use zero-allocation hot path
       counters.hotPathHits++;
@@ -530,6 +533,9 @@ export function hotPathAggregate<T extends Document = Document>(
         (collection.length / Math.max(duration, 1)) * 1000;
     } catch (error) {
       // Fallback on hot path failure
+      if (process.env.DEBUG_UNWIND) {
+        console.log(`[DEBUG] Hot path failed, falling back to traditional aggregation: ${error.message}`);
+      }
       console.warn(`Hot path failed, falling back: ${error.message}`);
       counters.fallbacks++;
       result = originalAggregate(collection, pipeline);
@@ -542,6 +548,9 @@ export function hotPathAggregate<T extends Document = Document>(
         (collectionLength / Math.max(duration, 1)) * 1000;
     }
   } else {
+    if (process.env.DEBUG_UNWIND) {
+      console.log('[DEBUG] Cannot use hot path, using traditional aggregation');
+    }
     // Use regular aggregation
     counters.fallbacks++;
     result = originalAggregate(collection, pipeline);
