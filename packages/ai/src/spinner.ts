@@ -218,8 +218,10 @@ export class Spinner {
 
     const line = `${colorCode}${spinner}${COLORS.reset} ${COLORS.dim}${this.currentPhrase}...${COLORS.reset}`;
 
-    // Move to beginning of line and clear it, then write new content
-    this.stream.write(`\r\x1b[K${line}`);
+    // Clear the current line and move cursor to the beginning
+    this.stream.write('\r\x1b[2K');
+    // Write the new content
+    this.stream.write(line);
   }
 }
 
