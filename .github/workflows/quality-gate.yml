@@ -78,7 +78,7 @@ jobs:
         run: |
           echo "## 📝 TypeScript Type Check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if npm run type-check > typescript-results.txt 2>&1; then
+          if npm run typecheck > typescript-results.txt 2>&1; then
             echo "✅ No type errors found" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Type errors detected:" >> $GITHUB_STEP_SUMMARY
