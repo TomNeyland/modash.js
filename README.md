@@ -3,7 +3,7 @@
 [![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 [![Tag](https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat)](https://github.com/TomNeyland/modash.js)
 
-**Transform your JSON data like a MongoDB ninja – right from the command line! 🥷**
+**Transform your JSON data with MongoDB aggregation pipelines – right from the command line!**
 
 Ever wished you could slice, dice, and analyze JSON data with the power of MongoDB's aggregation pipeline? Now you can! Modash brings MongoDB's legendary data processing capabilities to any JSON dataset, whether it's log files, API responses, or massive datasets.
 
@@ -16,7 +16,7 @@ cat sales.jsonl | modash '[
   {"$limit": 5}
 ]' --pretty --stats
 
-# Watch the magic happen! ✨
+# Process data efficiently
 📊 Performance Stats: 47ms | 21,276 docs/sec
 💾 Memory usage: +2.3MB | Input: 10,000 docs → Output: 5 docs
 ```
@@ -26,7 +26,7 @@ cat sales.jsonl | modash '[
 Transform JSON data instantly with zero setup:
 
 ```bash
-# Install globally for CLI magic
+# Install globally for CLI access
 npm install -g modash
 
 # Process any JSON data like a pro
@@ -34,14 +34,14 @@ echo '{"name": "Alice", "score": 95, "dept": "Engineering"}' | \
   modash '[{"$project": {"name": 1, "grade": {"$cond": {"if": {"$gte": ["$score", 90]}, "then": "A", "else": "B"}}}}]' \
   --pretty
 
-# Result: Beautiful, transformed data! ✨
+# Result: Transformed data
 {
   "name": "Alice",
   "grade": "A"
 }
 ```
 
-### Real-World Magic ⚡
+### Real-World Examples
 
 **📊 Analyze your server logs in seconds:**
 
@@ -74,7 +74,7 @@ csv2json data.csv | modash '[
 ]'
 ```
 
-## 🌟 Why Modash Will Blow Your Mind
+## 🌟 Why Choose Modash
 
 ### 🔥 Live Streaming Analytics
 
@@ -92,12 +92,12 @@ const revenueStream = liveMetrics.stream([
   { $sort: { revenue: -1 } },
 ]);
 
-// Every new sale automatically updates your dashboard! 🎯
+// Every new sale automatically updates your dashboard
 liveMetrics.add({ product: 'iPhone', amount: 999, timestamp: new Date() });
-// → Dashboard updates instantly with new rankings!
+// → Dashboard updates instantly with new rankings
 ```
 
-### 🚄 Performance That Screams
+### ⚡ High Performance
 
 - **21M+ docs/second** for simple filtering
 - **1M+ docs/second** for complex aggregations
@@ -125,7 +125,7 @@ npm install -g modash
 npm install modash
 ```
 
-### CLI Superpowers 🦸‍♂️
+### CLI Features
 
 **Essential Options:**
 
@@ -300,7 +300,7 @@ const suspiciousTransactions = Modash.aggregate(transactions, [
 Customer behavior insights that drive revenue:
 
 ```javascript
-// Customer segmentation magic
+// Customer segmentation analysis
 const segments = Modash.aggregate(customers, [
   {
     $lookup: {
