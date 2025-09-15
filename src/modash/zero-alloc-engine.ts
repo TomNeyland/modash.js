@@ -179,8 +179,9 @@ export class ZeroAllocEngine {
         }
         return result as Collection;
       }
-      // Otherwise return group results directly
-      return groupResults as Collection;
+      // Otherwise return only the active count of group results
+      // This respects any $limit applied after $group
+      return groupResults.slice(0, context.activeCount) as Collection;
     } else if (groupResults && groupResultsRunId !== runId) {
       // This is the exact bug we're fixing!
       if (process.env.DEBUG_IVM) {
@@ -433,14 +434,23 @@ export class ZeroAllocEngine {
       const count = Math.min(limit, context.activeCount);
       const usingGroups = Array.isArray((context as any)._groupResults);
       if (usingGroups) {
-        // Limit group results directly
-        (context as any)._groupResults = (context as any)._groupResults.slice(
-          0,
-          count
-        );
-        (context as any)._groupIndexModeActive = true;
-        for (let i = 0; i < count; i++) {
-          context.scratchBuffer[i] = i;
+        // Check if we're in index mode (e.g., after sort)
+        const isIndexMode = (context as any)._groupIndexModeActive === true;
+        if (isIndexMode) {
+          // Already sorted - just copy the first 'count' indices
+          for (let i = 0; i < count; i++) {
+            context.scratchBuffer[i] = context.activeRowIds[i];
+          }
+        } else {
+          // Not sorted - slice the group results and set up indices
+          (context as any)._groupResults = (context as any)._groupResults.slice(
+            0,
+            count
+          );
+          (context as any)._groupIndexModeActive = true;
+          for (let i = 0; i < count; i++) {
+            context.scratchBuffer[i] = i;
+          }
         }
         return count;
       } else {
