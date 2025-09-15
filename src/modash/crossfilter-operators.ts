@@ -617,11 +617,18 @@ export class ProjectOperator implements IVMOperator {
   ): Delta[] {
     // Transform and cache document for downstream stages
     if (_delta.sign === 1) {
-      const doc =
-        _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-        // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-        getPhysicalDocument(_store, _delta.rowId);
+      let doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId);
+
+      // Only fall back to store for physical rowIds
+      if (!doc) {
+        if (typeof _delta.rowId !== 'number') {
+          throw new Error(
+            `[IVM INVARIANT] Virtual RowId ${_delta.rowId} reached store fallback - should be handled by upstream stage`
+          );
+        }
+        doc = getPhysicalDocument(_store, _delta.rowId);
+      }
+
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, _delta.rowId);
         this.cache.set(_delta.rowId, projectedDoc);
@@ -666,11 +673,17 @@ export class ProjectOperator implements IVMOperator {
 
     for (const rowId of sourceRowIds) {
       // Get document from upstream stage if it was transformed
-      const doc =
-        _context.getEffectiveUpstreamDocument?.(rowId) ||
-        // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-        getPhysicalDocument(_store, rowId);
+      let doc = _context.getEffectiveUpstreamDocument?.(rowId);
+
+      // Only fall back to store for physical rowIds
+      if (!doc) {
+        if (typeof rowId !== 'number') {
+          throw new Error(
+            `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback in snapshot - should be handled by upstream stage`
+          );
+        }
+        doc = getPhysicalDocument(_store, rowId);
+      }
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, rowId);
         this.cache.set(rowId, projectedDoc);
@@ -803,7 +816,12 @@ export class LimitOperator implements IVMOperator {
       );
     }
     // Only physical rowIds should fall back to store
-    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+    // Virtual RowIds should have been handled by upstream stages
+    if (typeof rowId !== 'number') {
+      throw new Error(
+        `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback - should be handled by upstream stage`
+      );
+    }
     return upstream || getPhysicalDocument(store, rowId) || null;
   };
 
@@ -864,11 +882,20 @@ export class SkipOperator implements IVMOperator {
     context: IVMContext
   ): Document | null => {
     // Only physical rowIds should fall back to store
-    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-    return (
-      context.getEffectiveUpstreamDocument?.(rowId) ||
-      getPhysicalDocument(store, rowId)
-    );
+    // Virtual RowIds should have been handled by upstream stages
+    const fallbackDoc =
+      typeof rowId === 'number' ? getPhysicalDocument(store, rowId) : null;
+
+    if (
+      typeof rowId !== 'number' &&
+      !context.getEffectiveUpstreamDocument?.(rowId)
+    ) {
+      throw new Error(
+        `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback without upstream handler`
+      );
+    }
+
+    return context.getEffectiveUpstreamDocument?.(rowId) || fallbackDoc;
   };
 
   estimateComplexity(): string {
@@ -1203,7 +1230,11 @@ export class LookupOperator implements IVMOperator {
     if (isPhysicalRowId(_delta.rowId)) {
       _store.documents[_delta.rowId] = joinedDoc;
     } else {
-      // TODO(types): $lookup should only receive physical rowIds; if this occurs, investigate upstream
+      // $lookup should only receive physical rowIds as it needs to update store documents
+      // Virtual rowIds indicate an upstream architectural issue
+      throw new Error(
+        `[IVM INVARIANT] $lookup received virtual RowId ${_delta.rowId} - only physical IDs supported for store updates`
+      );
     }
 
     return [_delta]; // Propagate the joined document
@@ -1636,11 +1667,18 @@ export class AddFieldsOperator implements IVMOperator {
   ): Delta[] {
     // Transform and cache document for downstream stages
     if (_delta.sign === 1) {
-      const doc =
-        _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-        // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-        getPhysicalDocument(_store, _delta.rowId);
+      let doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId);
+
+      // Only fall back to store for physical rowIds
+      if (!doc) {
+        if (typeof _delta.rowId !== 'number') {
+          throw new Error(
+            `[IVM INVARIANT] Virtual RowId ${_delta.rowId} reached store fallback in AddFields - should be handled by upstream stage`
+          );
+        }
+        doc = getPhysicalDocument(_store, _delta.rowId);
+      }
+
       if (doc) {
         // Compute new fields
         const newFields = this.compiledExpr(doc, _delta.rowId);
@@ -1747,11 +1785,18 @@ export class TopKOperator implements IVMOperator {
     if (_delta.sign !== 1) return [];
 
     // Get effective document from upstream stages
-    const doc =
-      _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-      // Only physical rowIds should fall back to store
-      // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-      getPhysicalDocument(_store, _delta.rowId);
+    let doc = _context.getEffectiveUpstreamDocument?.(_delta.rowId);
+
+    // Only fall back to store for physical rowIds
+    if (!doc) {
+      if (typeof _delta.rowId !== 'number') {
+        throw new Error(
+          `[IVM INVARIANT] Virtual RowId ${_delta.rowId} reached store fallback in TopK - should be handled by upstream stage`
+        );
+      }
+      doc = getPhysicalDocument(_store, _delta.rowId);
+    }
+
     if (!doc) return [];
 
     // Insert into sorted results maintaining top-k

@@ -411,7 +411,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         // Index existing documents in this dimension
         for (const rowId of this.store.liveSet) {
           // Only physical rowIds should fall back to store
-          // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+          // Virtual RowIds should never reach this fallback path as liveSet only contains physical IDs
+          if (typeof rowId !== 'number') {
+            throw new Error(
+              `[IVM INVARIANT] Virtual RowId ${rowId} found in liveSet - only physical IDs should be present`
+            );
+          }
           const doc = getPhysicalDocument(this.store, rowId);
           if (doc) {
             dimension.addDocument(doc, rowId);
@@ -471,7 +476,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           }
         }
         // Fallback to raw store document (physical rows only)
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        // Virtual RowIds should have been handled by upstream operators
+        if (typeof rowId !== 'number') {
+          throw new Error(
+            `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback - should be handled by upstream operator`
+          );
+        }
         return getPhysicalDocument(this.store, rowId);
       };
 
@@ -554,7 +564,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           ): Document | null => {
             if (stageIndex < 0) {
               // Only physical rowIds should fall back to store
-              // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+              // Virtual RowIds should have been handled by upstream stages
+              if (typeof rowId !== 'number') {
+                throw new Error(
+                  `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback - should be handled by upstream stage`
+                );
+              }
               return getPhysicalDocument(this.store, rowId);
             }
 
@@ -661,7 +676,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
           ): Document | null => {
             if (stageIndex < 0) {
               // Only physical rowIds should fall back to store
-              // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+              // Virtual RowIds should have been handled by upstream stages
+              if (typeof rowId !== 'number') {
+                throw new Error(
+                  `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback - should be handled by upstream stage`
+                );
+              }
               return getPhysicalDocument(this.store, rowId);
             }
 
@@ -755,7 +775,12 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
         // Only fall back to store if operator doesn't transform
         if (!doc && !lastOperator.getEffectiveDocument) {
           // Only physical rowIds should fall back to store
-          // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+          // Virtual RowIds should have been handled by upstream stages
+          if (typeof rowId !== 'number') {
+            throw new Error(
+              `[IVM INVARIANT] Virtual RowId ${rowId} reached store fallback - should be handled by upstream stage`
+            );
+          }
           doc = getPhysicalDocument(this.store, rowId);
           if (process.env.DEBUG_IVM) {
             console.log(

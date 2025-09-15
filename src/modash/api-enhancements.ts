@@ -242,7 +242,7 @@ export async function benchmark<T extends Document = Document>(
     const startMemory = process.memoryUsage();
     const startTime = process.hrtime.bigint();
 
-    // TODO(types): If we capture result here for additional validation, use it; otherwise omit for clarity
+    // Run aggregation (result not needed for benchmarking)
     aggregate(collection, pipeline);
 
     const endTime = process.hrtime.bigint();

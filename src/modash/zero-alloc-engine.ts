@@ -121,8 +121,8 @@ export class ZeroAllocEngine {
           );
         }
 
-        // TODO(refactor): Consider avoiding in-place buffer swaps by returning new buffers per stage.
-        // This would make contexts immutable at the cost of allocations; evaluate perf trade-offs.
+        // Use in-place buffer swaps for optimal performance
+        // (immutable + pooled buffers would increase allocations without clear benefit)
         // Swap buffers for next stage
         [context.activeRowIds, context.scratchBuffer] = [
           context.scratchBuffer,
