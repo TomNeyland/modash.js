@@ -649,7 +649,7 @@ function $ifNull(
   defaultValue: EvaluatableValue
 ): DocumentValue {
   const val = evaluate(value);
-  return val !== null ? val : evaluate(defaultValue);
+  return val !== null && val !== undefined ? val : evaluate(defaultValue);
 }
 
 // $coalesce operator - returns first non-null value
