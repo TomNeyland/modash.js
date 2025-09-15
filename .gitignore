@@ -18,6 +18,10 @@ build/
 
 # Quality tool outputs
 coverage/
+test-results*.json
+test-output-raw.txt
+clean-test-results.json
+direct-test-results.json
 .nyc_output/
 *.lcov
 .c8_output/
