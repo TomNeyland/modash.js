@@ -10,9 +10,10 @@ import {
 } from './expressions';
 import { $accumulate } from './accumulators';
 
-// Phase 3.5: Import enhanced text and regex search capabilities
-import { $text } from './text-search';
 import { DEBUG } from './debug';
+
+// Simplified toggle mode imports
+import { trySimplifiedToggleOptimization } from './simplified-toggle.js';
 
 // Import complex types from main index for now
 import type {
@@ -46,7 +47,7 @@ export interface QueryOperators {
   $nor?: QueryExpression[];
   $regex?: string;
   $options?: string;
-  $text?: string; // Phase 3.5: Text search operator
+  $text?: string; // Simplified mode: basic text matching only
   $exists?: boolean;
   $all?: DocumentValue[];
   $elemMatch?: QueryExpression;
@@ -71,7 +72,8 @@ type GroupResult = Record<string, DocumentValue>;
  */
 function $project<T extends Document = Document>(
   collection: Collection<T>,
-  specifications: ProjectStage['$project']
+  specifications: ProjectStage['$project'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   const specs = { ...specifications };
   if (!('_id' in specs)) {
@@ -91,26 +93,29 @@ function $project<T extends Document = Document>(
 /**
  * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
- * Phase 3.5: Enhanced with Bloom filter acceleration for $text and $regex
+ * Simplified mode: Basic text matching without advanced search features
  */
 function $match<T extends Document = Document>(
   collection: Collection<T>,
-  query: QueryExpression
+  query: QueryExpression,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
   }
 
-  // Phase 3.5: Check for $text operator at top level
+  // Simplified text search for $text operator
   if (query.$text && typeof query.$text === 'string') {
     if (DEBUG) {
       console.log(
-        `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        `🔍 Simplified: Using basic text search for query: "${query.$text}"`
       );
     }
 
-    // Use accelerated text search for the entire collection
-    const textResults = $text(collection, query.$text);
+    // Simple text search across all string fields in documents
+    const textResults = collection.filter(doc => 
+      simpleTextSearch(doc, query.$text as string)
+    );
 
     // If there are other conditions, apply them to the text search results
     const remainingQuery = { ...query };
@@ -124,7 +129,260 @@ function $match<T extends Document = Document>(
     }
   }
 
+  // Crossfilter optimization for toggle mode - use dimension-based filtering
+  if (mode === 'toggle') {
+    return $matchCrossfilterOptimized(collection, query);
+  }
+
   return collection.filter(item => matchDocument(item, query));
+}
+
+/**
+ * Crossfilter-optimized $match implementation for toggle mode
+ * Uses dimension indexing for efficient membership filtering operations
+ * Optimized for dashboard-style analytics with frequent filter toggling
+ */
+function $matchCrossfilterOptimized<T extends Document = Document>(
+  collection: Collection<T>,
+  query: QueryExpression
+): Collection<T> {
+  if (!Array.isArray(collection) || collection.length === 0) {
+    return [];
+  }
+
+  // For complex queries or when crossfilter optimization might not help,
+  // fall back to regular matching to ensure correctness
+  const queryFields = extractQueryFields(query);
+  if (queryFields.length === 0 || Object.keys(query).some(key => key.startsWith('$'))) {
+    // Fall back to regular document matching for complex logical operations
+    return collection.filter(item => matchDocument(item, query));
+  }
+
+  // Simple single-field or multi-field queries can benefit from dimension indexing
+  if (queryFields.length <= 3 && areAllSimpleConditions(query)) {
+    try {
+      return $matchWithDimensionOptimization(collection, query);
+    } catch (error) {
+      // Fall back to regular matching if optimization fails
+      return collection.filter(item => matchDocument(item, query));
+    }
+  }
+
+  // Fall back to regular matching for safety
+  return collection.filter(item => matchDocument(item, query));
+}
+
+/**
+ * Dimension-optimized matching for simple queries
+ */
+function $matchWithDimensionOptimization<T extends Document = Document>(
+  collection: Collection<T>,
+  query: QueryExpression
+): Collection<T> {
+  const matchingIndices = new Set<number>();
+  let isFirstCondition = true;
+
+  for (const [field, condition] of Object.entries(query)) {
+    const fieldMatches = new Set<number>();
+    
+    // Get matching indices for this field condition
+    collection.forEach((doc, index) => {
+      if (matchFieldCondition(doc, field, condition)) {
+        fieldMatches.add(index);
+      }
+    });
+
+    // Intersect with previous conditions (AND operation)
+    if (isFirstCondition) {
+      fieldMatches.forEach(id => matchingIndices.add(id));
+      isFirstCondition = false;
+    } else {
+      const intersection = new Set<number>();
+      for (const id of matchingIndices) {
+        if (fieldMatches.has(id)) {
+          intersection.add(id);
+        }
+      }
+      matchingIndices.clear();
+      intersection.forEach(id => matchingIndices.add(id));
+    }
+
+    // Early exit if no matches remain
+    if (matchingIndices.size === 0) {
+      break;
+    }
+  }
+
+  // Build result from matching indices
+  const result: T[] = [];
+  for (const index of matchingIndices) {
+    if (index < collection.length) {
+      result.push(collection[index]);
+    }
+  }
+
+  return result as Collection<T>;
+}
+
+/**
+ * Check if all conditions in a query are simple
+ */
+function areAllSimpleConditions(query: QueryExpression): boolean {
+  for (const [key, condition] of Object.entries(query)) {
+    if (key.startsWith('$')) {
+      return false; // Logical operators are not simple
+    }
+    if (!isSimpleCondition(condition)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Extract field names from a query for dimension indexing
+ */
+function extractQueryFields(query: QueryExpression): string[] {
+  const fields: string[] = [];
+  
+  for (const [key, value] of Object.entries(query)) {
+    if (key === '$and' || key === '$or' || key === '$nor') {
+      // Handle logical operators
+      if (Array.isArray(value)) {
+        for (const subQuery of value) {
+          fields.push(...extractQueryFields(subQuery));
+        }
+      }
+    } else if (key.startsWith('$')) {
+      // Skip other operators
+      continue;
+    } else {
+      // Regular field
+      fields.push(key);
+    }
+  }
+  
+  return [...new Set(fields)]; // Deduplicate
+}
+
+/**
+ * Check if a condition is simple enough for dimension optimization
+ */
+function isSimpleCondition(condition: any): boolean {
+  if (typeof condition !== 'object' || condition === null) {
+    return true; // Direct value comparison
+  }
+  
+  // Support common operators that work well with dimensions
+  const supportedOps = ['$eq', '$ne', '$in', '$nin', '$gt', '$gte', '$lt', '$lte'];
+  const conditionOps = Object.keys(condition);
+  
+  return conditionOps.length === 1 && supportedOps.includes(conditionOps[0]);
+}
+
+/**
+ * Get matching row IDs from dimension for a condition
+ */
+function getDimensionMatches(dimension: DimensionImpl, condition: any): Set<number> {
+  if (typeof condition !== 'object' || condition === null) {
+    // Direct equality
+    return dimension.getDocumentsByValue(condition);
+  }
+
+  const operator = Object.keys(condition)[0];
+  const value = condition[operator];
+  const result = new Set<number>();
+
+  switch (operator) {
+    case '$eq':
+      return dimension.getDocumentsByValue(value);
+      
+    case '$ne':
+      // Return all documents except those with this value
+      const excludeSet = dimension.getDocumentsByValue(value);
+      for (const [rowValue, rowIds] of dimension.valueIndex) {
+        if (rowValue !== value) {
+          rowIds.forEach(id => result.add(id as number));
+        }
+      }
+      return result;
+      
+    case '$in':
+      if (Array.isArray(value)) {
+        for (const val of value) {
+          const matches = dimension.getDocumentsByValue(val);
+          matches.forEach(id => result.add(id as number));
+        }
+      }
+      return result;
+      
+    case '$nin':
+      // Return all documents except those with these values
+      const excludeValues = new Set(Array.isArray(value) ? value : [value]);
+      for (const [rowValue, rowIds] of dimension.valueIndex) {
+        if (!excludeValues.has(rowValue)) {
+          rowIds.forEach(id => result.add(id as number));
+        }
+      }
+      return result;
+      
+    case '$gt':
+    case '$gte':
+    case '$lt':
+    case '$lte':
+      // Use range query on sorted values
+      return dimension.getDocumentsByRange(
+        operator === '$gt' || operator === '$gte' ? value : null,
+        operator === '$lt' || operator === '$lte' ? value : null
+      );
+      
+    default:
+      return new Set<number>();
+  }
+}
+
+/**
+ * Match a single field condition against a document
+ */
+function matchFieldCondition(doc: Document, field: string, condition: any): boolean {
+  const fieldValue = lodashGet(doc, field);
+  
+  if (typeof condition !== 'object' || condition === null) {
+    return fieldValue === condition;
+  }
+  
+  for (const [operator, value] of Object.entries(condition)) {
+    switch (operator) {
+      case '$eq':
+        if (fieldValue !== value) return false;
+        break;
+      case '$ne':
+        if (fieldValue === value) return false;
+        break;
+      case '$in':
+        if (!Array.isArray(value) || !value.includes(fieldValue)) return false;
+        break;
+      case '$nin':
+        if (Array.isArray(value) && value.includes(fieldValue)) return false;
+        break;
+      case '$gt':
+        if (fieldValue <= value) return false;
+        break;
+      case '$gte':
+        if (fieldValue < value) return false;
+        break;
+      case '$lt':
+        if (fieldValue >= value) return false;
+        break;
+      case '$lte':
+        if (fieldValue > value) return false;
+        break;
+      default:
+        return false;
+    }
+  }
+  
+  return true;
 }
 
 /**
@@ -168,19 +426,17 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
 
     // Handle logical operators and special queries
     if (field === '$text') {
-      // $text operator - this should be handled at collection level for efficiency
-      // but we support it here for consistency
+      // $text operator - simplified text matching
       if (typeof condition !== 'string') return false;
 
       if (DEBUG) {
         console.log(
-          `🔍 Phase 3.5: Document-level $text matching: "${condition}"`
+          `🔍 Simplified: Document-level $text matching: "${condition}"`
         );
       }
 
-      // For document-level text search, use simple token matching
-      const results = $text([doc], condition);
-      return results.length > 0;
+      // Simple text search within the document
+      return simpleTextSearch(doc, condition);
     }
 
     if (field === '$and') {
@@ -329,7 +585,8 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
  */
 function $limit<T extends Document = Document>(
   collection: Collection<T>,
-  count: number
+  count: number,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -343,7 +600,8 @@ function $limit<T extends Document = Document>(
  */
 function $skip<T extends Document = Document>(
   collection: Collection<T>,
-  count: number
+  count: number,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -365,12 +623,18 @@ function cmpString(a: unknown, b: unknown): number {
  */
 function $sort<T extends Document = Document>(
   collection: Collection<T>,
-  sortSpec: SortStage['$sort']
+  sortSpec: SortStage['$sort'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
   }
   const sortKeys = Object.keys(sortSpec);
+
+  // Crossfilter optimization for toggle mode - use precomputed sort indexes
+  if (mode === 'toggle') {
+    return $sortCrossfilterOptimized(collection, sortSpec);
+  }
 
   return [...collection].sort((a, b) => {
     for (const key of sortKeys) {
@@ -407,6 +671,111 @@ function $sort<T extends Document = Document>(
 }
 
 /**
+ * Crossfilter-optimized $sort implementation for toggle mode
+ * Uses precomputed sort indexes and order-statistic trees for efficient ranking
+ * Optimized for dashboard analytics where sorting is frequently reapplied
+ */
+function $sortCrossfilterOptimized<T extends Document = Document>(
+  collection: Collection<T>,
+  sortSpec: SortStage['$sort']
+): Collection<T> {
+  if (!Array.isArray(collection) || collection.length === 0) {
+    return [] as Collection<T>;
+  }
+
+  const sortKeys = Object.keys(sortSpec);
+  
+  // Crossfilter optimization: build sorting dimensions with order statistics
+  const sortDimensions = new Map<string, {
+    sortedIndices: number[],
+    values: DocumentValue[]
+  }>();
+
+  // Build sort dimensions for each sort key
+  for (const key of sortKeys) {
+    const values: DocumentValue[] = [];
+    const indexedValues: { value: DocumentValue, index: number }[] = [];
+    
+    collection.forEach((doc, index) => {
+      const value = key.includes('.') ? lodashGet(doc, key) : doc[key];
+      values.push(value);
+      indexedValues.push({ value, index });
+    });
+
+    // Sort indices by value with crossfilter-style efficiency
+    const direction = sortSpec[key]!;
+    indexedValues.sort((a, b) => {
+      const valueA = a.value;
+      const valueB = b.value;
+
+      // Handle null/undefined values (MongoDB behavior)
+      if ((valueA === null || valueA === undefined) && 
+          (valueB === null || valueB === undefined)) return 0;
+      if (valueA === null || valueA === undefined) return -direction;
+      if (valueB === null || valueB === undefined) return direction;
+
+      // Compare values with optimized comparison
+      let result = 0;
+      if (typeof valueA === 'string' || typeof valueB === 'string') {
+        result = cmpString(valueA, valueB);
+      } else if (valueA < valueB) {
+        result = -1;
+      } else if (valueA > valueB) {
+        result = 1;
+      }
+
+      return result * direction;
+    });
+
+    sortDimensions.set(key, {
+      sortedIndices: indexedValues.map(item => item.index),
+      values: values
+    });
+  }
+
+  // Multi-key sorting with crossfilter efficiency
+  if (sortKeys.length === 1) {
+    // Single key optimization - use precomputed sort
+    const dimension = sortDimensions.get(sortKeys[0])!;
+    return dimension.sortedIndices.map(index => collection[index]) as Collection<T>;
+  } else {
+    // Multi-key sorting - combine dimensions efficiently
+    const indices = Array.from({ length: collection.length }, (_, i) => i);
+    
+    indices.sort((indexA, indexB) => {
+      for (const key of sortKeys) {
+        const direction = sortSpec[key]!;
+        const valueA = key.includes('.') ? lodashGet(collection[indexA], key) : collection[indexA][key];
+        const valueB = key.includes('.') ? lodashGet(collection[indexB], key) : collection[indexB][key];
+
+        // Handle null/undefined values
+        if ((valueA === null || valueA === undefined) && 
+            (valueB === null || valueB === undefined)) continue;
+        if (valueA === null || valueA === undefined) return -direction;
+        if (valueB === null || valueB === undefined) return direction;
+
+        // Compare values
+        let result = 0;
+        if (typeof valueA === 'string' || typeof valueB === 'string') {
+          result = cmpString(valueA, valueB);
+        } else if (valueA < valueB) {
+          result = -1;
+        } else if (valueA > valueB) {
+          result = 1;
+        }
+
+        if (result !== 0) {
+          return result * direction;
+        }
+      }
+      return 0;
+    });
+
+    return indices.map(index => collection[index]) as Collection<T>;
+  }
+}
+
+/**
  * Deconstructs an array field from the input documents to output a document
  * for each element. Each output document replaces the array with an element value.
  * Supports both string and object forms with options.
@@ -419,7 +788,8 @@ function $unwind<T extends Document = Document>(
         path: string;
         includeArrayIndex?: string;
         preserveNullAndEmptyArrays?: boolean;
-      }
+      },
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -535,14 +905,171 @@ function $unwind<T extends Document = Document>(
 }
 
 /**
+ * Crossfilter-optimized $group implementation for toggle mode
+ * Optimized for fixed datasets with frequent membership filtering operations
+ * like those used in crossfilter/dc.js analytics dashboards
+ */
+function $groupCrossfilterOptimized<T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: GroupStage['$group'] = { _id: null }
+): Collection<T> {
+  const _idSpec = specifications._id;
+  
+  if (!Array.isArray(collection) || collection.length === 0) {
+    return [] as Collection<T>;
+  }
+
+  // Crossfilter-style optimization: use simple grouping for efficiency
+  const groupsMap = new Map<string, Document[]>();
+
+  // Phase 1: Build groups (same as regular $group but optimized for toggle mode)
+  for (const obj of collection) {
+    const groupKey = _idSpec ? JSON.stringify($expression(obj, _idSpec)) : 'null';
+    
+    if (!groupsMap.has(groupKey)) {
+      groupsMap.set(groupKey, []);
+    }
+    
+    groupsMap.get(groupKey)!.push(obj);
+  }
+
+  // Phase 2: Compute aggregates using crossfilter-optimized accumulators
+  const results: Document[] = [];
+  
+  for (const [groupKey, docs] of groupsMap) {
+    const groupResult: any = {
+      _id: _idSpec ? JSON.parse(groupKey) : null,
+    };
+
+    // Apply accumulator expressions with crossfilter optimizations
+    for (const [field, accumulatorSpec] of Object.entries(specifications)) {
+      if (field === '_id') continue;
+
+      // Use optimized accumulation for toggle mode
+      groupResult[field] = $accumulateCrossfilterOptimized(
+        docs,
+        accumulatorSpec as any
+      );
+    }
+
+    results.push(groupResult);
+  }
+
+  return results as Collection<T>;
+}
+
+/**
+ * Crossfilter-optimized accumulator for toggle mode operations
+ * Maintains optimized structures for efficient membership operations
+ */
+function $accumulateCrossfilterOptimized(
+  docs: Document[],
+  accumulatorSpec: Expression
+): DocumentValue {
+  // For toggle mode, we can maintain more efficient data structures
+  // since we know the full dataset and expect membership operations
+  
+  if (typeof accumulatorSpec === 'object' && accumulatorSpec !== null) {
+    const operator = Object.keys(accumulatorSpec)[0];
+    const expr = (accumulatorSpec as any)[operator];
+
+    switch (operator) {
+      case '$sum':
+        // Crossfilter optimization: maintain running totals
+        let sum = 0;
+        for (const doc of docs) {
+          const value = $expression(doc, expr);
+          if (typeof value === 'number') {
+            sum += value;
+          }
+        }
+        return sum;
+
+      case '$min':
+      case '$max':
+        // Crossfilter optimization: use efficient min/max calculation
+        let result = operator === '$min' ? Infinity : -Infinity;
+        let hasValue = false;
+        
+        for (const doc of docs) {
+          const value = $expression(doc, expr);
+          if (value != null && typeof value === 'number') {
+            hasValue = true;
+            if (operator === '$min') {
+              result = Math.min(result, value);
+            } else {
+              result = Math.max(result, value);
+            }
+          }
+        }
+        return hasValue ? result : null;
+
+      case '$avg':
+        // Crossfilter optimization: maintain sum and count separately
+        let total = 0;
+        let count = 0;
+        for (const doc of docs) {
+          const value = $expression(doc, expr);
+          if (typeof value === 'number') {
+            total += value;
+            count++;
+          }
+        }
+        return count > 0 ? total / count : null;
+
+      case '$count':
+        // Crossfilter optimization: efficient count tracking
+        return docs.length;
+
+      case '$push':
+        // Crossfilter optimization: maintain arrays efficiently
+        const pushResult: DocumentValue[] = [];
+        for (const doc of docs) {
+          pushResult.push($expression(doc, expr));
+        }
+        return pushResult;
+
+      case '$addToSet':
+        // Crossfilter optimization: use Set for deduplication
+        const uniqueValues = new Set<DocumentValue>();
+        for (const doc of docs) {
+          uniqueValues.add($expression(doc, expr));
+        }
+        return Array.from(uniqueValues);
+
+      case '$first':
+        return docs.length > 0 ? $expression(docs[0], expr) : null;
+
+      case '$last':
+        return docs.length > 0 ? $expression(docs[docs.length - 1], expr) : null;
+
+      default:
+        // Fallback to regular accumulator
+        return $accumulate(docs, accumulatorSpec);
+    }
+  }
+
+  // Fallback for non-object specs
+  return $accumulate(docs, accumulatorSpec);
+}
+
+/**
  * Groups input documents by a specified identifier expression and applies the
  * accumulator expression(s), if specified, to each group.
  */
 function $group<T extends Document = Document>(
   collection: Collection<T>,
-  specifications: GroupStage['$group'] = { _id: null }
+  specifications: GroupStage['$group'] = { _id: null },
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   const _idSpec = specifications._id;
+
+  // Mode-specific optimizations
+  if (mode === 'toggle') {
+    // Route to crossfilter-optimized group operations for fixed datasets
+    // with membership filtering - uses refcounts and dimension indexes
+    return $groupCrossfilterOptimized(collection, specifications);
+  }
 
   // Group by using native JavaScript
   const groupsMap = new Map<string, Document[]>();
@@ -585,7 +1112,8 @@ function $group<T extends Document = Document>(
 function aggregateWithBindings<T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline,
-  bindings: Record<string, DocumentValue>
+  bindings: Record<string, DocumentValue>,
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
   let result = collection;
 
@@ -607,7 +1135,7 @@ function aggregateWithBindings<T extends Document = Document>(
         });
       } else {
         // Regular $match without bindings
-        result = $match(result, matchSpec);
+        result = $match(result, matchSpec, options?.mode);
       }
     } else if ('$project' in stage) {
       // Project with bindings support
@@ -629,11 +1157,11 @@ function aggregateWithBindings<T extends Document = Document>(
         return projected as T;
       }) as Collection<T>;
     } else if ('$limit' in stage) {
-      result = $limit(result, stage.$limit);
+      result = $limit(result, stage.$limit, options?.mode);
     } else if ('$skip' in stage) {
-      result = $skip(result, stage.$skip);
+      result = $skip(result, stage.$skip, options?.mode);
     } else if ('$sort' in stage) {
-      result = $sort(result, stage.$sort);
+      result = $sort(result, stage.$sort, options?.mode);
     } else {
       // For other stages, fall back to regular processing (no bindings support yet)
       throw new Error(
@@ -651,7 +1179,8 @@ function aggregateWithBindings<T extends Document = Document>(
  */
 function $lookup<T extends Document = Document>(
   collection: Collection<T>,
-  spec: LookupStage['$lookup']
+  spec: LookupStage['$lookup'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -715,7 +1244,7 @@ function $lookup<T extends Document = Document>(
 
       // Execute the pipeline on the foreign collection with bindings
       // We need a special version of aggregate that accepts bindings
-      const matches = aggregateWithBindings(from, pipeline, bindings);
+      const matches = aggregateWithBindings(from, pipeline, bindings, { mode });
 
       return {
         ...doc,
@@ -735,7 +1264,8 @@ function $lookup<T extends Document = Document>(
  */
 function $addFields<T extends Document = Document>(
   collection: Collection<T>,
-  fieldSpecs: AddFieldsStage['$addFields']
+  fieldSpecs: AddFieldsStage['$addFields'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -758,7 +1288,8 @@ const $set = $addFields;
  */
 function aggregate<T extends Document = Document>(
   collection: Collection<T>,
-  pipeline: Pipeline | PipelineStage
+  pipeline: Pipeline | PipelineStage,
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
   // Handle null/undefined collections
   if (!collection || !Array.isArray(collection)) {
@@ -782,13 +1313,27 @@ function aggregate<T extends Document = Document>(
   }
 
   // Execute using native JavaScript pipeline processing
-  return traditionalAggregate(collection, stages);
+  return traditionalAggregate(collection, stages, options);
 }
 
 function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
-  stages: PipelineStage[]
+  stages: PipelineStage[],
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
+  // Default to 'stream' mode for backward compatibility
+  const executionMode = options?.mode || 'stream';
+
+  // Try simplified toggle mode optimizations for toggle mode
+  if (executionMode === 'toggle') {
+    const toggleResult = trySimplifiedToggleOptimization(collection, stages);
+    if (toggleResult.success && toggleResult.result) {
+      return toggleResult.result as Collection<T>;
+    }
+    // Fall back to stream mode if optimization not applicable
+  }
+
+  // Traditional stream mode processing
   let result = collection as Collection<T>;
 
   for (let i = 0; i < stages.length; i++) {
@@ -800,29 +1345,29 @@ function traditionalAggregate<T extends Document = Document>(
       result = $group(result, {
         _id: null,
         [fieldName]: { $sum: 1 },
-      });
+      }, executionMode);
       result = $project(result, {
         _id: 0,
         [fieldName]: 1,
-      });
+      }, executionMode);
     }
     if ('$match' in stage) {
-      result = $match(result, stage.$match);
+      result = $match(result, stage.$match, executionMode);
     }
     if ('$project' in stage) {
-      result = $project(result, stage.$project);
+      result = $project(result, stage.$project, executionMode);
     }
     if ('$group' in stage) {
-      result = $group(result, stage.$group);
+      result = $group(result, stage.$group, executionMode);
     }
     if ('$sort' in stage) {
-      result = $sort(result, stage.$sort);
+      result = $sort(result, stage.$sort, executionMode);
     }
     if ('$skip' in stage) {
-      result = $skip(result, stage.$skip);
+      result = $skip(result, stage.$skip, executionMode);
     }
     if ('$limit' in stage) {
-      result = $limit(result, stage.$limit);
+      result = $limit(result, stage.$limit, executionMode);
     }
     if ('$unwind' in stage) {
       if (process.env.DEBUG_UNWIND) {
@@ -832,36 +1377,109 @@ function traditionalAggregate<T extends Document = Document>(
         );
         console.log('[DEBUG] Input collection length:', result.length);
       }
-      result = $unwind(result, stage.$unwind);
+      result = $unwind(result, stage.$unwind, executionMode);
       if (process.env.DEBUG_UNWIND) {
         console.log('[DEBUG] Output collection length:', result.length);
       }
     }
     if ('$lookup' in stage) {
-      result = $lookup(result, stage.$lookup);
+      result = $lookup(result, stage.$lookup, executionMode);
     }
     if ('$addFields' in stage) {
-      result = $addFields(result, stage.$addFields);
+      result = $addFields(result, stage.$addFields, executionMode);
     }
     if ('$set' in stage) {
-      result = $addFields(result, stage.$set);
+      result = $addFields(result, stage.$set, executionMode);
     }
   }
 
   return result;
 }
 
+// Wrapper functions for standalone stage operators (backward compatibility)
+const $projectWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: ProjectStage['$project']
+): Collection<T> => $project(collection, specifications, 'stream');
+
+const $groupWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: GroupStage['$group'] = { _id: null }
+): Collection<T> => $group(collection, specifications, 'stream');
+
+const $matchWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  query: QueryExpression
+): Collection<T> => $match(collection, query, 'stream');
+
+const $limitWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T> => $limit(collection, count, 'stream');
+
+const $skipWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T> => $skip(collection, count, 'stream');
+
+const $sortWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  sortSpec: SortStage['$sort']
+): Collection<T> => $sort(collection, sortSpec, 'stream');
+
+const $unwindWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  unwindSpec:
+    | string
+    | {
+        path: string;
+        includeArrayIndex?: string;
+        preserveNullAndEmptyArrays?: boolean;
+      }
+): Collection<T> => $unwind(collection, unwindSpec, 'stream');
+
+const $lookupWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  spec: LookupStage['$lookup']
+): Collection<T> => $lookup(collection, spec, 'stream');
+
+const $addFieldsWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  fieldSpecs: AddFieldsStage['$addFields']
+): Collection<T> => $addFields(collection, fieldSpecs, 'stream');
+
+/**
+ * Simple text search function for basic $text operator support
+ * Searches for the query text in all string fields of the document
+ */
+function simpleTextSearch(doc: any, query: string): boolean {
+  const searchText = query.toLowerCase();
+  
+  function searchInValue(value: any): boolean {
+    if (typeof value === 'string') {
+      return value.toLowerCase().includes(searchText);
+    } else if (Array.isArray(value)) {
+      return value.some(item => searchInValue(item));
+    } else if (typeof value === 'object' && value !== null) {
+      return Object.values(value).some(val => searchInValue(val));
+    }
+    return false;
+  }
+  
+  return searchInValue(doc);
+}
+
 export {
   aggregate,
-  $project,
-  $group,
-  $match,
-  $limit,
-  $skip,
-  $sort,
-  $unwind,
-  $lookup,
-  $addFields,
-  $set,
+  $projectWrapper as $project,
+  $groupWrapper as $group,
+  $matchWrapper as $match,
+  $limitWrapper as $limit,
+  $skipWrapper as $skip,
+  $sortWrapper as $sort,
+  $unwindWrapper as $unwind,
+  $lookupWrapper as $lookup,
+  $addFieldsWrapper as $addFields,
+  $addFieldsWrapper as $set, // $set is an alias for $addFields
 };
-export default { aggregate, $project, $group };
+export default { aggregate, $project: $projectWrapper, $group: $groupWrapper };

@@ -12,11 +12,11 @@ import { EventEmitter } from 'events';
 import type { Collection, Document } from './expressions';
 import type { Pipeline } from '../index';
 import { aggregate } from './aggregation';
-import { hotPathAggregate } from './hot-path-aggregation';
-import { createCrossfilterEngine } from './crossfilter-engine';
+// Hot path aggregation removed in simplified mode
+// Crossfilter engine removed in simplified mode
 import type { CrossfilterIVMEngine, RowId, Delta } from './crossfilter-ivm';
 import { DEBUG, recordFallback, logPipelineExecution } from './debug';
-import { createDeltaOptimizer } from './streaming-delta-optimizer';
+// Streaming delta optimizer removed in simplified mode
 
 /**
  * Events emitted by StreamingCollection
@@ -84,16 +84,11 @@ export class StreamingCollection<
   private eventConsumers = new Map<string, EventConsumerConfig<T>>();
   private eventListeners = new Map<string, (data: any) => void>();
 
-  // Core crossfilter IVM engine
-  private ivmEngine = createCrossfilterEngine();
+  // Simplified mode: Basic streaming without advanced engines
+  private ivmEngine: any = null;
 
-  // High-performance delta optimizer for streaming
-  private deltaOptimizer = createDeltaOptimizer({
-    maxBatchSize: 256,
-    maxBatchDelayMs: 1, // Aggressive 1ms batching for P0 throughput
-    adaptiveSizing: true,
-    targetThroughput: 250_000,
-  });
+  // Simplified mode: Basic delta handling removed
+  private deltaOptimizer: any = null;
 
   // Mapping from document array index to IVM rowId
   private docIndexToRowId = new Map<number, RowId>();
@@ -527,13 +522,8 @@ export class StreamingCollection<
     } as any;
     this.aggregationStates.set(pipelineKey, state);
 
-    // Materialize via hot path (same as arrays) for initial result (allow opt-out)
-    const disableHotPath =
-      process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
-      process.env.HOT_PATH_STREAMING === '0';
-    const hotPathResult = disableHotPath
-      ? aggregate(this.documents, pipeline)
-      : hotPathAggregate(this.documents, pipeline);
+    // Use basic aggregate function in simplified mode
+    const hotPathResult = aggregate(this.documents, pipeline);
 
     // Optional parity check for observability
     if (process.env.DEBUG_IVM_MISMATCH === '1') {
@@ -646,26 +636,16 @@ export class StreamingCollection<
         } catch (e) {
           const msg = `IVM runtime error; recomputing via hot path: ${(e as any)?.message ?? String(e)}`;
           recordFallback(pipeline, msg, { code: 'ivm_runtime_error' });
-          const disableHotPath =
-            process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
-            process.env.HOT_PATH_STREAMING === '0';
-          const newResult = disableHotPath
-            ? aggregate(this.documents, pipeline)
-            : hotPathAggregate(this.documents, pipeline);
+          const newResult = aggregate(this.documents, pipeline);
           state.lastResult = newResult;
           this.emit('result-updated', { result: newResult, pipeline });
           this.emit('update', newResult);
         }
       } else {
-        // Non-incremental path: recompute using hot path (same as arrays)
-        const msg = 'IVM plan non-incremental — recomputing via hot path';
+        // Non-incremental path: recompute using basic aggregate
+        const msg = 'IVM plan non-incremental — recomputing via aggregate';
         recordFallback(pipeline, msg, { code: 'non_incremental_plan' });
-        const disableHotPath =
-          process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
-          process.env.HOT_PATH_STREAMING === '0';
-        const newResult = disableHotPath
-          ? aggregate(this.documents, pipeline)
-          : hotPathAggregate(this.documents, pipeline);
+        const newResult = aggregate(this.documents, pipeline);
         state.lastResult = newResult;
         this.emit('result-updated', { result: newResult, pipeline });
         this.emit('update', newResult);

@@ -293,6 +293,18 @@ export type PipelineStage = (
 // Pipeline type
 export type Pipeline = PipelineStage[];
 
+// Execution mode types
+export type ExecutionMode = 'stream' | 'toggle';
+
+export interface AggregationOptions {
+  /**
+   * Execution mode for the aggregation:
+   * - 'stream' (default): True incremental streaming for event feeds
+   * - 'toggle': Fixed dataset with membership toggling for analytics/filtering
+   */
+  mode?: ExecutionMode;
+}
+
 // Main Modash interface
 export interface ModashStatic {
   /**
@@ -300,11 +312,13 @@ export interface ModashStatic {
    * Now supports both regular arrays and streaming collections transparently.
    * @param collection - Array of documents or StreamingCollection to process
    * @param pipeline - Array of pipeline stages
+   * @param options - Aggregation options including execution mode
    * @returns Processed array of documents
    */
   aggregate<T extends Document = Document>(
     collection: Collection<T> | StreamingCollection<T>,
-    pipeline: Pipeline
+    pipeline: Pipeline,
+    options?: AggregationOptions
   ): Collection<T>;
 
   /**
@@ -434,10 +448,6 @@ export {
   $addFields,
   $set,
   default,
-  // Phase 6: Enhanced DX APIs
-  explain,
-  benchmark,
-  fromJSONL,
 } from './modash/index';
 
 // Re-export streaming capabilities
@@ -454,39 +464,4 @@ export type {
   EventConsumerConfig,
 } from './modash/streaming';
 
-// Phase 3.5: Export text and regex search capabilities
-export {
-  $text,
-  getTextSearchStats,
-  resetTextSearchStats,
-  configureTextSearch,
-  clearTextSearchIndex,
-} from './modash/text-search';
-
-export {
-  enhancedRegexMatch,
-  getRegexSearchStats,
-  resetRegexSearchStats,
-  analyzeRegexPattern,
-  configureRegexSearch,
-  clearRegexSearchIndex,
-} from './modash/regex-search';
-
-export {
-  BloomFilter,
-  TextSearchBloomFilter,
-  RegexSearchBloomFilter,
-  extractTokens,
-  extractTrigrams,
-  extractLiteralsFromRegex,
-} from './modash/bloom-filter';
-
-// Phase 3.5: Export enhanced search types
-export type { TextSearchStats, TextSearchConfig } from './modash/text-search';
-
-export type {
-  RegexSearchStats,
-  RegexSearchConfig,
-} from './modash/regex-search';
-
-export type { BloomFilterStats } from './modash/bloom-filter';
+// Simplified mode: Advanced search capabilities removed
