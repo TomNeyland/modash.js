@@ -12,12 +12,12 @@ import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import { Command } from 'commander';
 import {
-  aiQuery,
   getSchema,
   generatePipeline,
   validateConfiguration,
   formatSchema,
 } from './index.js';
+import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
 import type { Document } from 'modash';
 
 interface CLIOptions {
@@ -109,7 +109,14 @@ async function runAICommand(
 
   // Handle schema-only mode (no OpenAI required)
   if (options.schemaOnly) {
-    const schema = getSchema(documents, { sampleSize: options.limitSample });
+    const schema = await withSpinner(
+      () =>
+        Promise.resolve(
+          getSchema(documents, { sampleSize: options.limitSample })
+        ),
+      SPINNER_PHASES.SCHEMA_INFERENCE,
+      { successMessage: '✅ Schema analysis completed' }
+    );
     console.log('📋 Inferred Schema:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(formatSchema(schema));
@@ -122,8 +129,17 @@ async function runAICommand(
     model: options.model,
   };
 
-  if (!(await validateConfiguration(openaiOptions))) {
-    console.error('❌ Error: Unable to connect to OpenAI API');
+  // Test OpenAI connection with spinner
+  const isConfigValid = await withSpinner(
+    () => validateConfiguration(openaiOptions),
+    'Validating OpenAI connection',
+    {
+      successMessage: '✅ OpenAI connection verified',
+      errorMessage: '❌ OpenAI connection failed',
+    }
+  );
+
+  if (!isConfigValid) {
     console.error(
       '💡 Hint: Check your OPENAI_API_KEY environment variable or --api-key option'
     );
@@ -143,12 +159,22 @@ async function runAICommand(
 
   // Handle show-pipeline mode
   if (options.showPipeline) {
-    const schema = getSchema(documents, { sampleSize: options.limitSample });
-    const result = await generatePipeline(
-      query,
-      schema,
-      documents.slice(0, 3),
-      openaiOptions
+    // Schema inference with spinner
+    const schema = await withSpinner(
+      () =>
+        Promise.resolve(
+          getSchema(documents, { sampleSize: options.limitSample })
+        ),
+      SPINNER_PHASES.SCHEMA_INFERENCE,
+      { successMessage: '✅ Schema analyzed' }
+    );
+
+    // Pipeline generation with spinner
+    const result = await withSpinner(
+      () =>
+        generatePipeline(query, schema, documents.slice(0, 3), openaiOptions),
+      SPINNER_PHASES.OPENAI_GENERATION,
+      { successMessage: '✅ Pipeline generated' }
     );
 
     console.log('🔧 Generated Pipeline:');
@@ -170,9 +196,9 @@ async function runAICommand(
     return;
   }
 
-  // Execute full AI query
+  // Execute full AI query with enhanced spinner experience
   const startTime = Date.now();
-  const result = await aiQuery(documents, query, {
+  const result = await executeAIQueryWithSpinners(documents, query, {
     ...openaiOptions,
     sampleSize: options.limitSample,
     includeExplanation: options.explain,
@@ -210,9 +236,92 @@ async function runAICommand(
   console.log(formatOutput(result.results, options.pretty || false));
 }
 
+/**
+ * Execute AI query with enhanced spinner UX for each phase
+ */
+async function executeAIQueryWithSpinners(
+  documents: Document[],
+  query: string,
+  options: any
+) {
+  // Phase 1: Schema Inference
+  const schemaSpinner = createPhaseSpinner('SCHEMA_INFERENCE');
+  schemaSpinner.start(SPINNER_PHASES.SCHEMA_INFERENCE);
+
+  let schema;
+  try {
+    // Simulate some processing time and show different phrases
+    await new Promise(resolve => setTimeout(resolve, 200));
+    schemaSpinner.nextPhrase();
+
+    schema = getSchema(documents, { sampleSize: options.sampleSize });
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    schemaSpinner.stop('✅ Schema analysis completed');
+  } catch (error) {
+    schemaSpinner.stop('❌ Schema analysis failed', 'red');
+    throw error;
+  }
+
+  // Phase 2: Pipeline Generation
+  const samples = documents.slice(0, 3);
+  const pipelineSpinner = createPhaseSpinner('OPENAI_GENERATION');
+  pipelineSpinner.start(SPINNER_PHASES.OPENAI_GENERATION);
+
+  let generationResult;
+  try {
+    // Show variety in OpenAI communication
+    await new Promise(resolve => setTimeout(resolve, 300));
+    pipelineSpinner.nextPhrase();
+
+    // Dynamic import to avoid circular dependency
+    const { OpenAIClient } = await import('./openai-client.js');
+    const client = new OpenAIClient(options);
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+    pipelineSpinner.nextPhrase();
+
+    generationResult = await client.generatePipeline(query, schema, samples, {
+      includeExplanation: options.includeExplanation,
+    });
+
+    pipelineSpinner.stop('✅ Pipeline generated successfully');
+  } catch (error) {
+    pipelineSpinner.stop('❌ Pipeline generation failed', 'red');
+    throw error;
+  }
+
+  // Phase 3: Execution
+  const executionResult = await withSpinner(
+    async () => {
+      // Dynamic import to avoid circular dependency
+      const Modash = await import('modash');
+      return Modash.default.aggregate(documents, generationResult.pipeline);
+    },
+    SPINNER_PHASES.EXECUTION,
+    { successMessage: '✅ Query executed successfully' }
+  );
+
+  return {
+    ...generationResult,
+    schema,
+    samples,
+    results: executionResult,
+    performance: {
+      schemaInferenceMs: 0, // These will be calculated by the calling function
+      pipelineGenerationMs: 0,
+      executionMs: 0,
+    },
+  };
+}
+
 async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
   if (options.file) {
-    return readJSONLFromFile(options.file);
+    return withSpinner(
+      () => readJSONLFromFile(options.file!),
+      'Loading data from file',
+      { successMessage: '✅ Data loaded successfully' }
+    );
   } else {
     // Check if stdin has data
     if (process.stdin.isTTY) {
@@ -224,7 +333,9 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
       );
       process.exit(1);
     }
-    return readJSONLFromStdin();
+    return withSpinner(() => readJSONLFromStdin(), 'Reading data from stdin', {
+      successMessage: '✅ Data loaded successfully',
+    });
   }
 }
 
