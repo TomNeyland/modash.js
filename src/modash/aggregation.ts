@@ -14,6 +14,24 @@ import { $accumulate } from './accumulators';
 import { $text } from './text-search';
 import { DEBUG } from './debug';
 
+// Phase 4A: Performance Optimizations
+import { jitCompiler } from './jit-expression-compiler';
+import { optimizedSortLimit } from './topk-heap';
+import { simdGroupingEngine, isSIMDOptimizable } from './simd-grouping';
+import { MatchProjectFusion, detectFusiblePatterns, optimizePipelineWithFusion } from './match-project-fusion';
+import { BufferPool } from './performance-optimized-engine';
+
+// Phase 4B: Advanced Optimizations  
+import { expressionInliner, shouldUseExpressionInlining, optimizeWithExpressionInlining } from './expression-inlining';
+import { cacheLocalityOptimizer, shouldOptimizeForCacheLocality, createCacheOptimizedCollection } from './cache-locality-optimizer';
+
+// Phase 4C: Ultra-Advanced Optimizations
+import { advancedLoopFusion, shouldUseAdvancedLoopFusion } from './advanced-loop-fusion';
+import { advancedVectorization, shouldUseVectorization } from './advanced-vectorization';
+
+// Global buffer pool for hot path operations
+const globalBufferPool = new BufferPool();
+
 // Import complex types from main index for now
 import type {
   Pipeline,
@@ -101,30 +119,80 @@ function $match<T extends Document = Document>(
     return [];
   }
 
-  // Phase 3.5: Check for $text operator at top level
-  if (query.$text && typeof query.$text === 'string') {
-    if (DEBUG) {
-      console.log(
-        `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
-      );
-    }
+  // Phase 4A: Buffer Pool Optimization for large collections
+  const useBufferPool = collection.length > 1000;
+  let results: T[];
+  
+  if (useBufferPool) {
+    // Use buffer pool for intermediate results to reduce allocations
+    results = globalBufferPool.get<T>('match_results', Math.ceil(collection.length / 4));
+    let resultIndex = 0;
 
-    // Use accelerated text search for the entire collection
-    const textResults = $text(collection, query.$text);
+    // Phase 3.5: Check for $text operator at top level
+    if (query.$text && typeof query.$text === 'string') {
+      if (DEBUG) {
+        console.log(
+          `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        );
+      }
 
-    // If there are other conditions, apply them to the text search results
-    const remainingQuery = { ...query };
-    delete remainingQuery.$text;
+      // Use accelerated text search for the entire collection
+      const textResults = $text(collection, query.$text);
 
-    if (Object.keys(remainingQuery).length === 0) {
-      return textResults; // Only $text condition
+      // If there are other conditions, apply them to the text search results
+      const remainingQuery = { ...query };
+      delete remainingQuery.$text;
+
+      if (Object.keys(remainingQuery).length === 0) {
+        globalBufferPool.return('match_results', results);
+        return textResults; // Only $text condition
+      } else {
+        // Apply additional filters to text search results
+        for (const item of textResults) {
+          if (matchDocument(item, remainingQuery)) {
+            results[resultIndex++] = item;
+          }
+        }
+      }
     } else {
-      // Apply additional filters to text search results
-      return textResults.filter(item => matchDocument(item, remainingQuery));
+      // Standard filtering with buffer pool
+      for (const item of collection) {
+        if (matchDocument(item, query)) {
+          results[resultIndex++] = item;
+        }
+      }
     }
-  }
 
-  return collection.filter(item => matchDocument(item, query));
+    // Create final result array and return buffer to pool
+    const finalResults = results.slice(0, resultIndex);
+    globalBufferPool.return('match_results', results);
+    return finalResults;
+  } else {
+    // Phase 3.5: Check for $text operator at top level
+    if (query.$text && typeof query.$text === 'string') {
+      if (DEBUG) {
+        console.log(
+          `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        );
+      }
+
+      // Use accelerated text search for the entire collection
+      const textResults = $text(collection, query.$text);
+
+      // If there are other conditions, apply them to the text search results
+      const remainingQuery = { ...query };
+      delete remainingQuery.$text;
+
+      if (Object.keys(remainingQuery).length === 0) {
+        return textResults; // Only $text condition
+      } else {
+        // Apply additional filters to text search results
+        return textResults.filter(item => matchDocument(item, remainingQuery));
+      }
+    }
+
+    return collection.filter(item => matchDocument(item, query));
+  }
 }
 
 /**
@@ -363,6 +431,98 @@ function cmpString(a: unknown, b: unknown): number {
 /**
  * Reorders the document stream by a specified sort key.
  */
+/**
+ * Extract numerical operations from pipeline for vectorization
+ */
+function extractNumericalOperations(stages: PipelineStage[]): string[] {
+  const operations = new Set<string>();
+  
+  for (const stage of stages) {
+    if ('$project' in stage && stage.$project) {
+      Object.values(stage.$project).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$add', '$subtract', '$multiply', '$divide', '$abs', '$sqrt'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$group' in stage && stage.$group) {
+      Object.values(stage.$group).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$sum', '$avg', '$min', '$max'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$addFields' in stage && stage.$addFields) {
+      Object.values(stage.$addFields).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$add', '$subtract', '$multiply', '$divide'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+  }
+  
+  return Array.from(operations);
+}
+
+/**
+ * Analyze field access patterns in pipeline for cache optimization
+ */
+function analyzeFieldAccess(stages: PipelineStage[]): string[] {
+  const fieldAccess = new Set<string>();
+  
+  for (const stage of stages) {
+    if ('$project' in stage && stage.$project) {
+      Object.keys(stage.$project).forEach(field => fieldAccess.add(field));
+    }
+    
+    if ('$group' in stage && stage.$group) {
+      // Add fields used in group expressions
+      if (typeof stage.$group._id === 'string' && stage.$group._id.startsWith('$')) {
+        fieldAccess.add(stage.$group._id.slice(1));
+      }
+      
+      Object.values(stage.$group).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.values(spec).forEach(expr => {
+            if (typeof expr === 'string' && expr.startsWith('$')) {
+              fieldAccess.add(expr.slice(1));
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$sort' in stage && stage.$sort) {
+      Object.keys(stage.$sort).forEach(field => fieldAccess.add(field));
+    }
+    
+    if ('$match' in stage && stage.$match) {
+      Object.keys(stage.$match).forEach(field => {
+        if (!field.startsWith('$')) fieldAccess.add(field);
+      });
+    }
+  }
+  
+  return Array.from(fieldAccess).slice(0, 8); // Limit for cache efficiency
+}
+
+// Store the next $limit value for TopK optimization
+let nextLimitValue: number | null = null;
+
 function $sort<T extends Document = Document>(
   collection: Collection<T>,
   sortSpec: SortStage['$sort']
@@ -370,6 +530,14 @@ function $sort<T extends Document = Document>(
   if (!Array.isArray(collection)) {
     return [];
   }
+
+  // Phase 4A: TopK Heap Optimization for sort+limit fusion
+  if (nextLimitValue !== null && collection.length > 1000 && nextLimitValue <= collection.length * 0.5) {
+    const result = optimizedSortLimit(collection, sortSpec, nextLimitValue);
+    nextLimitValue = null; // Reset after use
+    return result as Collection<T>;
+  }
+
   const sortKeys = Object.keys(sortSpec);
 
   return [...collection].sort((a, b) => {
@@ -542,6 +710,17 @@ function $group<T extends Document = Document>(
   collection: Collection<T>,
   specifications: GroupStage['$group'] = { _id: null }
 ): Collection<T> {
+  // Phase 4A: SIMD Grouping Optimization
+  if (isSIMDOptimizable(collection, specifications)) {
+    try {
+      const result = simdGroupingEngine.execute(collection, specifications);
+      return result as Collection<T>;
+    } catch (error) {
+      // Fall back to traditional grouping if SIMD optimization fails
+      console.warn('SIMD grouping failed, falling back to traditional grouping:', error);
+    }
+  }
+
   const _idSpec = specifications._id;
 
   // Group by using native JavaScript
@@ -789,10 +968,62 @@ function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
   stages: PipelineStage[]
 ): Collection<T> {
-  let result = collection as Collection<T>;
+  // Phase 4C: Advanced Loop Fusion for maximum performance
+  if (shouldUseAdvancedLoopFusion(collection, stages)) {
+    try {
+      const result = advancedLoopFusion.optimizePipeline(collection, stages);
+      if (result.length !== collection.length || stages.length > 2) {
+        // Only use fused result if it actually processed the pipeline
+        return result as Collection<T>;
+      }
+    } catch (error) {
+      console.warn('Advanced loop fusion failed, falling back:', error);
+    }
+  }
 
-  for (let i = 0; i < stages.length; i++) {
-    const stage = stages[i]!;
+  // Phase 4B: Expression Inlining Optimization
+  let optimizedStages = stages;
+  if (shouldUseExpressionInlining(stages)) {
+    optimizedStages = optimizeWithExpressionInlining(stages);
+  }
+
+  // Phase 4A: Match+Project Fusion Optimization
+  const fusiblePatterns = detectFusiblePatterns(optimizedStages);
+  if (fusiblePatterns.length > 0) {
+    return optimizePipelineWithFusion(collection, optimizedStages) as Collection<T>;
+  }
+
+  // Phase 4B: Cache Locality Optimization for large collections
+  let workingCollection = collection;
+  let cacheOptimized = null;
+  
+  if (shouldOptimizeForCacheLocality(collection)) {
+    const analysisFields = analyzeFieldAccess(optimizedStages);
+    if (analysisFields.length > 0) {
+      cacheOptimized = createCacheOptimizedCollection(collection, analysisFields);
+      // Note: For now we keep using AoS but could switch to SoA for specific operations
+    }
+  }
+
+  // Phase 4C: Vectorization for numerical operations
+  const numericalOps = extractNumericalOperations(optimizedStages);
+  if (shouldUseVectorization(collection, numericalOps)) {
+    const vectorized = advancedVectorization.vectorizeCollection(collection, analyzeFieldAccess(optimizedStages));
+    if (vectorized) {
+      // Process vectorizable operations first, then fall back for others
+      // This is a placeholder for vectorized pipeline execution
+    }
+  }
+
+  let result = workingCollection as Collection<T>;
+
+  for (let i = 0; i < optimizedStages.length; i++) {
+    const stage = optimizedStages[i]!;
+
+    // Phase 4A: TopK Optimization - Look ahead for $limit after $sort
+    if ('$sort' in stage && i + 1 < optimizedStages.length && '$limit' in optimizedStages[i + 1]!) {
+      nextLimitValue = optimizedStages[i + 1]!.$limit;
+    }
 
     if ('$count' in stage) {
       // Rewrite $count to $group + $project as per user guidance
@@ -822,6 +1053,10 @@ function traditionalAggregate<T extends Document = Document>(
       result = $skip(result, stage.$skip);
     }
     if ('$limit' in stage) {
+      // Reset nextLimitValue if this is a standalone $limit
+      if (nextLimitValue === stage.$limit) {
+        nextLimitValue = null;
+      }
       result = $limit(result, stage.$limit);
     }
     if ('$unwind' in stage) {
