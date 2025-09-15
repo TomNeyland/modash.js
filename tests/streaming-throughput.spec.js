@@ -42,7 +42,9 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       const numBatches = 100; // Total batches
       const totalDocuments = numBatches * batchSize; // 50k documents
 
-      console.log(`      Testing throughput with ${numBatches} batches of ${batchSize} docs each (${totalDocuments} total)...`);
+      console.log(
+        `      Testing throughput with ${numBatches} batches of ${batchSize} docs each (${totalDocuments} total)...`
+      );
 
       const startTime = performance.now();
 
@@ -71,7 +73,7 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       let processedDocs = 0;
       let attempts = 0;
       const maxAttempts = 60; // 3 seconds max wait
-      
+
       while (processedDocs < totalDocuments && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 50));
         processedDocs = streamingCollection.count();
@@ -82,17 +84,31 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       const actualDurationSec = (endTime - startTime) / 1000;
       const actualThroughput = totalDocuments / actualDurationSec;
 
-      console.log(`      Actually processed ${processedDocs} out of ${totalDocuments} documents`);
-      console.log(`      Processing took ${attempts} attempts (${attempts * 0.05}s waiting)`);
+      console.log(
+        `      Actually processed ${processedDocs} out of ${totalDocuments} documents`
+      );
+      console.log(
+        `      Processing took ${attempts} attempts (${attempts * 0.05}s waiting)`
+      );
 
       // Get optimizer metrics
       const metrics = streamingCollection.getStreamingMetrics();
-      console.log(`      Processed ${totalDocuments} documents in ${actualDurationSec.toFixed(2)}s`);
-      console.log(`      Throughput: ${Math.round(actualThroughput).toLocaleString()} deltas/sec`);
-      console.log(`      Delta optimizer metrics:`, JSON.stringify(metrics.deltaOptimizer, null, 2));
+      console.log(
+        `      Processed ${totalDocuments} documents in ${actualDurationSec.toFixed(2)}s`
+      );
+      console.log(
+        `      Throughput: ${Math.round(actualThroughput).toLocaleString()} deltas/sec`
+      );
+      console.log(
+        `      Delta optimizer metrics:`,
+        JSON.stringify(metrics.deltaOptimizer, null, 2)
+      );
 
       // Verify all documents were processed
-      expect(processedDocs).to.equal(totalDocuments, 'All documents should be processed');
+      expect(processedDocs).to.equal(
+        totalDocuments,
+        'All documents should be processed'
+      );
 
       // Verify reasonable throughput (adjusted for CI environment)
       // Target at least 3k docs/sec (reasonable for CI with delta batching)
@@ -102,8 +118,14 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       );
 
       // Verify delta optimizer shows batching activity
-      expect(metrics.deltaOptimizer.totalDeltas).to.be.greaterThan(10, 'Should have multiple deltas');
-      expect(metrics.deltaOptimizer.totalBatches).to.be.greaterThan(0, 'Should have processed batches');
+      expect(metrics.deltaOptimizer.totalDeltas).to.be.greaterThan(
+        10,
+        'Should have multiple deltas'
+      );
+      expect(metrics.deltaOptimizer.totalBatches).to.be.greaterThan(
+        0,
+        'Should have processed batches'
+      );
 
       // Verify aggregation correctness
       const result = streamingCollection.getStreamingResult(pipeline);
@@ -113,7 +135,6 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       // Verify total count matches input
       const totalCount = result.reduce((sum, group) => sum + group.count, 0);
       expect(totalCount).to.equal(totalDocuments);
-
     } finally {
       // Restore environment
       if (originalEnv !== undefined) {
@@ -143,12 +164,14 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
     const burstInterval = 100; // ms between bursts
 
     const latencies = [];
-    
-    console.log(`      Testing bursty workload: ${numBursts} bursts of ${burstSize} docs each...`);
+
+    console.log(
+      `      Testing bursty workload: ${numBursts} bursts of ${burstSize} docs each...`
+    );
 
     for (let burst = 0; burst < numBursts; burst++) {
       const burstStartTime = performance.now();
-      
+
       // Create burst
       const batchData = [];
       for (let i = 0; i < burstSize; i++) {
@@ -168,7 +191,7 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
       const burstLatency = burstEndTime - burstStartTime;
       latencies.push(burstLatency);
 
-      // Pause between bursts  
+      // Pause between bursts
       if (burst < numBursts - 1) {
         await new Promise(resolve => setTimeout(resolve, burstInterval));
       }
@@ -181,23 +204,37 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
     const sortedLatencies = latencies.sort((a, b) => a - b);
     const p99Index = Math.floor(sortedLatencies.length * 0.99);
     const p99Latency = sortedLatencies[p99Index];
-    const avgLatency = latencies.reduce((sum, lat) => sum + lat, 0) / latencies.length;
+    const avgLatency =
+      latencies.reduce((sum, lat) => sum + lat, 0) / latencies.length;
 
     console.log(`      Avg burst latency: ${avgLatency.toFixed(2)}ms`);
     console.log(`      P99 burst latency: ${p99Latency.toFixed(2)}ms`);
-    console.log(`      All latencies: ${latencies.map(l => l.toFixed(1)).join(', ')}ms`);
+    console.log(
+      `      All latencies: ${latencies.map(l => l.toFixed(1)).join(', ')}ms`
+    );
 
     // Verify latency targets (more reasonable for CI/async processing)
-    expect(p99Latency).to.be.lessThan(500, 'P99 latency should be under 500ms for bursty workloads');
-    expect(avgLatency).to.be.lessThan(200, 'Average latency should be under 200ms');
+    expect(p99Latency).to.be.lessThan(
+      500,
+      'P99 latency should be under 500ms for bursty workloads'
+    );
+    expect(avgLatency).to.be.lessThan(
+      200,
+      'Average latency should be under 200ms'
+    );
 
     // Verify correctness after all bursts
     const result = streamingCollection.getStreamingResult(pipeline);
     const totalExpected = numBursts * burstSize;
     const totalActual = result.reduce((sum, group) => sum + group.count, 0);
-    
-    expect(totalActual).to.equal(totalExpected, 'All documents should be processed correctly');
-    console.log(`      Processed ${totalActual}/${totalExpected} documents correctly`);
+
+    expect(totalActual).to.equal(
+      totalExpected,
+      'All documents should be processed correctly'
+    );
+    console.log(
+      `      Processed ${totalActual}/${totalExpected} documents correctly`
+    );
   });
 
   it('should demonstrate performance improvement with delta batching enabled vs disabled', async function () {
@@ -205,15 +242,15 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
     const batchSize = 100;
     const pipeline = [
       {
-        $match: { active: true }
+        $match: { active: true },
       },
       {
         $group: {
           _id: '$department',
           count: { $sum: 1 },
-          avgSalary: { $avg: '$salary' }
-        }
-      }
+          avgSalary: { $avg: '$salary' },
+        },
+      },
     ];
 
     // Generate test data
@@ -260,14 +297,26 @@ describe('Streaming Delta Optimizer Throughput Tests', function () {
 
     collection2.destroy();
 
-    console.log(`      Without batching: ${Math.round(throughput1).toLocaleString()} docs/sec (${duration1.toFixed(1)}ms)`);
-    console.log(`      With batching: ${Math.round(throughput2).toLocaleString()} docs/sec (${duration2.toFixed(1)}ms)`);
-    console.log(`      Performance improvement: ${((throughput2 / throughput1 - 1) * 100).toFixed(1)}%`);
+    console.log(
+      `      Without batching: ${Math.round(throughput1).toLocaleString()} docs/sec (${duration1.toFixed(1)}ms)`
+    );
+    console.log(
+      `      With batching: ${Math.round(throughput2).toLocaleString()} docs/sec (${duration2.toFixed(1)}ms)`
+    );
+    console.log(
+      `      Performance improvement: ${((throughput2 / throughput1 - 1) * 100).toFixed(1)}%`
+    );
 
     // Delta batching should provide some performance benefit
     // Note: In some cases synchronous processing might be faster for small datasets
     // The real benefit comes with high-frequency operations and larger datasets
-    expect(throughput2).to.be.greaterThan(0, 'Delta batching should complete successfully');
-    expect(throughput1).to.be.greaterThan(0, 'Non-batching should complete successfully');
+    expect(throughput2).to.be.greaterThan(
+      0,
+      'Delta batching should complete successfully'
+    );
+    expect(throughput1).to.be.greaterThan(
+      0,
+      'Non-batching should complete successfully'
+    );
   });
 });
