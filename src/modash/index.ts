@@ -23,6 +23,7 @@ import { createStreamingCollection, StreamingCollection } from './streaming';
 import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
 import { recordFallback, DEBUG } from './debug';
+import { minimalStandardEngine, requiresCompatibilityShim } from './compatibility-shim';
 
 /**
  * Streaming-first aggregation with explicit fallback only for unsupported operators
@@ -34,50 +35,15 @@ const streamingFirstAggregate = <T extends PublicDocument = PublicDocument>(
 ): PublicCollection<T> => {
   // D) Pipeline Input Validation
   if (!Array.isArray(pipeline)) {
-    return originalAggregate(collection as any, pipeline as any) as any;
+    return minimalStandardEngine(collection as any, pipeline as any) as any;
   }
 
-  // Check for operators that fundamentally cannot work with streaming/IVM architecture
-  const unsupportedOperators = ['$function', '$where', '$merge', '$out'];
-  const hasUnsupportedOperator = pipeline.some(stage => {
-    const stageType = Object.keys(stage)[0];
-    if (unsupportedOperators.includes(stageType)) {
-      if (DEBUG) {
-        console.warn(`🚨 STREAMING-FIRST FALLBACK: ${stageType} requires standard engine (breaks IVM invariants)`);
-      }
-      recordFallback(pipeline, `${stageType} requires standard engine`, {
-        reason: `${stageType} fundamentally incompatible with streaming architecture`,
-        stageType,
-        code: 'UNSUPPORTED_OPERATOR_FALLBACK'
-      });
-      return true;
-    }
-    
-    // Check for advanced $lookup with pipeline/let (which requires multi-collection processing)
-    if (stageType === '$lookup') {
-      const lookupSpec = stage.$lookup;
-      if ('pipeline' in lookupSpec || 'let' in lookupSpec) {
-        if (DEBUG) {
-          console.warn(`🚨 STREAMING-FIRST FALLBACK: Advanced $lookup with pipeline/let requires standard engine`);
-        }
-        recordFallback(pipeline, 'Advanced $lookup requires standard engine', {
-          reason: 'Advanced $lookup with pipeline/let incompatible with streaming architecture',
-          stageType,
-          code: 'ADVANCED_LOOKUP_FALLBACK'
-        });
-        return true;
-      }
-    }
-    
-    return false;
-  });
-
-  if (hasUnsupportedOperator) {
-    // Explicit fallback for truly unsupported operators
+  // Use the compatibility shim for truly unsupported operators
+  if (requiresCompatibilityShim(pipeline)) {
     if (DEBUG) {
-      console.warn(`📊 STREAMING-FIRST: Using standard engine for unsupported operators`);
+      console.warn(`📊 STREAMING-FIRST: Using compatibility shim for unsupported operators`);
     }
-    return originalAggregate(collection as any, pipeline as any) as any;
+    return minimalStandardEngine(collection as any, pipeline as any) as any;
   }
 
   if (DEBUG) {
@@ -137,11 +103,12 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  *
  * STREAMING-FIRST EXECUTION ARCHITECTURE:
  * - Defaults to IVM/streaming engine for maximum performance
- * - Explicit fallback to standard engine only for unsupported operators:
+ * - Minimal compatibility shim for truly unsupported operators:
  *   • $function, $where (arbitrary JavaScript execution)
  *   • $merge, $out (side-effect stages)  
  *   • Advanced $lookup with pipeline/let (multi-collection joins)
  * - All other operations use zero-allocation streaming engine
+ * - Standard aggregation engine deprecated, replaced with minimal shim
  * 
  * Provides transparent streaming support - all aggregations automatically
  * work with both regular arrays and streaming collections.
@@ -177,6 +144,7 @@ export {
   transparentAggregate as aggregate,
   streamingFirstAggregate, // New streaming-first engine
   optimizedAggregate, // Deprecated hot-path approach
+  minimalStandardEngine, // Compatibility shim for unsupported operators
   count,
   $expression,
   $group,

@@ -441,6 +441,7 @@ export {
   // Streaming-first architecture functions
   streamingFirstAggregate,
   optimizedAggregate,
+  minimalStandardEngine,
 } from './modash/index';
 
 // Re-export streaming capabilities
