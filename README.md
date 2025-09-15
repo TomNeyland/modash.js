@@ -621,6 +621,35 @@ npm run quality
 npm run build
 ```
 
+### Pre-commit Hook Setup
+
+Modash uses **Husky v9** for Git pre-commit hooks to ensure code quality. The hooks are automatically installed when you run `npm install`.
+
+**What the pre-commit hook does:**
+- 🔧 Runs `lint-staged` to format and fix staged files
+- 🎯 Performs TypeScript type checking
+- 🧪 Runs fast tests (excludes slow tests for commit speed)
+
+**Manual hook installation (if needed):**
+```bash
+# Reinstall hooks manually
+node scripts/install-hooks.cjs
+```
+
+**Skipping hooks temporarily:**
+```bash
+# Skip hooks for a single commit
+HUSKY_SKIP_HOOKS=1 git commit -m "Emergency fix"
+
+# Disable Husky entirely
+HUSKY=0 git commit -m "No validation"
+```
+
+**Troubleshooting:**
+- Hooks run automatically in development but skip in CI environments
+- If hooks aren't working, ensure you're in a Git repository and not in CI
+- Run `npm run precommit:check` to test validation commands manually
+
 ### Modern Development Experience
 
 - **🚀 Zero build step**: Direct TypeScript execution with `tsx`
