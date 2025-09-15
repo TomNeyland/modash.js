@@ -24,6 +24,46 @@ import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
 
 /**
+ * Detect if a pipeline is a simple read-only operation that doesn't benefit from streaming overhead
+ */
+function isSimpleReadOnlyPipeline(pipeline: Pipeline): boolean {
+  // Empty pipeline
+  if (!Array.isArray(pipeline) || pipeline.length === 0) {
+    return true;
+  }
+
+  // Single stage pipelines that are read-only
+  if (pipeline.length === 1) {
+    const stage = pipeline[0];
+    const stageType = Object.keys(stage)[0];
+    
+    // Simple filters, projections, sorts, limits, skips are read-only
+    return ['$match', '$project', '$sort', '$limit', '$skip'].includes(stageType);
+  }
+
+  // Multiple stages but all read-only (no $group which creates incremental value)
+  if (pipeline.length <= 3) {
+    return pipeline.every(stage => {
+      const stageType = Object.keys(stage)[0];
+      return ['$match', '$project', '$sort', '$limit', '$skip'].includes(stageType);
+    });
+  }
+
+  // Longer pipelines or complex operations should use streaming for potential incremental benefits
+  return false;
+}
+
+/**
+ * Create an optimized streaming collection with minimal overhead for simple operations
+ */
+function createOptimizedStreamingCollection<T extends PublicDocument = PublicDocument>(
+  initialData: PublicCollection<T>
+): StreamingCollection<T> {
+  // Use lightweight mode to defer expensive initialization until actually needed
+  return createStreamingCollection(initialData, { lightweight: true });
+}
+
+/**
  * High-performance aggregation function with hot path optimization
  */
 const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
@@ -44,22 +84,31 @@ const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
 };
 
 /**
- * Fully streaming aggregation function that always uses StreamingCollection
- * for all operations, providing unified incremental capabilities by default
+ * Optimized streaming aggregation function that intelligently chooses
+ * between fast path and full streaming based on operation complexity
  */
 const streamingDefaultAggregate = <T extends PublicDocument = PublicDocument>(
   collection: PublicCollection<T> | StreamingCollection<T>,
   pipeline: Pipeline
 ): PublicCollection<T> => {
-  // Always use StreamingCollection for consistent streaming capabilities
-  if (!(collection instanceof StreamingCollection)) {
-    // Convert regular arrays to StreamingCollection automatically
-    const streamingCollection = createStreamingCollection(collection);
-    return streamingCollection.stream(pipeline) as unknown as PublicCollection<T>;
+  // For existing streaming collections, always use streaming path
+  if (collection instanceof StreamingCollection) {
+    return collection.stream(pipeline) as unknown as PublicCollection<T>;
   }
 
-  // For existing streaming collections, use streaming path
-  return collection.stream(pipeline) as unknown as PublicCollection<T>;
+  // For regular arrays, use intelligent routing based on pipeline complexity
+  // Simple read-only operations can use hot path with minimal overhead
+  if (isSimpleReadOnlyPipeline(pipeline)) {
+    // Use hot path for simple operations - much faster than streaming overhead
+    return hotPathAggregate(
+      collection as any,
+      pipeline
+    ) as unknown as PublicCollection<T>;
+  }
+
+  // For complex operations, use optimized streaming collection
+  const streamingCollection = createOptimizedStreamingCollection(collection);
+  return streamingCollection.stream(pipeline) as unknown as PublicCollection<T>;
 };
 
 /**

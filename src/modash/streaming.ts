@@ -98,8 +98,12 @@ export class StreamingCollection<
   // Mapping from document array index to IVM rowId
   private docIndexToRowId = new Map<number, RowId>();
   private rowIdToDocIndex = new Map<RowId, number>();
+  
+  // Lazy initialization flags for performance optimization
+  private ivmInitialized = false;
+  private deltaOptimizerInitialized = false;
 
-  constructor(initialData: Collection<T> = []) {
+  constructor(initialData: Collection<T> = [], options?: { lightweight?: boolean }) {
     super();
     // Handle null, undefined, and non-iterable data
     if (!initialData || !Array.isArray(initialData)) {
@@ -107,16 +111,52 @@ export class StreamingCollection<
     } else {
       this.documents = [...initialData];
 
-      // Add initial documents to IVM engine
-      for (let i = 0; i < this.documents.length; i++) {
-        const rowId = this.ivmEngine.addDocument(this.documents[i]);
-        this.docIndexToRowId.set(i, rowId);
-        this.rowIdToDocIndex.set(rowId, i);
+      // Only initialize IVM engine if not in lightweight mode
+      if (!options?.lightweight) {
+        this.initializeIVM();
       }
     }
 
-    // Set up delta optimizer event handlers
-    this.setupDeltaOptimizer();
+    // Only set up delta optimizer if not in lightweight mode  
+    if (!options?.lightweight) {
+      this.setupDeltaOptimizer();
+      this.deltaOptimizerInitialized = true;
+    }
+  }
+
+  /**
+   * Initialize IVM engine with current documents
+   */
+  private initializeIVM(): void {
+    if (this.ivmInitialized) return;
+
+    // Add initial documents to IVM engine
+    for (let i = 0; i < this.documents.length; i++) {
+      const rowId = this.ivmEngine.addDocument(this.documents[i]);
+      this.docIndexToRowId.set(i, rowId);
+      this.rowIdToDocIndex.set(rowId, i);
+    }
+    
+    this.ivmInitialized = true;
+  }
+
+  /**
+   * Ensure IVM is initialized when needed (lazy initialization)
+   */
+  private ensureIVMInitialized(): void {
+    if (!this.ivmInitialized) {
+      this.initializeIVM();
+    }
+  }
+
+  /**
+   * Ensure delta optimizer is initialized when needed
+   */
+  private ensureDeltaOptimizerInitialized(): void {
+    if (!this.deltaOptimizerInitialized) {
+      this.setupDeltaOptimizer();
+      this.deltaOptimizerInitialized = true;
+    }
   }
 
   /**
@@ -173,6 +213,10 @@ export class StreamingCollection<
    */
   addBulk(newDocuments: T[]): void {
     if (newDocuments.length === 0) return;
+
+    // Ensure IVM is initialized when modifying documents
+    this.ensureIVMInitialized();
+    this.ensureDeltaOptimizerInitialized();
 
     // Process synchronously to ensure deterministic test behavior and immediate updates
     this.processBatchAdd(newDocuments);
@@ -514,6 +558,22 @@ export class StreamingCollection<
   stream(pipeline: Pipeline): Collection<Document> {
     const pipelineKey = this.getPipelineKey(pipeline);
 
+    // For simple read-only pipelines, use hot path directly without streaming setup
+    // This avoids the overhead of streaming infrastructure for operations that don't need it
+    if (this.isSimpleReadOnlyOperation(pipeline) && this.activePipelines.size === 0) {
+      // Use hot path directly for simple operations when no streaming is active
+      const disableHotPath =
+        process.env.DISABLE_HOT_PATH_STREAMING === '1' ||
+        process.env.HOT_PATH_STREAMING === '0';
+      return disableHotPath
+        ? aggregate(this.documents, pipeline)
+        : hotPathAggregate(this.documents, pipeline);
+    }
+
+    // For complex operations or when streaming is already active, set up full streaming
+    // Ensure IVM is initialized when setting up streaming
+    this.ensureIVMInitialized();
+
     // Store the pipeline for future updates
     this.activePipelines.set(pipelineKey, pipeline);
 
@@ -696,6 +756,36 @@ export class StreamingCollection<
    */
   private getPipelineKey(pipeline: Pipeline): string {
     return JSON.stringify(pipeline);
+  }
+
+  /**
+   * Check if pipeline is a simple read-only operation that doesn't need full streaming setup
+   */
+  private isSimpleReadOnlyOperation(pipeline: Pipeline): boolean {
+    // Empty pipeline
+    if (!Array.isArray(pipeline) || pipeline.length === 0) {
+      return true;
+    }
+
+    // Single stage pipelines that are read-only
+    if (pipeline.length === 1) {
+      const stage = pipeline[0];
+      const stageType = Object.keys(stage)[0];
+      
+      // Simple filters, projections, sorts, limits, skips are read-only
+      return ['$match', '$project', '$sort', '$limit', '$skip'].includes(stageType);
+    }
+
+    // Multiple stages but all read-only (no $group which creates incremental value)
+    if (pipeline.length <= 3) {
+      return pipeline.every(stage => {
+        const stageType = Object.keys(stage)[0];
+        return ['$match', '$project', '$sort', '$limit', '$skip'].includes(stageType);
+      });
+    }
+
+    // Longer pipelines or complex operations should use streaming for potential incremental benefits
+    return false;
   }
 
   /**
