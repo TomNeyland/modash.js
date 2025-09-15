@@ -255,7 +255,10 @@ function $variancePop(collection: Collection, spec: Expression): number | null {
  * Variance Sample - companion to $stdDevSamp
  * Returns the sample variance without taking the square root
  */
-function $varianceSamp(collection: Collection, spec: Expression): number | null {
+function $varianceSamp(
+  collection: Collection,
+  spec: Expression
+): number | null {
   let n = 0;
   let mean = 0;
   let M2 = 0;

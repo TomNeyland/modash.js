@@ -244,10 +244,19 @@ export interface UnwindStage {
 export interface LookupStage {
   $lookup: {
     from: Collection;
-    localField: string;
-    foreignField: string;
     as: string;
-  };
+  } & (
+    | {
+        // Simple equality syntax
+        localField: string;
+        foreignField: string;
+      }
+    | {
+        // Advanced pipeline syntax with let bindings
+        let?: Record<string, Expression>;
+        pipeline: Pipeline;
+      }
+  );
 }
 
 export interface AddFieldsStage {
@@ -262,6 +271,10 @@ export interface SetStage {
   };
 }
 
+export interface CountStage {
+  $count: string;
+}
+
 // Union of all pipeline stages
 export type PipelineStage = (
   | MatchStage
@@ -274,6 +287,7 @@ export type PipelineStage = (
   | LookupStage
   | AddFieldsStage
   | SetStage
+  | CountStage
 ) & { [key: string]: any };
 
 // Pipeline type

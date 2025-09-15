@@ -5,9 +5,13 @@
  * for stable 1M+ docs/sec group performance with minimal memory allocation.
  */
 
-import type { Collection, Document, DocumentValue } from './expressions';
+import {
+  $expression,
+  type Collection,
+  type Document,
+  type DocumentValue,
+} from './expressions';
 import type { GroupStage, Expression } from '../index';
-import { $expression } from './expressions';
 import { RobinHoodHashTable } from './robin-hood-hash';
 import { BatchSoAAccumulator } from './soa-accumulators';
 import { DEBUG, logPipelineExecution } from './debug';

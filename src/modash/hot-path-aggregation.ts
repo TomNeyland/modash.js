@@ -139,6 +139,19 @@ function canUseHotPath(pipeline: Pipeline): boolean {
   const hasGroup = pipeline.some(stage => '$group' in stage);
   const hasUnwind = pipeline.some(stage => '$unwind' in stage);
 
+  // Count the number of $group stages
+  const groupCount = pipeline.filter(stage => '$group' in stage).length;
+
+  // Phase 7: Disable multiple $group operations in hot path
+  // The zero-alloc engine doesn't properly handle consecutive $group operations
+  if (groupCount > 1) {
+    recordOptimizerRejection(
+      pipeline,
+      'Multiple $group operations not supported in hot path - fallback to standard aggregation'
+    );
+    return false;
+  }
+
   // Phase 5: Temporarily disable $unwind + $group optimization due to bugs
   // This forces these patterns through traditional aggregation path
   if (hasUnwind && hasGroup) {
@@ -215,6 +228,20 @@ function canUseHotPath(pipeline: Pipeline): boolean {
           );
           return false;
         }
+        break;
+      case '$lookup':
+        // Check if this is advanced $lookup with let/pipeline
+        const lookupSpec = stage.$lookup;
+        if ('pipeline' in lookupSpec || 'let' in lookupSpec) {
+          recordOptimizerRejection(
+            pipeline,
+            'Advanced $lookup with let/pipeline not supported in hot path - fallback to standard aggregation',
+            i,
+            stageType
+          );
+          return false;
+        }
+        // Simple $lookup with localField/foreignField is supported
         break;
       default:
         // Unsupported stage type

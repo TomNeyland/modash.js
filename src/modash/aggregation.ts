@@ -155,6 +155,14 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
 
   for (const field in query) {
     const condition = query[field] as FieldCondition;
+
+    // Handle $expr operator - evaluate expression in document context
+    if (field === '$expr') {
+      const exprResult = $expression(doc, condition as Expression, doc);
+      if (!exprResult) return false;
+      continue;
+    }
+
     // Optimize for simple property access - use direct access when no dots in field name
     const fieldValue = field.includes('.') ? lodashGet(doc, field) : doc[field];
 
@@ -347,8 +355,8 @@ function $skip<T extends Document = Document>(
  * Helper function for safe string comparison that handles mixed types
  */
 function cmpString(a: unknown, b: unknown): number {
-  const sa = a == null ? '' : String(a);
-  const sb = b == null ? '' : String(b);
+  const sa = a === null || a === undefined ? '' : String(a);
+  const sb = b === null || b === undefined ? '' : String(b);
   return sa.localeCompare(sb);
 }
 
@@ -437,7 +445,7 @@ function $unwind<T extends Document = Document>(
       : doc[cleanPath];
 
     if (!Array.isArray(arrayValue)) {
-      if (arrayValue != null) {
+      if (arrayValue !== null) {
         // Non-array value, keep document as-is
         result.push(doc);
       } else if (options.preserveNullAndEmptyArrays) {
@@ -572,42 +580,153 @@ function $group<T extends Document = Document>(
 }
 
 /**
+ * Execute an aggregation pipeline with variable bindings for $lookup sub-pipelines
+ */
+function aggregateWithBindings<T extends Document = Document>(
+  collection: Collection<T>,
+  pipeline: Pipeline,
+  bindings: Record<string, DocumentValue>
+): Collection<T> {
+  let result = collection;
+
+  for (const stage of pipeline) {
+    if ('$match' in stage) {
+      // Special handling for $match with $expr to support bindings
+      const matchSpec = stage.$match;
+      if (matchSpec && typeof matchSpec === 'object' && '$expr' in matchSpec) {
+        // Filter using $expr with bindings
+        result = result.filter(doc => {
+          const exprResult = $expression(
+            doc,
+            matchSpec.$expr!,
+            doc,
+            undefined,
+            bindings
+          );
+          return Boolean(exprResult);
+        });
+      } else {
+        // Regular $match without bindings
+        result = $match(result, matchSpec);
+      }
+    } else if ('$project' in stage) {
+      // Project with bindings support
+      result = result.map(doc => {
+        const projected: Document = {};
+        for (const [key, expr] of Object.entries(stage.$project)) {
+          const value = $expression(
+            doc,
+            expr as Expression,
+            doc,
+            undefined,
+            bindings
+          );
+          // Check for $$REMOVE symbol (cast to any to handle symbol comparison)
+          if ((value as any) !== Symbol.for('$$REMOVE')) {
+            projected[key] = value;
+          }
+        }
+        return projected as T;
+      }) as Collection<T>;
+    } else if ('$limit' in stage) {
+      result = $limit(result, stage.$limit);
+    } else if ('$skip' in stage) {
+      result = $skip(result, stage.$skip);
+    } else if ('$sort' in stage) {
+      result = $sort(result, stage.$sort);
+    } else {
+      // For other stages, fall back to regular processing (no bindings support yet)
+      throw new Error(
+        `$lookup sub-pipeline: Stage ${Object.keys(stage)[0]} not supported with bindings`
+      );
+    }
+  }
+
+  return result;
+}
+
+/**
  * Performs a left outer join to an unsharded collection in the same database
  * to filter in documents from the "joined" collection for processing.
  */
 function $lookup<T extends Document = Document>(
   collection: Collection<T>,
-  { from, localField, foreignField, as }: LookupStage['$lookup']
+  spec: LookupStage['$lookup']
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
   }
+
+  const { from, as } = spec;
+
   if (!from || !Array.isArray(from)) {
     throw new Error(
       '$lookup: "from" must be an array (the foreign collection)'
     );
   }
-  if (!localField || !foreignField || !as) {
-    throw new Error('$lookup: localField, foreignField, and as are required');
+
+  if (!as) {
+    throw new Error('$lookup: "as" field is required');
   }
 
-  return collection.map(doc => {
-    // Optimize for simple property access - use direct access when no dots in field
-    const localValue = localField.includes('.')
-      ? lodashGet(doc, localField)
-      : doc[localField];
-    const matches = from.filter(foreignDoc => {
-      const foreignValue = foreignField.includes('.')
-        ? lodashGet(foreignDoc, foreignField)
-        : foreignDoc[foreignField];
-      return foreignValue === localValue;
-    });
+  // Check if this is the simple syntax or advanced syntax
+  if ('localField' in spec && 'foreignField' in spec) {
+    // Simple equality join syntax
+    const { localField, foreignField } = spec;
 
-    return {
-      ...doc,
-      [as]: matches,
-    };
-  }) as Collection<T>;
+    if (!localField || !foreignField) {
+      throw new Error(
+        '$lookup: localField and foreignField are required for simple syntax'
+      );
+    }
+
+    return collection.map(doc => {
+      // Optimize for simple property access - use direct access when no dots in field
+      const localValue = localField.includes('.')
+        ? lodashGet(doc, localField)
+        : doc[localField];
+      const matches = from.filter(foreignDoc => {
+        const foreignValue = foreignField.includes('.')
+          ? lodashGet(foreignDoc, foreignField)
+          : foreignDoc[foreignField];
+        return foreignValue === localValue;
+      });
+
+      return {
+        ...doc,
+        [as]: matches,
+      };
+    }) as Collection<T>;
+  } else if ('pipeline' in spec) {
+    // Advanced pipeline syntax with optional let bindings
+    const { pipeline } = spec;
+    const letVars = 'let' in spec ? spec.let : undefined;
+
+    return collection.map(doc => {
+      // Evaluate let variables once per outer document
+      const bindings: Record<string, DocumentValue> = {};
+
+      if (letVars) {
+        for (const [varName, varExpr] of Object.entries(letVars)) {
+          // Evaluate the expression in context of the current document
+          bindings[varName] = $expression(doc, varExpr, doc);
+        }
+      }
+
+      // Execute the pipeline on the foreign collection with bindings
+      // We need a special version of aggregate that accepts bindings
+      const matches = aggregateWithBindings(from, pipeline, bindings);
+
+      return {
+        ...doc,
+        [as]: matches,
+      };
+    }) as Collection<T>;
+  } else {
+    throw new Error(
+      '$lookup: Must specify either localField/foreignField or pipeline'
+    );
+  }
 }
 
 /**
@@ -647,7 +766,7 @@ function aggregate<T extends Document = Document>(
   }
 
   // D) Pipeline Input Validation - Handle null/undefined/invalid pipelines
-  if (pipeline == null) {
+  if (pipeline === null) {
     return collection; // Return collection unchanged for null/undefined pipeline
   }
 
@@ -675,6 +794,18 @@ function traditionalAggregate<T extends Document = Document>(
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
 
+    if ('$count' in stage) {
+      // Rewrite $count to $group + $project as per user guidance
+      const fieldName = stage.$count;
+      result = $group(result, {
+        _id: null,
+        [fieldName]: { $sum: 1 },
+      });
+      result = $project(result, {
+        _id: 0,
+        [fieldName]: 1,
+      });
+    }
     if ('$match' in stage) {
       result = $match(result, stage.$match);
     }

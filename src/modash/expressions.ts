@@ -89,13 +89,15 @@ function isExpressionOperator(
  * @param expression - Expression to evaluate
  * @param root - Root document (defaults to obj)
  * @param context - Evaluation context for system variables like $$value, $$this
+ * @param bindings - Variable bindings from $let or similar constructs
  * @returns Result of the expression
  */
 function $expression(
   obj: Document,
   expression: Expression,
   root?: Document,
-  context?: { [key: string]: DocumentValue }
+  context?: { [key: string]: DocumentValue },
+  bindings?: Record<string, DocumentValue>
 ): DocumentValue {
   let result: DocumentValue;
 
@@ -104,13 +106,13 @@ function $expression(
   }
 
   if (isSystemVariable(expression)) {
-    result = $systemVariable(obj, expression, root, context);
+    result = $systemVariable(obj, expression, root, context, bindings);
   } else if (isExpressionOperator(expression)) {
-    result = $expressionOperator(obj, expression, root, context);
+    result = $expressionOperator(obj, expression, root, context, bindings);
   } else if (isFieldPath(expression)) {
     result = $fieldPath(obj, expression);
   } else if (isExpressionObject(expression)) {
-    result = $expressionObject(obj, expression, root, context);
+    result = $expressionObject(obj, expression, root, context, bindings);
   } else {
     result = expression as DocumentValue;
   }
@@ -129,7 +131,8 @@ function $expressionOperator(
   obj: Document,
   operatorExpression: ExpressionOperatorObject,
   root: Document,
-  context?: { [key: string]: DocumentValue }
+  context?: { [key: string]: DocumentValue },
+  bindings?: Record<string, DocumentValue>
 ): DocumentValue {
   const [operator] = Object.keys(operatorExpression);
   let args = operatorExpression[operator!];
@@ -140,21 +143,51 @@ function $expressionOperator(
   }
 
   // Special handling for operators that need document context
+  if (operator === '$cond') {
+    // Handle both array and object forms with lazy evaluation
+    let condition, thenBranch, elseBranch;
+
+    if (Array.isArray(args)) {
+      // Array form: [condition, then, else]
+      [condition, thenBranch, elseBranch] = args;
+    } else if (typeof args === 'object' && args !== null) {
+      // Object form: { if: condition, then: then, else: else }
+      const condObj = args as {
+        if: Expression;
+        then: Expression;
+        else: Expression;
+      };
+      condition = condObj.if;
+      thenBranch = condObj.then;
+      elseBranch = condObj.else;
+    } else {
+      throw new Error('Invalid $cond format');
+    }
+
+    // Lazy evaluation - only evaluate the taken branch
+    const condResult = $expression(obj, condition, root, context, bindings);
+    if (condResult) {
+      return $expression(obj, thenBranch, root, context, bindings);
+    } else {
+      return $expression(obj, elseBranch, root, context, bindings);
+    }
+  }
+
   if (operator === '$switch') {
     const switchInput = args as any;
     const { branches, default: defaultValue } = switchInput;
 
     // Iterate through branches and return first truthy case
     for (const branch of branches) {
-      const caseResult = $expression(obj, branch.case, root, context);
+      const caseResult = $expression(obj, branch.case, root, context, bindings);
       if (caseResult) {
-        return $expression(obj, branch.then, root, context);
+        return $expression(obj, branch.then, root, context, bindings);
       }
     }
 
     // Return default value if no cases match
     return defaultValue !== undefined
-      ? $expression(obj, defaultValue, root, context)
+      ? $expression(obj, defaultValue, root, context, bindings)
       : null;
   }
 
@@ -166,13 +199,14 @@ function $expressionOperator(
       obj,
       input,
       root,
-      context
+      context,
+      bindings
     ) as DocumentValue[];
     if (!Array.isArray(arrayValue)) {
       return null;
     }
 
-    let accumulator = $expression(obj, initialValue, root, context);
+    let accumulator = $expression(obj, initialValue, root, context, bindings);
 
     // Iterate through array elements with $$value and $$this context
     for (const element of arrayValue) {
@@ -184,7 +218,13 @@ function $expressionOperator(
       };
 
       // Evaluate the expression with the context and update accumulator
-      accumulator = $expression(obj, inExpression, root, reduceContext);
+      accumulator = $expression(
+        obj,
+        inExpression,
+        root,
+        reduceContext,
+        bindings
+      );
     }
 
     return accumulator;
@@ -195,7 +235,8 @@ function $expressionOperator(
   }
 
   const evaluatedArgs = (args as Expression[]).map(
-    argExpression => () => $expression(obj, argExpression, root, context)
+    argExpression => () =>
+      $expression(obj, argExpression, root, context, bindings)
   );
 
   const result = operatorFunction(...evaluatedArgs);
@@ -206,7 +247,8 @@ function $expressionObject(
   obj: Document,
   specifications: { [key: string]: Expression },
   root?: Document,
-  context?: { [key: string]: DocumentValue }
+  context?: { [key: string]: DocumentValue },
+  bindings?: Record<string, DocumentValue>
 ): Document {
   const result: Document = {};
 
@@ -233,7 +275,8 @@ function $expressionObject(
               subtarget,
               { [pathParts.join('.')]: expression },
               root,
-              context
+              context,
+              bindings
             )
           )
         );
@@ -248,7 +291,8 @@ function $expressionObject(
               head as Document,
               { [pathParts.join('.')]: expression },
               root,
-              context
+              context,
+              bindings
             )
           )
         );
@@ -288,7 +332,8 @@ function $expressionObject(
                     item,
                     expression as { [key: string]: Expression },
                     root,
-                    context
+                    context,
+                    bindings
                   )
                 )
               )
@@ -305,7 +350,8 @@ function $expressionObject(
                   fieldValue as Document,
                   expression as { [key: string]: Expression },
                   root,
-                  context
+                  context,
+                  bindings
                 )
               )
             );
@@ -328,7 +374,7 @@ function $expressionObject(
             {},
             path,
             target.map(subtarget =>
-              $expression(subtarget, expression, root, context)
+              $expression(subtarget, expression, root, context, bindings)
             )
           )
         );
@@ -339,7 +385,7 @@ function $expressionObject(
           set(
             {},
             path,
-            $expression(target as Document, expression, root, context)
+            $expression(target as Document, expression, root, context, bindings)
           )
         );
         Object.assign(result, mergeResult);
@@ -354,7 +400,8 @@ function $systemVariable(
   obj: Document,
   variableName: SystemVariable,
   root: Document,
-  context?: { [key: string]: DocumentValue }
+  context?: { [key: string]: DocumentValue },
+  bindings?: Record<string, DocumentValue>
 ): DocumentValue {
   // Handle dot notation in system variables (e.g., $$this.price)
   const parts = variableName.split('.');
@@ -362,6 +409,19 @@ function $systemVariable(
   const fieldPath = parts.slice(1).join('.');
 
   let baseValue: DocumentValue;
+
+  // Check if this is a user-defined variable from bindings (e.g., $$building, $$avgTemp)
+  if (bindings && baseVariable.startsWith('$$')) {
+    const varName = baseVariable.slice(2); // Remove $$ prefix
+    if (varName in bindings) {
+      baseValue = bindings[varName];
+      // If there's a field path, access the nested property
+      if (fieldPath && baseValue && typeof baseValue === 'object') {
+        return get(baseValue as Document, fieldPath);
+      }
+      return baseValue;
+    }
+  }
 
   switch (baseVariable) {
     case '$$ROOT':
@@ -386,8 +446,8 @@ function $systemVariable(
       break;
     case '$$REMOVE':
       // Special marker for field removal in $project/$addFields
-      baseValue = Symbol.for('$$REMOVE');
-      break;
+      // We use a Symbol but cast it to satisfy TypeScript
+      return Symbol.for('$$REMOVE') as any;
     default:
       throw new Error(`Unsupported system variable: ${baseVariable}`);
   }

@@ -279,7 +279,10 @@ export class ZeroAllocEngine {
           for (let i = 0; i < context.activeCount; i++) {
             const rowId = context.activeRowIds[i];
             const doc = this.getEffectiveDocument(context, rowId);
-            if (doc[field] === value) {
+            const fieldValue = field.includes('.')
+              ? this.getNestedValue(doc, field)
+              : doc[field];
+            if (fieldValue === value) {
               context.scratchBuffer[count++] = rowId;
             }
           }
@@ -294,7 +297,10 @@ export class ZeroAllocEngine {
             const doc = this.getEffectiveDocument(context, rowId);
             let matches = true;
             for (const [field, expectedValue] of entries) {
-              if (doc[field] !== expectedValue) {
+              const fieldValue = field.includes('.')
+                ? this.getNestedValue(doc, field)
+                : doc[field];
+              if (fieldValue !== expectedValue) {
                 matches = false;
                 break;
               }
@@ -363,6 +369,12 @@ export class ZeroAllocEngine {
       // Store results in context for materialization with run ID tagging
       (context as any)._groupResults = groupResults;
       (context as any)._groupResultsRunId = context.runId;
+
+      // Reset active row IDs to point to group results indices
+      // This ensures the next stage processes group results, not original documents
+      for (let i = 0; i < groupResults.length; i++) {
+        context.activeRowIds[i] = i;
+      }
 
       return groupResults.length;
     };
@@ -874,6 +886,19 @@ export class ZeroAllocEngine {
   }
 
   /**
+   * Get nested field value from document (e.g., 'location.building')
+   */
+  private getNestedValue(doc: any, path: string): any {
+    const parts = path.split('.');
+    let current = doc;
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      current = current[part];
+    }
+    return current;
+  }
+
+  /**
    * Compile complex match expression
    */
   private compileMatchExpression(expr: any): (doc: Document) => boolean {
@@ -897,8 +922,10 @@ export class ZeroAllocEngine {
             if (!matched) return false;
           }
         } else {
-          // Field condition
-          const docValue = doc[field];
+          // Field condition - handle nested fields
+          const docValue = field.includes('.')
+            ? this.getNestedValue(doc, field)
+            : doc[field];
           if (typeof condition === 'object' && condition !== null) {
             // Complex condition
             for (const [op, value] of Object.entries(condition)) {
@@ -1110,6 +1137,14 @@ export class ZeroAllocEngine {
     context: HotPathContext,
     rowId: number
   ): Document {
+    // Check if we're operating on group results
+    const groupResults = (context as any)._groupResults;
+    const groupResultsRunId = (context as any)._groupResultsRunId;
+    if (groupResults && groupResultsRunId === context.runId) {
+      // We're in group result mode - rowId is an index into groupResults
+      return groupResults[rowId];
+    }
+
     // Check if this is a virtual row ID
     const virtualRows = (context as any)._virtualRows;
     if (virtualRows && virtualRows.has(rowId)) {

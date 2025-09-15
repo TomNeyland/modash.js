@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
-import Modash from './index';
-import type { Pipeline } from './index';
+import Modash, { type Pipeline } from './index';
 import type { Document } from './modash/expressions';
 
 interface CLIOptions {
@@ -111,7 +110,7 @@ async function readJSONLFromStdin(): Promise<Document[]> {
     if (line.trim()) {
       try {
         documents.push(JSON.parse(line));
-      } catch (error) {
+      } catch (_error) {
         console.error(`⚠️  Invalid JSON line: ${line}`);
       }
     }
@@ -129,7 +128,7 @@ async function readJSONLFromFile(filepath: string): Promise<Document[]> {
     if (line.trim()) {
       try {
         documents.push(JSON.parse(line));
-      } catch (error) {
+      } catch (_error) {
         console.error(`⚠️  Invalid JSON line: ${line}`);
       }
     }

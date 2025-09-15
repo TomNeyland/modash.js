@@ -250,7 +250,11 @@ function getNestedFieldValue(obj: any, path: string): any {
   let current = obj;
 
   for (const key of keys) {
-    if (current == null || typeof current !== 'object') {
+    if (
+      current === null ||
+      current === undefined ||
+      typeof current !== 'object'
+    ) {
       return undefined;
     }
     current = current[key];
@@ -272,7 +276,7 @@ function performFullRegexSearch<T extends Document>(
 
   try {
     regex = new RegExp(pattern, options);
-  } catch (error) {
+  } catch (_error) {
     if (DEBUG) {
       console.log(`🔍 $regex: Invalid regex pattern: ${pattern}`);
     }

@@ -519,9 +519,9 @@ export class OptimizedSortOperator implements IVMOperator {
       let comparison = 0;
 
       // Handle nulls
-      if (aVal == null && bVal == null) continue;
-      if (aVal == null) comparison = -1;
-      else if (bVal == null) comparison = 1;
+      if (aVal === null && bVal === null) continue;
+      if (aVal === null) comparison = -1;
+      else if (bVal === null) comparison = 1;
       // Handle same type comparisons
       else if (typeof aVal === 'number' && typeof bVal === 'number') {
         comparison = aVal - bVal;

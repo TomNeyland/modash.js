@@ -126,7 +126,7 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
   const warnings: string[] = [];
 
   let hotPathEligible = true;
-  let ivmEligible = true;
+  const ivmEligible = true;
   let estimatedComplexity: PipelineExplanation['estimatedComplexity'] = 'O(n)';
 
   pipeline.forEach((stage, index) => {
@@ -372,7 +372,7 @@ export async function* fromJSONL(
           currentBatch = [];
           totalMemoryUsed = 0;
         }
-      } catch (error) {
+      } catch (_error) {
         const parseError = new Error(`Failed to parse JSON line: ${line}`);
 
         if (errorStrategy === 'stop') {

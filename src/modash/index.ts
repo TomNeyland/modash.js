@@ -16,13 +16,12 @@ import { $expression } from './expressions';
 import type {
   Document as PublicDocument,
   Collection as PublicCollection,
+  ModashStatic,
+  Pipeline,
 } from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
 import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
-
-// Import complex types from main index that need to stay centralized
-import type { ModashStatic, Pipeline } from '../index';
 
 /**
  * High-performance aggregation function with hot path optimization

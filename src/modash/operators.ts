@@ -577,23 +577,28 @@ function $dayOfYear(date: EvaluatableValue): number {
 }
 
 function $dayOfMonth(date: EvaluatableValue): number | null {
-  const d = evaluate(date) as Date;
-  return d ? d.getDate() : null;
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCDate();
 }
 
 function $dayOfWeek(date: EvaluatableValue): number | null {
-  const d = evaluate(date) as Date;
-  return d ? d.getDay() : null;
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  // MongoDB compatibility: 1 = Sunday, 7 = Saturday
+  return d.getUTCDay() || 7;
 }
 
 function $year(date: EvaluatableValue): number | null {
-  const d = evaluate(date) as Date;
-  return d ? d.getFullYear() : null;
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCFullYear();
 }
 
 function $month(date: EvaluatableValue): number | null {
-  const d = evaluate(date) as Date;
-  return d ? d.getMonth() + 1 : null;
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCMonth() + 1;
 }
 
 function $week(date: EvaluatableValue): number {
@@ -606,20 +611,28 @@ function $week(date: EvaluatableValue): number {
   return 1 + Math.ceil(dayDiff / 7);
 }
 
-function $hour(date: EvaluatableValue): number {
-  return (evaluate(date) as Date).getHours();
+function $hour(date: EvaluatableValue): number | null {
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCHours();
 }
 
-function $minute(date: EvaluatableValue): number {
-  return (evaluate(date) as Date).getMinutes();
+function $minute(date: EvaluatableValue): number | null {
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCMinutes();
 }
 
-function $second(date: EvaluatableValue): number {
-  return (evaluate(date) as Date).getSeconds();
+function $second(date: EvaluatableValue): number | null {
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCSeconds();
 }
 
-function $millisecond(date: EvaluatableValue): number {
-  return (evaluate(date) as Date).getMilliseconds();
+function $millisecond(date: EvaluatableValue): number | null {
+  const d = evaluate(date);
+  if (!(d instanceof Date)) return null;
+  return d.getUTCMilliseconds();
 }
 
 // Conditional Operators

@@ -147,9 +147,9 @@ export class TopKHeap {
    */
   private compareValues(a: DocumentValue, b: DocumentValue): number {
     // Handle null/undefined
-    if (a == null && b == null) return 0;
-    if (a == null) return -1;
-    if (b == null) return 1;
+    if (a === null && b === null) return 0;
+    if (a === null) return -1;
+    if (b === null) return 1;
 
     // Handle same type comparisons
     if (typeof a === typeof b) {
@@ -301,9 +301,9 @@ function getNestedValue(document: Document, fieldPath: string): DocumentValue {
  */
 function compareValues(a: DocumentValue, b: DocumentValue): number {
   // Handle null/undefined
-  if (a == null && b == null) return 0;
-  if (a == null) return -1;
-  if (b == null) return 1;
+  if (a === null && b === null) return 0;
+  if (a === null) return -1;
+  if (b === null) return 1;
 
   // Handle same type comparisons
   if (typeof a === typeof b) {
