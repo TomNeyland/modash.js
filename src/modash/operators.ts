@@ -689,6 +689,11 @@ function $isArray(value: EvaluatableValue): boolean {
   return Array.isArray(val);
 }
 
+function $isString(value: EvaluatableValue): boolean {
+  const val = evaluate(value);
+  return typeof val === 'string';
+}
+
 // Object composition operator
 function $mergeObjects(...objects: EvaluatableValue[]): Document {
   const result: Document = {};
@@ -698,7 +703,9 @@ function $mergeObjects(...objects: EvaluatableValue[]): Document {
     if (
       evaluated &&
       typeof evaluated === 'object' &&
-      !Array.isArray(evaluated)
+      !Array.isArray(evaluated) &&
+      evaluated !== null &&
+      evaluated !== undefined
     ) {
       Object.assign(result, evaluated);
     }
@@ -713,11 +720,86 @@ function $trunc(value: EvaluatableValue): number {
   return Math.trunc(num);
 }
 
+// Literal operator - returns value as-is without evaluation
+function $literal(value: EvaluatableValue): DocumentValue {
+  // For $literal, we don't evaluate the value - we return it as is
+  return value as DocumentValue;
+}
+
 // String conversion operator
 function $toString(value: EvaluatableValue): string {
   const val = evaluate(value);
   if (val === null || val === undefined) return '';
   return String(val);
+}
+
+// String indexOf operators with explicit byte vs code-point behavior
+function $indexOfBytes(
+  string: EvaluatableValue,
+  searchValue: EvaluatableValue,
+  start?: EvaluatableValue,
+  end?: EvaluatableValue
+): number {
+  const str = evaluate(string) as string;
+  const searchStr = evaluate(searchValue) as string;
+  
+  // Handle null/undefined strings
+  if (str == null || searchStr == null) {
+    return -1;
+  }
+  
+  const startPos = start !== undefined ? (evaluate(start) as number) : 0;
+  const endPos = end !== undefined ? (evaluate(end) as number) : str.length;
+  
+  // For byte-based indexing, we work with the string directly since
+  // JavaScript strings are UTF-16 encoded, which gives us byte-like behavior
+  const searchSubstring = str.slice(startPos, endPos);
+  const index = searchSubstring.indexOf(searchStr);
+  
+  return index === -1 ? -1 : startPos + index;
+}
+
+function $indexOfCP(
+  string: EvaluatableValue,
+  searchValue: EvaluatableValue,
+  start?: EvaluatableValue,
+  end?: EvaluatableValue
+): number {
+  // For code-point indexing, we need to handle Unicode properly
+  const str = evaluate(string) as string;
+  const searchStr = evaluate(searchValue) as string;
+  
+  // Handle null/undefined strings
+  if (str == null || searchStr == null) {
+    return -1;
+  }
+  
+  const startPos = start !== undefined ? (evaluate(start) as number) : 0;
+  const endPos = end !== undefined ? (evaluate(end) as number) : str.length;
+  
+  // Convert to array of code points for proper Unicode handling
+  const codePoints = Array.from(str);
+  const searchCodePoints = Array.from(searchStr);
+  
+  if (startPos >= codePoints.length) return -1;
+  
+  const searchInRange = codePoints.slice(startPos, endPos);
+  
+  // Find the search pattern in the code point array
+  for (let i = 0; i <= searchInRange.length - searchCodePoints.length; i++) {
+    let found = true;
+    for (let j = 0; j < searchCodePoints.length; j++) {
+      if (searchInRange[i + j] !== searchCodePoints[j]) {
+        found = false;
+        break;
+      }
+    }
+    if (found) {
+      return startPos + i;
+    }
+  }
+  
+  return -1;
 }
 
 const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
@@ -809,12 +891,20 @@ const EXPRESSION_OPERATORS: Record<string, OperatorFunction> = {
   $type,
   $isNumber,
   $isArray,
+  $isString,
 
   // Object composition
   $mergeObjects,
 
   // Array accumulation
   $reduce: () => null, // Special operator handled in expressions.ts
+  
+  // String indexOf operations
+  $indexOfBytes,
+  $indexOfCP,
+  
+  // Literal operator
+  $literal,
 };
 
 export default EXPRESSION_OPERATORS;

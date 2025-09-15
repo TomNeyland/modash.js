@@ -128,6 +128,14 @@ export interface StringExpression {
   $trim?: Expression | { input: Expression; chars?: Expression };
   $ltrim?: Expression | { input: Expression; chars?: Expression };
   $rtrim?: Expression | { input: Expression; chars?: Expression };
+  $indexOfBytes?:
+    | [Expression, Expression]
+    | [Expression, Expression, Expression]
+    | [Expression, Expression, Expression, Expression];
+  $indexOfCP?:
+    | [Expression, Expression]
+    | [Expression, Expression, Expression]
+    | [Expression, Expression, Expression, Expression];
 }
 
 // Comparison expressions
