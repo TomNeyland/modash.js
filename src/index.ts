@@ -438,6 +438,9 @@ export {
   explain,
   benchmark,
   fromJSONL,
+  // Streaming-first architecture functions
+  streamingFirstAggregate,
+  optimizedAggregate,
 } from './modash/index';
 
 // Re-export streaming capabilities
