@@ -5,7 +5,8 @@ import typescriptParser from '@typescript-eslint/parser';
 
 export default [
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'packages/**/src/**/*.ts'],
+    ignores: ['packages/**/demo.ts', '**/node_modules/**'],
     languageOptions: {
       parser: typescriptParser,
       ecmaVersion: 2022,
@@ -16,6 +17,7 @@ export default [
         Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        globalThis: 'readonly',
       },
     },
     plugins: {

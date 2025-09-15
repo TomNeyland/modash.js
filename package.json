@@ -82,7 +82,7 @@
     "build": "tsup",
     "build:watch": "tsup --watch",
     "docs": "echo 'Documentation already exists in docs/ directory'",
-    "prepare": "husky",
+    "prepare": "node scripts/install-hooks.cjs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run build && npm run type-check && npm run format:check && npm run pack:audit",
     "pack:audit": "node scripts/pack-audit.mjs",
