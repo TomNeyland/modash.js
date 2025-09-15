@@ -13,7 +13,7 @@ import type {
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl';
-import { getPhysicalDocument } from './store-utils';
+import { getPhysicalDocument, isPhysicalRowId } from './store-utils';
 import { ExpressionCompilerImpl } from './crossfilter-compiler';
 import {
   OptimizedExpressionCompiler,
@@ -1200,8 +1200,11 @@ export class LookupOperator implements IVMOperator {
     };
 
     // Update the document in store
-    // TODO(types): rowId here should always be physical; assert/narrow as needed
-    _store.documents[_delta.rowId as number] = joinedDoc;
+    if (isPhysicalRowId(_delta.rowId)) {
+      _store.documents[_delta.rowId] = joinedDoc;
+    } else {
+      // TODO(types): $lookup should only receive physical rowIds; if this occurs, investigate upstream
+    }
 
     return [_delta]; // Propagate the joined document
   }
