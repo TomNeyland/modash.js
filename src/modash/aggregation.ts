@@ -14,6 +14,16 @@ import { $accumulate } from './accumulators';
 import { $text } from './text-search';
 import { DEBUG } from './debug';
 
+// Phase 4A: Performance Optimizations
+import { jitCompiler } from './jit-expression-compiler';
+import { optimizedSortLimit } from './topk-heap';
+import { simdGroupingEngine, isSIMDOptimizable } from './simd-grouping';
+import { MatchProjectFusion, detectFusiblePatterns, optimizePipelineWithFusion } from './match-project-fusion';
+import { BufferPool } from './performance-optimized-engine';
+
+// Global buffer pool for hot path operations
+const globalBufferPool = new BufferPool();
+
 // Import complex types from main index for now
 import type {
   Pipeline,
@@ -101,30 +111,80 @@ function $match<T extends Document = Document>(
     return [];
   }
 
-  // Phase 3.5: Check for $text operator at top level
-  if (query.$text && typeof query.$text === 'string') {
-    if (DEBUG) {
-      console.log(
-        `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
-      );
-    }
+  // Phase 4A: Buffer Pool Optimization for large collections
+  const useBufferPool = collection.length > 1000;
+  let results: T[];
+  
+  if (useBufferPool) {
+    // Use buffer pool for intermediate results to reduce allocations
+    results = globalBufferPool.get<T>('match_results', Math.ceil(collection.length / 4));
+    let resultIndex = 0;
 
-    // Use accelerated text search for the entire collection
-    const textResults = $text(collection, query.$text);
+    // Phase 3.5: Check for $text operator at top level
+    if (query.$text && typeof query.$text === 'string') {
+      if (DEBUG) {
+        console.log(
+          `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        );
+      }
 
-    // If there are other conditions, apply them to the text search results
-    const remainingQuery = { ...query };
-    delete remainingQuery.$text;
+      // Use accelerated text search for the entire collection
+      const textResults = $text(collection, query.$text);
 
-    if (Object.keys(remainingQuery).length === 0) {
-      return textResults; // Only $text condition
+      // If there are other conditions, apply them to the text search results
+      const remainingQuery = { ...query };
+      delete remainingQuery.$text;
+
+      if (Object.keys(remainingQuery).length === 0) {
+        globalBufferPool.return('match_results', results);
+        return textResults; // Only $text condition
+      } else {
+        // Apply additional filters to text search results
+        for (const item of textResults) {
+          if (matchDocument(item, remainingQuery)) {
+            results[resultIndex++] = item;
+          }
+        }
+      }
     } else {
-      // Apply additional filters to text search results
-      return textResults.filter(item => matchDocument(item, remainingQuery));
+      // Standard filtering with buffer pool
+      for (const item of collection) {
+        if (matchDocument(item, query)) {
+          results[resultIndex++] = item;
+        }
+      }
     }
-  }
 
-  return collection.filter(item => matchDocument(item, query));
+    // Create final result array and return buffer to pool
+    const finalResults = results.slice(0, resultIndex);
+    globalBufferPool.return('match_results', results);
+    return finalResults;
+  } else {
+    // Phase 3.5: Check for $text operator at top level
+    if (query.$text && typeof query.$text === 'string') {
+      if (DEBUG) {
+        console.log(
+          `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        );
+      }
+
+      // Use accelerated text search for the entire collection
+      const textResults = $text(collection, query.$text);
+
+      // If there are other conditions, apply them to the text search results
+      const remainingQuery = { ...query };
+      delete remainingQuery.$text;
+
+      if (Object.keys(remainingQuery).length === 0) {
+        return textResults; // Only $text condition
+      } else {
+        // Apply additional filters to text search results
+        return textResults.filter(item => matchDocument(item, remainingQuery));
+      }
+    }
+
+    return collection.filter(item => matchDocument(item, query));
+  }
 }
 
 /**
@@ -363,6 +423,9 @@ function cmpString(a: unknown, b: unknown): number {
 /**
  * Reorders the document stream by a specified sort key.
  */
+// Store the next $limit value for TopK optimization
+let nextLimitValue: number | null = null;
+
 function $sort<T extends Document = Document>(
   collection: Collection<T>,
   sortSpec: SortStage['$sort']
@@ -370,6 +433,14 @@ function $sort<T extends Document = Document>(
   if (!Array.isArray(collection)) {
     return [];
   }
+
+  // Phase 4A: TopK Heap Optimization for sort+limit fusion
+  if (nextLimitValue !== null && collection.length > 1000 && nextLimitValue <= collection.length * 0.5) {
+    const result = optimizedSortLimit(collection, sortSpec, nextLimitValue);
+    nextLimitValue = null; // Reset after use
+    return result as Collection<T>;
+  }
+
   const sortKeys = Object.keys(sortSpec);
 
   return [...collection].sort((a, b) => {
@@ -542,6 +613,17 @@ function $group<T extends Document = Document>(
   collection: Collection<T>,
   specifications: GroupStage['$group'] = { _id: null }
 ): Collection<T> {
+  // Phase 4A: SIMD Grouping Optimization
+  if (isSIMDOptimizable(collection, specifications)) {
+    try {
+      const result = simdGroupingEngine.execute(collection, specifications);
+      return result as Collection<T>;
+    } catch (error) {
+      // Fall back to traditional grouping if SIMD optimization fails
+      console.warn('SIMD grouping failed, falling back to traditional grouping:', error);
+    }
+  }
+
   const _idSpec = specifications._id;
 
   // Group by using native JavaScript
@@ -789,10 +871,21 @@ function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
   stages: PipelineStage[]
 ): Collection<T> {
+  // Phase 4A: Match+Project Fusion Optimization
+  const fusiblePatterns = detectFusiblePatterns(stages);
+  if (fusiblePatterns.length > 0) {
+    return optimizePipelineWithFusion(collection, stages) as Collection<T>;
+  }
+
   let result = collection as Collection<T>;
 
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
+
+    // Phase 4A: TopK Optimization - Look ahead for $limit after $sort
+    if ('$sort' in stage && i + 1 < stages.length && '$limit' in stages[i + 1]!) {
+      nextLimitValue = stages[i + 1]!.$limit;
+    }
 
     if ('$count' in stage) {
       // Rewrite $count to $group + $project as per user guidance
@@ -822,6 +915,10 @@ function traditionalAggregate<T extends Document = Document>(
       result = $skip(result, stage.$skip);
     }
     if ('$limit' in stage) {
+      // Reset nextLimitValue if this is a standalone $limit
+      if (nextLimitValue === stage.$limit) {
+        nextLimitValue = null;
+      }
       result = $limit(result, stage.$limit);
     }
     if ('$unwind' in stage) {

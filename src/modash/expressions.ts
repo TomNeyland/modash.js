@@ -3,6 +3,9 @@ import { get, set, merge, isObject } from './util';
 
 import EXPRESSION_OPERATORS, { set$expression } from './operators';
 
+// Phase 4A: JIT Expression Compiler Integration
+import { jitCompiler } from './jit-expression-compiler';
+
 // Basic value types that can appear in documents
 // Basic value types
 export type PrimitiveValue = string | number | boolean | Date | null;
@@ -29,6 +32,32 @@ import type { Expression } from '../index';
 // Local type definitions for expression evaluation
 type ExpressionOperatorObject = Record<string, Expression | Expression[]>;
 type ExpressionValue = Expression | DocumentValue;
+
+/**
+ * Determine if expression should use JIT compilation
+ */
+function shouldUseJIT(expression: Expression): boolean {
+  // Only use JIT for complex expressions that can benefit
+  if (typeof expression !== 'object' || expression === null || Array.isArray(expression)) {
+    return false;
+  }
+
+  const operators = Object.keys(expression as object);
+  if (operators.length !== 1) {
+    return false;
+  }
+
+  const operator = operators[0];
+  
+  // JIT-optimizable operators
+  const jitOptimizableOperators = [
+    '$add', '$subtract', '$multiply', '$divide', '$mod',
+    '$concat', '$eq', '$ne', '$gt', '$gte', '$lt', '$lte',
+    '$cond', '$ifNull'
+  ];
+
+  return jitOptimizableOperators.includes(operator);
+}
 
 /**
  * Type guard to check if an expression represents a field path
@@ -103,6 +132,18 @@ function $expression(
 
   if (root === undefined) {
     root = obj;
+  }
+
+  // Phase 4A: JIT Expression Compiler Optimization
+  // Use JIT compilation for complex expressions that can benefit from it
+  if (shouldUseJIT(expression)) {
+    try {
+      result = jitCompiler.evaluate(obj, expression, root, context);
+      return result;
+    } catch (error) {
+      // Fall back to interpreted execution if JIT fails
+      console.warn('JIT compilation failed, falling back to interpreted execution:', error);
+    }
   }
 
   if (isSystemVariable(expression)) {
