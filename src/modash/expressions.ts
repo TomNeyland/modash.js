@@ -368,27 +368,29 @@ function $expressionObject(
       }
 
       if (Array.isArray(target)) {
-        const mergeResult = merge(
-          result,
-          set(
-            {},
-            path,
-            target.map(subtarget =>
-              $expression(subtarget, expression, root, context, bindings)
-            )
-          )
+        const evaluatedValue = target.map(subtarget =>
+          $expression(subtarget, expression, root, context, bindings)
         );
-        Object.assign(result, mergeResult);
+        
+        // Check if any values are $$REMOVE - if so, skip this field
+        if (!evaluatedValue.some(val => (val as any) === Symbol.for('$$REMOVE'))) {
+          const mergeResult = merge(
+            result,
+            set({}, path, evaluatedValue)
+          );
+          Object.assign(result, mergeResult);
+        }
       } else {
-        const mergeResult = merge(
-          result,
-          set(
-            {},
-            path,
-            $expression(target as Document, expression, root, context, bindings)
-          )
-        );
-        Object.assign(result, mergeResult);
+        const evaluatedValue = $expression(target as Document, expression, root, context, bindings);
+        
+        // Check for $$REMOVE symbol - don't include the field if $$REMOVE is returned
+        if ((evaluatedValue as any) !== Symbol.for('$$REMOVE')) {
+          const mergeResult = merge(
+            result,
+            set({}, path, evaluatedValue)
+          );
+          Object.assign(result, mergeResult);
+        }
       }
     }
   }
