@@ -9,7 +9,7 @@ import { ZeroAllocEngine } from './zero-alloc-engine';
 import { aggregate as originalAggregate } from './aggregation';
 import type { Collection, Document } from './expressions';
 import type { Pipeline } from '../index';
-import { DEBUG, logPipelineExecution } from './debug';
+import { DEBUG, logPipelineExecution, recordFallback } from './debug';
 
 /**
  * Singleton zero-allocation engine
@@ -243,6 +243,26 @@ function canUseHotPath(pipeline: Pipeline): boolean {
         }
         // Simple $lookup with localField/foreignField is supported
         break;
+      case '$function':
+      case '$where':
+        // These operators fundamentally break IVM invariants
+        recordOptimizerRejection(
+          pipeline,
+          `${stageType} requires arbitrary JavaScript execution - unsupported by streaming engine`,
+          i,
+          stageType
+        );
+        return false;
+      case '$merge':
+      case '$out':
+        // These are side-effect stages that don't fit the streaming model
+        recordOptimizerRejection(
+          pipeline,
+          `${stageType} is a side-effect stage - unsupported by streaming engine`,
+          i,
+          stageType
+        );
+        return false;
       default:
         // Unsupported stage type
         recordOptimizerRejection(
@@ -530,6 +550,13 @@ export function hotPathAggregate<T extends Document = Document>(
       `Pipeline is not an array: ${typeof pipeline}`
     );
     counters.fallbacks++;
+    
+    // Enhanced fallback logging
+    recordFallback(pipeline as any, `Pipeline is not an array: ${typeof pipeline}`, {
+      reason: 'Invalid pipeline type',
+      code: 'INVALID_PIPELINE_TYPE'
+    });
+    
     return originalAggregate(collection, pipeline);
   }
 
@@ -559,6 +586,13 @@ export function hotPathAggregate<T extends Document = Document>(
       }
       console.warn(`Hot path failed, falling back: ${errorMessage}`);
       counters.fallbacks++;
+      
+      // Enhanced fallback logging
+      recordFallback(pipeline, errorMessage, {
+        reason: `Hot path execution error: ${errorMessage}`,
+        code: 'HOT_PATH_EXECUTION_ERROR'
+      });
+      
       result = originalAggregate(collection, pipeline);
 
       const duration = Date.now() - startTime;
@@ -574,6 +608,21 @@ export function hotPathAggregate<T extends Document = Document>(
     }
     // Use regular aggregation
     counters.fallbacks++;
+    
+    // Enhanced fallback logging - collect reasons from optimizer rejections
+    const rejections = getOptimizerRejections();
+    const lastRejection = rejections[rejections.length - 1];
+    const fallbackReason = lastRejection?.reason || 'Hot path not applicable';
+    
+    const fallbackMeta: any = {
+      reason: fallbackReason,
+      code: 'OPTIMIZER_REJECTED'
+    };
+    if (lastRejection?.stageIndex !== undefined) fallbackMeta.stageIndex = lastRejection.stageIndex;
+    if (lastRejection?.stageType) fallbackMeta.stageType = lastRejection.stageType;
+    
+    recordFallback(pipeline, fallbackReason, fallbackMeta);
+    
     result = originalAggregate(collection, pipeline);
 
     const duration = Date.now() - startTime;
