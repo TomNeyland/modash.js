@@ -9,14 +9,14 @@
     "url": "https://github.com/TomNeyland/modash.js"
   },
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "bin": {
     "modash": "dist/cli.js"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "types": "./src/index.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "author": "Tom Neyland",
@@ -36,7 +36,6 @@
   ],
   "files": [
     "dist/",
-    "src/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
@@ -80,7 +79,8 @@
     "build:watch": "tsup --watch",
     "prepare": "husky",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run build && npm run type-check && npm run format:check",
+    "prepublishOnly": "npm run build && npm run type-check && npm run format:check && npm run pack:audit",
+    "pack:audit": "node scripts/pack-audit.mjs",
     "quality": "npm run format:check && npm run lint && npm run type-check && npm run test:coverage",
     "quality:fix": "npm run format && npm run lint:fix",
     "type-check": "tsc --noEmit",

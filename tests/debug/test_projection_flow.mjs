@@ -37,6 +37,7 @@ const context = {
   compiledStage: { type: '$project' },
   executionPlan: {},
   tempState: new Map(),
+  upstreamActiveIds: Array.from(store.liveSet), // Add active IDs for proper data flow
 };
 
 console.log('\n📋 Testing ProjectOperator.onAdd:');

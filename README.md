@@ -1352,6 +1352,22 @@ const userPostStats = Modash.aggregate(users, [
 ]);
 ```
 
+## 📦 Packaging & Types
+
+- Runtime bundles ship as ESM in `dist/`.
+- Public TypeScript declarations are emitted to `dist/index.d.ts`.
+- Only `dist/` and top-level docs are published; sources are excluded.
+- Readonly public types are exposed while internals use mutable types for performance.
+- RowId model: physical rows are numbers; virtual rows (e.g., from `$unwind`, `$group`) are strings and materialized by their operators, not stored in `store.documents`.
+
+To validate the publish tarball locally:
+
+```
+npm run build && npm run pack:audit
+```
+
+The audit enforces that only `dist/` and docs are included and that `dist/index.d.ts` is present.
+
 ## 🏗️ Development
 
 This project uses TypeScript natively with zero build steps:

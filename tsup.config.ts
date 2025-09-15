@@ -8,7 +8,8 @@ export default defineConfig([
     target: 'node18',
     sourcemap: true,
     clean: true,
-    dts: false,
+    // Emit public type declarations for consumers
+    dts: true,
     bundle: true,
     splitting: false,
     skipNodeModulesBundle: true,

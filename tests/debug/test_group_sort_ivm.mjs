@@ -1,5 +1,5 @@
 import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
-import { trackFallback, resetFallbackTracking, getFallbackCount } from '../../src/modash/debug';
+import { resetFallbackTracking, getFallbackCount } from '../../src/modash/debug';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },

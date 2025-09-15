@@ -41,6 +41,7 @@ const context = {
   compiledStage: plan.stages[0],
   executionPlan: plan,
   tempState: new Map(),
+  upstreamActiveIds: Array.from(engine.store.liveSet), // Add active IDs for proper data flow
 };
 
 console.log('\n📋 Simulating snapshotPipeline flow:');
