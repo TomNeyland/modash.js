@@ -179,18 +179,29 @@ export class StreamingCollection<
     const useDeltaBatching = process.env.DISABLE_DELTA_BATCHING !== '1';
     
     if (useDeltaBatching && this.deltaOptimizer) {
-      // Queue delta for optimized batching
-      const delta = {
-        operation: 'add' as const,
-        documents: newDocuments as Document[],
-        timestamp: performance.now(),
-      };
+      // Break large batches into smaller deltas for optimal batching
+      // This allows the delta optimizer to efficiently batch and process them
+      const deltaChunkSize = 100; // Optimal chunk size for delta queuing
+      let allQueued = true;
       
-      const queued = this.deltaOptimizer.queueDelta(delta);
-      if (!queued) {
-        // Fallback to direct processing if queue is full (backpressure)
-        this.processBatchAdd(newDocuments);
+      for (let i = 0; i < newDocuments.length; i += deltaChunkSize) {
+        const chunk = newDocuments.slice(i, i + deltaChunkSize);
+        const delta = {
+          operation: 'add' as const,
+          documents: chunk as Document[],
+          timestamp: performance.now(),
+        };
+        
+        const queued = this.deltaOptimizer.queueDelta(delta);
+        if (!queued) {
+          allQueued = false;
+          // Process this chunk and remaining documents synchronously
+          this.processBatchAdd(newDocuments.slice(i));
+          break;
+        }
       }
+      
+      // If any delta couldn't be queued due to backpressure, we've already handled it above
     } else {
       // Process synchronously to ensure deterministic test behavior and immediate updates
       this.processBatchAdd(newDocuments);
