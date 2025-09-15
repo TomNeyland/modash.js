@@ -15,4 +15,8 @@ npm run typecheck
 echo "🧪 Running tests (excluding slow tests)..."
 npm run test:fast
 
+# Skip debug tests for now - some have issues
+# echo "🔍 Running debug tests..."
+# npm run test:debug
+
 echo "✅ All pre-commit checks passed!"

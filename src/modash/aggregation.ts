@@ -445,7 +445,7 @@ function $unwind<T extends Document = Document>(
       : doc[cleanPath];
 
     if (!Array.isArray(arrayValue)) {
-      if (arrayValue !== null) {
+      if (arrayValue !== null && arrayValue !== undefined) {
         // Non-array value, keep document as-is
         result.push(doc);
       } else if (options.preserveNullAndEmptyArrays) {
