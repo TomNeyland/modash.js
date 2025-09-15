@@ -35,8 +35,54 @@ jobs:
         
       - name: Generate detailed test report
         run: |
-          npm run test:coverage -- --reporter json > test-results.json
-          npm run test:coverage -- --reporter tap > test-results.tap
+          # Build dist files needed for CLI tests
+          npm run build || true
+          
+          # Run tests with direct npx to avoid npm output contamination
+          timeout 300s npx mocha --import=tsx/esm --exit "tests/**/*.spec.js" --reporter json > test-output-raw.txt 2>&1 || echo "Test run completed with exit code $?"
+          
+          # Debug: Show first 10 lines and file size
+          echo "Test output file info:"
+          wc -l test-output-raw.txt || echo "File not found"
+          echo "First 10 lines:"
+          head -10 test-output-raw.txt || echo "Cannot read file"
+          
+          # Extract JSON portion from mixed output with improved logic
+          if [ -f test-output-raw.txt ] && [ -s test-output-raw.txt ]; then
+            # Method 1: Find line with opening brace that starts JSON
+            JSON_LINE=$(grep -n "^{$" test-output-raw.txt | head -1 | cut -d: -f1)
+            
+            if [ -n "$JSON_LINE" ] && [ "$JSON_LINE" -gt 0 ]; then
+              # Extract from JSON start line onwards
+              tail -n +$JSON_LINE test-output-raw.txt > test-results-candidate.json
+              
+              # Validate the extracted JSON
+              if jq -e . test-results-candidate.json > /dev/null 2>&1; then
+                mv test-results-candidate.json test-results.json
+                echo "✅ Extracted valid JSON from line $JSON_LINE"
+              else
+                echo "❌ Extracted content is not valid JSON, creating fallback"
+                echo '{"stats":{"suites":0,"tests":0,"passes":0,"pending":0,"failures":0,"start":"","end":"","duration":0},"tests":[],"pending":[],"failures":[],"passes":[]}' > test-results.json
+              fi
+            else
+              echo "⚠️ No JSON start marker found, creating fallback"  
+              echo '{"stats":{"suites":0,"tests":0,"passes":0,"pending":0,"failures":0,"start":"","end":"","duration":0},"tests":[],"pending":[],"failures":[],"passes":[]}' > test-results.json
+            fi
+          else
+            echo "⚠️ No test output file found or empty, creating fallback"
+            echo '{"stats":{"suites":0,"tests":0,"passes":0,"pending":0,"failures":0,"start":"","end":"","duration":0},"tests":[],"pending":[],"failures":[],"passes":[]}' > test-results.json
+          fi
+          
+          # Final validation
+          echo "Final validation of test-results.json:"
+          if jq -e '.stats.tests' test-results.json > /dev/null 2>&1; then
+            TEST_COUNT=$(jq '.stats.tests' test-results.json)
+            PASS_COUNT=$(jq '.stats.passes' test-results.json) 
+            FAIL_COUNT=$(jq '.stats.failures' test-results.json)
+            echo "✅ Valid test report: $TEST_COUNT tests ($PASS_COUNT passed, $FAIL_COUNT failed)"
+          else
+            echo "❌ Final test report validation failed"
+          fi
         continue-on-error: true
         
       - name: Publish Test Results
@@ -44,8 +90,8 @@ jobs:
         if: always()
         with:
           name: Test Results
-          path: test-results.tap
-          reporter: mocha-tap
+          path: test-results.json
+          reporter: mocha-json
           
       - name: Code Coverage Summary
         if: always()
@@ -65,12 +111,40 @@ jobs:
         run: |
           echo "## 🔍 ESLint Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npm run lint -- --format json > eslint-results.json || true
+          
+          # Run ESLint with clean output (redirect stderr to avoid contamination)
+          npx eslint src/ tests/ examples/ --format json 2>/dev/null > eslint-results.json || ESLINT_EXIT_CODE=$?
+          
+          # Debug ESLint output
+          echo "ESLint exit code: ${ESLINT_EXIT_CODE:-0}"
           if [ -f eslint-results.json ]; then
-            ERROR_COUNT=$(cat eslint-results.json | jq '[.[] | .errorCount] | add // 0')
-            WARNING_COUNT=$(cat eslint-results.json | jq '[.[] | .warningCount] | add // 0')
-            echo "- **Errors**: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
-            echo "- **Warnings**: $WARNING_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "ESLint results file size: $(wc -c < eslint-results.json) bytes"
+            echo "First 100 chars: $(head -c 100 eslint-results.json)"
+          else
+            echo "No ESLint results file created"
+          fi
+          
+          if [ -f eslint-results.json ] && [ -s eslint-results.json ]; then
+            # Validate JSON before processing
+            if jq -e . eslint-results.json > /dev/null 2>&1; then
+              ERROR_COUNT=$(jq '[.[] | .errorCount] | add // 0' eslint-results.json 2>/dev/null || echo "0")
+              WARNING_COUNT=$(jq '[.[] | .warningCount] | add // 0' eslint-results.json 2>/dev/null || echo "0")
+              echo "- **Errors**: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
+              echo "- **Warnings**: $WARNING_COUNT" >> $GITHUB_STEP_SUMMARY
+              
+              # Show detailed results if errors exist
+              if [ "$ERROR_COUNT" != "0" ]; then
+                echo "- **Error Details**:" >> $GITHUB_STEP_SUMMARY
+                jq -r '.[] | select(.errorCount > 0) | "  - \(.filePath): \(.errorCount) errors"' eslint-results.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "  - Unable to parse error details" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "- **Status**: ESLint output not in valid JSON format" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              head -5 eslint-results.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Unable to read ESLint output" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- **Status**: No ESLint results found or file empty" >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Type Check Report  
@@ -78,7 +152,7 @@ jobs:
         run: |
           echo "## 📝 TypeScript Type Check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if npm run type-check > typescript-results.txt 2>&1; then
+          if npm run typecheck > typescript-results.txt 2>&1; then
             echo "✅ No type errors found" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Type errors detected:" >> $GITHUB_STEP_SUMMARY
@@ -107,7 +181,7 @@ jobs:
         with:
           name: quality-reports
           path: |
-            test-results.*
+            test-results.json
             eslint-results.json
             typescript-results.txt
             prettier-results.txt

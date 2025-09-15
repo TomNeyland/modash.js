@@ -42,6 +42,1407 @@
 
 
 
+    <section>
+        <article><h1>modash.js</h1>
+<p><a href="https://github.com/TomNeyland/modash.js"><img src="http://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="License"></a>
+<a href="https://github.com/TomNeyland/modash.js"><img src="https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat" alt="Tag"></a></p>
+<p><strong>TypeScript-native MongoDB aggregation library for modern JavaScript</strong></p>
+<p>A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Built TypeScript-first with full type safety, zero build steps, and modern ES2022+ features.</p>
+<h2>✨ Features</h2>
+<ul>
+<li><strong>Complete MongoDB Aggregation Pipeline</strong>: Full support for <code>$match</code>, <code>$project</code>, <code>$group</code>, <code>$sort</code>, <code>$limit</code>, <code>$skip</code>, <code>$unwind</code>, <code>$lookup</code>, <code>$addFields</code></li>
+<li><strong>Rich Expression Operators</strong>: 40+ operators including boolean, comparison, arithmetic, string, date, array, and set operations</li>
+<li><strong>Enhanced Query Operators</strong>: Advanced <code>$match</code> with <code>$regex</code>, <code>$exists</code>, <code>$elemMatch</code>, <code>$all</code>, <code>$and</code>, <code>$or</code>, <code>$nor</code></li>
+<li><strong>Array Manipulation</strong>: Comprehensive array operators like <code>$arrayElemAt</code>, <code>$filter</code>, <code>$map</code>, <code>$slice</code>, <code>$concatArrays</code></li>
+<li><strong>🔄 Streaming/Incremental Updates</strong>: Live data processing with <code>StreamingCollection</code> for real-time analytics</li>
+<li><strong>Event-Driven Architecture</strong>: Real-time notifications when data changes with automatic result updates</li>
+<li><strong>🚀 Phase 6: CLI &amp; Ecosystem</strong>: Command-line tool, RxJS integration, enhanced developer experience</li>
+<li><strong>🛠️ Developer Experience</strong>: <code>explain()</code> for pipeline analysis, <code>benchmark()</code> for performance, user-friendly error messages</li>
+<li><strong>📦 Modular Architecture</strong>: pnpm workspaces, optional packages (@modash/rxjs), zero-dependency core</li>
+<li><strong>TypeScript-Native</strong>: Direct TypeScript execution with zero build steps - no compilation needed</li>
+<li><strong>Complete Type Safety</strong>: Full TypeScript definitions with generics and IntelliSense support</li>
+<li><strong>Modern ES2022+</strong>: Native modules, latest JavaScript features, works directly with tsx/esm</li>
+<li><strong>Zero Security Vulnerabilities</strong>: Completely modernized dependency tree</li>
+<li><strong>Production Ready</strong>: 100+ comprehensive tests, battle-tested implementations</li>
+</ul>
+<h2>🚀 Installation</h2>
+<pre class="prettyprint source lang-bash"><code>npm install modash
+</code></pre>
+<blockquote>
+<p>This package ships compiled ESM in <code>dist/</code> for runtime, and TypeScript sources are used for editor IntelliSense. No runtime TS loader required.</p>
+</blockquote>
+<h2>🛠️ CLI Tool (Phase 6)</h2>
+<p>Process JSON data from the command line with the full power of MongoDB aggregation:</p>
+<pre class="prettyprint source lang-bash"><code># Install globally for CLI usage
+npm install -g modash
+
+# Process data from stdin
+cat data.jsonl | modash '[{&quot;$match&quot;: {&quot;score&quot;: {&quot;$gte&quot;: 80}}}]'
+
+# Process data from file with analysis
+modash '[{&quot;$group&quot;: {&quot;_id&quot;: &quot;$category&quot;, &quot;avg&quot;: {&quot;$avg&quot;: &quot;$value&quot;}}}]' --file data.jsonl --explain --stats
+
+# Pretty print output
+echo '{&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 30}' | modash '[{&quot;$project&quot;: {&quot;name&quot;: 1}}]' --pretty
+</code></pre>
+<h3>CLI Options</h3>
+<ul>
+<li><code>--file &lt;path&gt;</code>: Read data from file instead of stdin</li>
+<li><code>--explain</code>: Show pipeline analysis and optimization details</li>
+<li><code>--stats</code>: Display performance metrics and timing</li>
+<li><code>--pretty</code>: Pretty-print JSON output (default: JSONL)</li>
+<li><code>--watch</code>: Watch mode for streaming data (coming soon)</li>
+<li><code>--help</code>: Show usage information</li>
+</ul>
+<h3>CLI Examples</h3>
+<pre class="prettyprint source lang-bash"><code># E-commerce analytics
+cat sales.jsonl | modash '[
+  {&quot;$match&quot;: {&quot;date&quot;: {&quot;$gte&quot;: &quot;2023-01-01&quot;}}},
+  {&quot;$group&quot;: {&quot;_id&quot;: &quot;$product&quot;, &quot;revenue&quot;: {&quot;$sum&quot;: {&quot;$multiply&quot;: [&quot;$price&quot;, &quot;$quantity&quot;]}}}},
+  {&quot;$sort&quot;: {&quot;revenue&quot;: -1}},
+  {&quot;$limit&quot;: 10}
+]' --stats
+
+# Log analysis with explanation
+modash '[{&quot;$match&quot;: {&quot;level&quot;: &quot;error&quot;}}, {&quot;$project&quot;: {&quot;timestamp&quot;: 1, &quot;message&quot;: 1}}]' \
+  --file app.log.jsonl --explain --pretty
+</code></pre>
+<h2>📦 RxJS Integration (@modash/rxjs)</h2>
+<p>For reactive applications, install the optional RxJS adapter:</p>
+<pre class="prettyprint source lang-bash"><code>npm install modash @modash/rxjs rxjs
+</code></pre>
+<pre class="prettyprint source lang-typescript"><code>import { from } from 'rxjs';
+import { aggregate, streamingAggregate } from '@modash/rxjs';
+
+// Transform Observable streams through modash pipelines
+const events$ = from(eventStream);
+const analytics$ = aggregate(events$, [
+  { $match: { type: 'user_action' } },
+  { $group: { _id: '$userId', actions: { $sum: 1 } } },
+]);
+
+// Streaming aggregation for real-time dashboards
+const metrics$ = streamingAggregate(sensorData$, [
+  { $group: { _id: null, avgTemp: { $avg: '$temperature' } } },
+]);
+</code></pre>
+<h2>📖 Usage</h2>
+<h3>Quick Start (TypeScript)</h3>
+<pre class="prettyprint source lang-typescript"><code>import Modash, { type Collection, type Document } from 'modash';
+
+interface Sale extends Document {
+  item: string;
+  price: number;
+  quantity: number;
+  date: Date;
+}
+
+const sales: Collection&lt;Sale> = [
+  { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
+  { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
+  { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
+];
+
+// TypeScript provides full type safety and intellisense
+const revenueByDate = Modash.aggregate(sales, [
+  {
+    $project: {
+      date: { $dayOfMonth: '$date' },
+      revenue: { $multiply: ['$price', '$quantity'] },
+    },
+  },
+  {
+    $group: {
+      _id: '$date',
+      totalRevenue: { $sum: '$revenue' },
+      itemCount: { $sum: 1 },
+    },
+  },
+]);
+
+console.log(revenueByDate);
+// [
+//   { _id: 15, totalRevenue: 2250, itemCount: 2 },
+//   { _id: 16, totalRevenue: 375, itemCount: 1 }
+// ]
+</code></pre>
+<h3>JavaScript Usage</h3>
+<pre class="prettyprint source lang-javascript"><code>import Modash from 'modash';
+
+const sales = [
+  { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
+  { item: 'mouse', price: 25, quantity: 10, date: new Date('2023-01-15') },
+  { item: 'keyboard', price: 75, quantity: 5, date: new Date('2023-01-16') },
+];
+
+// Works seamlessly with plain JavaScript too
+const revenueByDate = Modash.aggregate(sales, [
+  {
+    $project: {
+      date: { $dayOfMonth: '$date' },
+      revenue: { $multiply: ['$price', '$quantity'] },
+    },
+  },
+  {
+    $group: {
+      _id: '$date',
+      totalRevenue: { $sum: '$revenue' },
+      itemCount: { $sum: 1 },
+    },
+  },
+]);
+</code></pre>
+<h2>🔬 Enhanced Developer Experience (Phase 6)</h2>
+<h3>Pipeline Analysis with <code>explain()</code></h3>
+<p>Understand your aggregation pipelines with detailed analysis:</p>
+<pre class="prettyprint source lang-typescript"><code>import { explain } from 'modash';
+
+const analysis = explain([
+  { $match: { status: 'active' } },
+  { $sort: { createdAt: -1 } },
+  { $limit: 10 },
+]);
+
+console.log('Hot path eligible:', analysis.hotPathEligible);
+console.log('Estimated complexity:', analysis.estimatedComplexity);
+console.log('Optimizations:', analysis.optimizations);
+// Optimization detected: $sort + $limit can be fused into $topK operation
+</code></pre>
+<h3>Performance Benchmarking with <code>benchmark()</code></h3>
+<p>Measure and optimize your pipeline performance:</p>
+<pre class="prettyprint source lang-typescript"><code>import { benchmark } from 'modash';
+
+const metrics = await benchmark(
+  largeDataset,
+  [
+    { $match: { category: 'electronics' } },
+    { $group: { _id: '$brand', avgPrice: { $avg: '$price' } } },
+  ],
+  { iterations: 5 }
+);
+
+console.log(
+  `Throughput: ${metrics.throughput.documentsPerSecond.toLocaleString()} docs/sec`
+);
+console.log(`Memory efficiency: ${metrics.memory.efficiency}%`);
+console.log(`Execution time: ${metrics.duration.total}ms`);
+</code></pre>
+<h3>Stream Processing with <code>fromJSONL()</code></h3>
+<p>Process large JSONL files efficiently:</p>
+<pre class="prettyprint source lang-typescript"><code>import { fromJSONL } from 'modash';
+import { createReadStream } from 'fs';
+
+const stream = createReadStream('large-dataset.jsonl');
+const documents = [];
+
+for await (const doc of fromJSONL(stream, { batchSize: 1000 })) {
+  documents.push(doc);
+}
+
+const results = Modash.aggregate(documents, pipeline);
+</code></pre>
+<h3>User-Friendly Error Messages</h3>
+<p>Get helpful hints when things go wrong:</p>
+<pre class="prettyprint source lang-bash"><code>$ modash '[{&quot;$match&quot;: {&quot;complex_regex&quot;: {&quot;$regex&quot;: &quot;(?=.*complex)(?=.*pattern)&quot;}}}]'
+❌ Error: Regex processing failed
+💡 Hint: Regex too complex → fell back to standard mode
+</code></pre>
+<h2>🔄 Streaming/Incremental Updates</h2>
+<p><strong>NEW!</strong> Stream live data changes with automatic aggregation updates:</p>
+<h3>Real-Time Analytics</h3>
+<pre class="prettyprint source lang-typescript"><code>import { createStreamingCollection } from 'modash';
+
+interface Order extends Document {
+  customerId: number;
+  item: string;
+  price: number;
+  quantity: number;
+  status: string;
+}
+
+// Create a streaming collection
+const liveOrders = createStreamingCollection&lt;Order>([
+  {
+    customerId: 1,
+    item: 'laptop',
+    price: 1200,
+    quantity: 1,
+    status: 'shipped',
+  },
+  {
+    customerId: 2,
+    item: 'mouse',
+    price: 25,
+    quantity: 2,
+    status: 'processing',
+  },
+]);
+
+// Set up live analytics pipeline
+const revenueAnalytics = [
+  { $match: { status: 'shipped' } },
+  {
+    $group: {
+      _id: '$customerId',
+      totalSpent: { $sum: { $multiply: ['$price', '$quantity'] } },
+      orderCount: { $sum: 1 },
+    },
+  },
+];
+
+// Start streaming - returns current results and keeps them updated
+const results = liveOrders.stream(revenueAnalytics);
+console.log('Initial results:', results);
+
+// Listen for real-time updates
+liveOrders.on('result-updated', event => {
+  console.log('Live results updated:', event.result);
+});
+
+// Add new data - automatically triggers recalculation
+liveOrders.addBulk([
+  {
+    customerId: 1,
+    item: 'monitor',
+    price: 300,
+    quantity: 1,
+    status: 'shipped',
+  },
+  {
+    customerId: 3,
+    item: 'keyboard',
+    price: 75,
+    quantity: 1,
+    status: 'shipped',
+  },
+]);
+
+// Results automatically update in real-time!
+</code></pre>
+<h3>Streaming Features</h3>
+<ul>
+<li><strong>Live Data Updates</strong>: Use <code>.add()</code> and <code>.addBulk()</code> for incremental updates</li>
+<li><strong>Record Removal</strong>: Use <code>.remove()</code>, <code>.removeById()</code>, and other removal methods for incremental subtraction</li>
+<li><strong>Multiple Pipelines</strong>: Run multiple concurrent streaming aggregations</li>
+<li><strong>Event-Driven</strong>: Listen for <code>data-added</code>, <code>data-removed</code>, and <code>result-updated</code> events</li>
+<li><strong>Memory Efficient</strong>: Optimized for large datasets with intelligent caching</li>
+<li><strong>Backward Compatible</strong>: Existing API unchanged, streaming is opt-in</li>
+</ul>
+<h3>🔌 EventEmitter Integration</h3>
+<p><strong>Connect to any EventEmitter as a data source with automatic streaming updates:</strong></p>
+<pre class="prettyprint source lang-typescript"><code>import { EventEmitter } from 'events';
+import { createStreamingCollection } from 'modash';
+
+interface PaymentEvent {
+  orderId: string;
+  customerId: number;
+  amount: number;
+  currency: string;
+  status: 'completed' | 'failed';
+  timestamp: Date;
+}
+
+interface Order {
+  id: string;
+  customerId: number;
+  item: string;
+  price: number;
+  status: string;
+  processedAt: Date;
+}
+
+// Create payment processing EventEmitter
+const paymentService = new EventEmitter();
+
+// Start with existing orders
+const liveOrders = createStreamingCollection&lt;Order>([
+  {
+    id: 'ord-1',
+    customerId: 1,
+    item: 'laptop',
+    price: 1200,
+    status: 'pending',
+    processedAt: new Date(),
+  },
+]);
+
+// Connect EventEmitter with transform function
+const consumerId = liveOrders.connectEventSource({
+  source: paymentService,
+  eventName: 'payment-completed',
+  transform: (eventData: PaymentEvent, eventName: string): Order | null => {
+    // Skip failed payments
+    if (eventData.status === 'failed') return null;
+
+    // Transform payment event to order format
+    return {
+      id: eventData.orderId,
+      customerId: eventData.customerId,
+      item: 'processed-payment',
+      price: eventData.amount,
+      status: 'paid',
+      processedAt: eventData.timestamp,
+    };
+  },
+});
+
+// Set up real-time analytics
+const revenueAnalytics = [
+  { $match: { status: 'paid' } },
+  {
+    $group: {
+      _id: '$customerId',
+      totalSpent: { $sum: '$price' },
+      orderCount: { $sum: 1 },
+    },
+  },
+  { $sort: { totalSpent: -1 } },
+];
+
+// Start streaming - gets live updates from EventEmitter
+const results = liveOrders.stream(revenueAnalytics);
+console.log('Initial revenue:', results);
+
+// Listen for real-time updates
+liveOrders.on('result-updated', event => {
+  console.log('📊 Live analytics updated:', event.result);
+});
+
+liveOrders.on('data-added', event => {
+  console.log(`💰 ${event.newDocuments.length} new payments processed`);
+});
+
+// Simulate external payment events
+paymentService.emit('payment-completed', {
+  orderId: 'ord-2',
+  customerId: 1,
+  amount: 750,
+  currency: 'USD',
+  status: 'completed',
+  timestamp: new Date(),
+});
+
+paymentService.emit('payment-completed', {
+  orderId: 'ord-3',
+  customerId: 2,
+  amount: 400,
+  currency: 'USD',
+  status: 'completed',
+  timestamp: new Date(),
+});
+
+// Results automatically update! Analytics now show:
+// [
+//   { _id: 1, totalSpent: 1950, orderCount: 2 },  // laptop + payment
+//   { _id: 2, totalSpent: 400, orderCount: 1 }    // new customer
+// ]
+
+// Cleanup when done
+liveOrders.disconnectEventSource(consumerId);
+</code></pre>
+<h3>🔄 Advanced Record Removal</h3>
+<p><strong>Dynamic data removal with automatic aggregation updates:</strong></p>
+<pre class="prettyprint source lang-typescript"><code>const inventory = createStreamingCollection([
+  { id: 1, product: 'laptop', quantity: 50, category: 'electronics' },
+  { id: 2, product: 'mouse', quantity: 200, category: 'accessories' },
+  { id: 3, product: 'monitor', quantity: 30, category: 'electronics' },
+  { id: 4, product: 'keyboard', quantity: 100, category: 'accessories' },
+]);
+
+const stockAnalytics = [
+  {
+    $group: {
+      _id: '$category',
+      totalItems: { $sum: '$quantity' },
+      products: { $sum: 1 },
+    },
+  },
+  { $sort: { totalItems: -1 } },
+];
+
+inventory.stream(stockAnalytics);
+
+// Remove out-of-stock items
+inventory.remove(item => item.quantity === 0);
+
+// Remove specific products by ID
+inventory.removeById(2);
+
+// Remove products by query
+inventory.removeByQuery({ category: 'accessories' });
+
+// Remove in batches
+const removed = inventory.removeFirst(2); // Remove oldest items
+
+// All operations automatically update streaming analytics!
+</code></pre>
+<h3>Performance Benefits</h3>
+<ul>
+<li><strong>Incremental Processing</strong>: Only recalculates what's necessary</li>
+<li><strong>Caching Infrastructure</strong>: Maintains intermediate results for efficiency</li>
+<li><strong>No Regression</strong>: Zero impact on existing non-streaming operations</li>
+<li><strong>Future Optimizations</strong>: Architecture ready for per-stage incremental updates</li>
+</ul>
+<h2>🌟 Real-World Examples</h2>
+<h3>🛒 E-commerce Analytics</h3>
+<p><strong>Top-Selling Products with Inventory Management:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Analyze product performance and identify low stock items
+const productAnalysis = Modash.aggregate(orders, [
+  {
+    $lookup: {
+      from: products,
+      localField: 'productId',
+      foreignField: '_id',
+      as: 'product',
+    },
+  },
+  { $unwind: '$product' },
+  {
+    $addFields: {
+      revenue: { $multiply: ['$quantity', '$product.price'] },
+      lowStock: { $lt: ['$product.stock', 10] },
+      isPremium: { $in: ['premium', '$product.tags'] },
+    },
+  },
+  {
+    $group: {
+      _id: '$product.name',
+      totalRevenue: { $sum: '$revenue' },
+      totalQuantitySold: { $sum: '$quantity' },
+      avgRating: { $avg: { $avg: '$product.ratings' } },
+      lowStockAlert: { $first: '$lowStock' },
+      category: { $first: '$product.category' },
+    },
+  },
+  { $sort: { totalRevenue: -1 } },
+  { $limit: 5 },
+]);
+
+/* Expected Output:
+[
+  {
+    _id: &quot;MacBook Pro 16\&quot;&quot;,
+    totalRevenue: 2499,
+    totalQuantitySold: 1,
+    avgRating: 4.6,
+    lowStockAlert: false,
+    category: &quot;laptops&quot;
+  }
+  // ... more products
+]
+*/
+</code></pre>
+<p><strong>Customer Segmentation &amp; Purchase Behavior:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Advanced customer analytics with tier-based insights
+const customerInsights = Modash.aggregate(orders, [
+  {
+    $lookup: {
+      from: customers,
+      localField: 'customerId',
+      foreignField: '_id',
+      as: 'customer',
+    },
+  },
+  {
+    $lookup: {
+      from: products,
+      localField: 'productId',
+      foreignField: '_id',
+      as: 'product',
+    },
+  },
+  { $unwind: '$customer' },
+  { $unwind: '$product' },
+  {
+    $addFields: {
+      orderValue: { $multiply: ['$quantity', '$product.price'] },
+      customerTier: '$customer.tier',
+      isPremiumProduct: { $in: ['premium', '$product.tags'] },
+    },
+  },
+  {
+    $group: {
+      _id: '$customerId',
+      customerName: { $first: '$customer.name' },
+      customerTier: { $first: '$customerTier' },
+      totalOrders: { $sum: 1 },
+      totalSpent: { $sum: '$orderValue' },
+      avgOrderValue: { $avg: '$orderValue' },
+      premiumProductsPurchased: {
+        $sum: { $cond: ['$isPremiumProduct', 1, 0] },
+      },
+    },
+  },
+  { $sort: { totalSpent: -1 } },
+]);
+
+/* Expected Output:
+[
+  {
+    _id: 201,
+    customerName: &quot;Alice Johnson&quot;, 
+    customerTier: &quot;premium&quot;,
+    totalOrders: 2,
+    totalSpent: 3498,
+    avgOrderValue: 1749,
+    premiumProductsPurchased: 2
+  }
+  // ... more customers
+]
+*/
+</code></pre>
+<h3>📝 Content Management &amp; Analytics</h3>
+<p><strong>High-Performance Content Discovery:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Find top-performing blog posts with engagement scoring
+const topContent = Modash.aggregate(blogPosts, [
+  {
+    $lookup: {
+      from: authors,
+      localField: 'authorId',
+      foreignField: '_id',
+      as: 'author',
+    },
+  },
+  { $unwind: '$author' },
+  {
+    $addFields: {
+      engagementScore: {
+        $add: [
+          { $multiply: ['$views', 0.1] },
+          { $multiply: ['$likes', 2] },
+          { $multiply: [{ $size: '$comments' }, 5] },
+        ],
+      },
+      commentsCount: { $size: '$comments' },
+      authorName: '$author.name',
+    },
+  },
+  {
+    $match: {
+      views: { $gte: 1000 },
+    },
+  },
+  { $sort: { engagementScore: -1 } },
+  {
+    $project: {
+      title: 1,
+      authorName: 1,
+      views: 1,
+      likes: 1,
+      commentsCount: 1,
+      engagementScore: { $round: ['$engagementScore', 2] },
+      tags: 1,
+    },
+  },
+  { $limit: 10 },
+]);
+
+/* Expected Output:
+[
+  {
+    title: &quot;Advanced JavaScript Patterns&quot;,
+    authorName: &quot;Mike Chen&quot;,
+    views: 2100,
+    likes: 156,
+    commentsCount: 2,
+    engagementScore: 532.0,
+    tags: [&quot;javascript&quot;, &quot;patterns&quot;, &quot;advanced&quot;]
+  }
+  // ... more posts
+]
+*/
+</code></pre>
+<h3>👥 HR &amp; People Analytics</h3>
+<p><strong>Department Performance &amp; Salary Analysis:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Comprehensive HR analytics with performance metrics
+const hrAnalytics = Modash.aggregate(employees, [
+  {
+    $addFields: {
+      avgPerformance: { $avg: '$performance' },
+      yearsOfService: {
+        $divide: [
+          { $subtract: [new Date(), '$startDate'] },
+          365.25 * 24 * 60 * 60 * 1000,
+        ],
+      },
+    },
+  },
+  {
+    $group: {
+      _id: '$department',
+      employeeCount: { $sum: 1 },
+      avgSalary: { $avg: '$salary' },
+      minSalary: { $min: '$salary' },
+      maxSalary: { $max: '$salary' },
+      avgPerformance: { $avg: '$avgPerformance' },
+      totalPayroll: { $sum: '$salary' },
+    },
+  },
+  {
+    $addFields: {
+      salaryRange: { $subtract: ['$maxSalary', '$minSalary'] },
+      payrollPerEmployee: { $divide: ['$totalPayroll', '$employeeCount'] },
+    },
+  },
+  { $sort: { avgSalary: -1 } },
+]);
+
+/* Expected Output:
+[
+  {
+    _id: &quot;engineering&quot;,
+    employeeCount: 2,
+    avgSalary: 102500,
+    minSalary: 95000,
+    maxSalary: 110000,
+    avgPerformance: 8.97,
+    totalPayroll: 205000,
+    salaryRange: 15000,
+    payrollPerEmployee: 102500
+  }
+  // ... more departments
+]
+*/
+</code></pre>
+<h3>💰 Financial Transaction Analysis</h3>
+<p><strong>Account Activity &amp; Risk Assessment:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Comprehensive financial transaction analysis
+const accountSummary = Modash.aggregate(transactions, [
+  {
+    $addFields: {
+      month: { $month: '$date' },
+      isDeposit: { $eq: ['$type', 'deposit'] },
+      absAmount: { $abs: '$amount' },
+    },
+  },
+  {
+    $group: {
+      _id: '$accountId',
+      totalTransactions: { $sum: 1 },
+      totalDeposits: {
+        $sum: { $cond: ['$isDeposit', '$amount', 0] },
+      },
+      totalWithdrawals: {
+        $sum: { $cond: ['$isDeposit', 0, { $abs: '$amount' }] },
+      },
+      netBalance: { $sum: '$amount' },
+      avgTransactionSize: { $avg: '$absAmount' },
+      largestTransaction: { $max: '$absAmount' },
+      categories: { $addToSet: '$category' },
+    },
+  },
+  {
+    $addFields: {
+      categoryCount: { $size: '$categories' },
+      isPositiveBalance: { $gt: ['$netBalance', 0] },
+      activityLevel: {
+        $switch: {
+          branches: [
+            { case: { $gte: ['$totalTransactions', 4] }, then: 'High' },
+            { case: { $gte: ['$totalTransactions', 2] }, then: 'Medium' },
+          ],
+          default: 'Low',
+        },
+      },
+    },
+  },
+  { $sort: { netBalance: -1 } },
+]);
+
+/* Expected Output:
+[
+  {
+    _id: &quot;ACC001&quot;,
+    totalTransactions: 3,
+    totalDeposits: 5000,
+    totalWithdrawals: 1550,
+    netBalance: 3450,
+    avgTransactionSize: 2183.33,
+    largestTransaction: 5000,
+    categories: [&quot;salary&quot;, &quot;rent&quot;, &quot;groceries&quot;],
+    categoryCount: 3,
+    isPositiveBalance: true,
+    activityLevel: &quot;Medium&quot;
+  }
+  // ... more accounts
+]
+*/
+</code></pre>
+<h3>🌡️ IoT Environmental Monitoring</h3>
+<p><strong>Sensor Data Analysis with Alert System:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Environmental monitoring with automated alerts
+const environmentalAnalysis = Modash.aggregate(sensorReadings, [
+  {
+    $addFields: {
+      tempAlert: {
+        $or: [{ $lt: ['$temperature', 18] }, { $gt: ['$temperature', 26] }],
+      },
+      locationKey: {
+        $concat: [
+          '$location.building',
+          '-Floor',
+          { $toString: '$location.floor' },
+          '-',
+          '$location.room',
+        ],
+      },
+    },
+  },
+  {
+    $group: {
+      _id: '$locationKey',
+      deviceId: { $first: '$deviceId' },
+      avgTemperature: { $avg: '$temperature' },
+      avgHumidity: { $avg: '$humidity' },
+      tempAlertCount: { $sum: { $cond: ['$tempAlert', 1, 0] } },
+      totalReadings: { $sum: 1 },
+      location: { $first: '$location' },
+    },
+  },
+  {
+    $addFields: {
+      alertPercentage: {
+        $multiply: [{ $divide: ['$tempAlertCount', '$totalReadings'] }, 100],
+      },
+      status: {
+        $switch: {
+          branches: [
+            { case: { $gt: ['$alertPercentage', 50] }, then: 'Critical' },
+            { case: { $gt: ['$alertPercentage', 20] }, then: 'Warning' },
+          ],
+          default: 'Normal',
+        },
+      },
+    },
+  },
+  { $sort: { alertPercentage: -1 } },
+]);
+
+/* Expected Output:
+[
+  {
+    _id: &quot;A-Floor1-101&quot;,
+    deviceId: &quot;TEMP001&quot;,
+    avgTemperature: 23.3,
+    avgHumidity: 46.5,
+    tempAlertCount: 0,
+    totalReadings: 2,
+    alertPercentage: 0,
+    status: &quot;Normal&quot;,
+    location: { building: &quot;A&quot;, floor: 1, room: &quot;101&quot; }
+  }
+  // ... more locations
+]
+*/
+</code></pre>
+<h3>📱 Social Media Trend Analysis</h3>
+<p><strong>Viral Content &amp; Hashtag Analytics:</strong></p>
+<pre class="prettyprint source lang-javascript"><code>// Advanced social media analytics with virality scoring
+const trendingContent = Modash.aggregate(socialPosts, [
+  {
+    $lookup: {
+      from: users,
+      localField: 'userId',
+      foreignField: '_id',
+      as: 'user',
+    },
+  },
+  { $unwind: '$user' },
+  { $unwind: '$hashtags' },
+  {
+    $group: {
+      _id: '$hashtags',
+      postCount: { $sum: 1 },
+      totalLikes: { $sum: '$likes' },
+      totalShares: { $sum: '$shares' },
+      avgEngagement: {
+        $avg: { $add: ['$likes', { $multiply: ['$shares', 3] }] },
+      },
+      uniqueUsers: { $addToSet: '$user.username' },
+    },
+  },
+  {
+    $addFields: {
+      userCount: { $size: '$uniqueUsers' },
+      viralityScore: {
+        $multiply: [
+          '$avgEngagement',
+          { $sqrt: '$userCount' },
+          { $log10: { $add: ['$postCount', 1] } },
+        ],
+      },
+      trendingLevel: {
+        $switch: {
+          branches: [
+            { case: { $gt: ['$viralityScore', 100] }, then: 'Viral' },
+            { case: { $gt: ['$viralityScore', 50] }, then: 'Trending' },
+          ],
+          default: 'Popular',
+        },
+      },
+    },
+  },
+  { $sort: { viralityScore: -1 } },
+  {
+    $project: {
+      hashtag: '$_id',
+      postCount: 1,
+      userCount: 1,
+      avgEngagement: { $round: ['$avgEngagement', 1] },
+      viralityScore: { $round: ['$viralityScore', 2] },
+      trendingLevel: 1,
+    },
+  },
+]);
+
+/* Expected Output:
+[
+  {
+    hashtag: &quot;typescript&quot;,
+    postCount: 1,
+    userCount: 1,
+    avgEngagement: 101.0,
+    viralityScore: 30.30,
+    trendingLevel: &quot;Popular&quot;
+  }
+  // ... more hashtags  
+]
+*/
+</code></pre>
+<h2>🔧 API Reference</h2>
+<h3>Pipeline Operators</h3>
+<ul>
+<li>
+<p><strong><code>$match</code></strong> - Filter documents with advanced query operators</p>
+<ul>
+<li>Basic: <code>{ field: value }</code>, <code>{ field: { $gt: 100 } }</code></li>
+<li>Advanced: <code>{ $and: [...] }</code>, <code>{ $or: [...] }</code>, <code>{ name: { $regex: 'pattern' } }</code></li>
+<li>Array: <code>{ tags: { $all: ['tag1', 'tag2'] } }</code>, <code>{ items: { $size: 3 } }</code></li>
+<li>Existence: <code>{ field: { $exists: true } }</code></li>
+</ul>
+</li>
+<li>
+<p><strong><code>$project</code></strong> - Reshape documents, add computed fields</p>
+</li>
+<li>
+<p><strong><code>$group</code></strong> - Group documents and apply aggregations</p>
+</li>
+<li>
+<p><strong><code>$sort</code></strong> - Sort documents by one or more fields</p>
+</li>
+<li>
+<p><strong><code>$limit</code></strong> - Limit number of documents</p>
+</li>
+<li>
+<p><strong><code>$skip</code></strong> - Skip documents for pagination</p>
+</li>
+<li>
+<p><strong><code>$unwind</code></strong> - Deconstruct arrays into multiple documents</p>
+</li>
+<li>
+<p><strong><code>$lookup</code></strong> - Perform left outer joins with other collections</p>
+</li>
+<li>
+<p><strong><code>$addFields</code> / <code>$set</code></strong> - Add computed fields to documents</p>
+</li>
+</ul>
+<h3>Expression Operators</h3>
+<h4>Arithmetic</h4>
+<ul>
+<li><code>$add</code>, <code>$subtract</code>, <code>$multiply</code>, <code>$divide</code>, <code>$mod</code></li>
+<li><code>$abs</code>, <code>$ceil</code>, <code>$floor</code>, <code>$round</code>, <code>$sqrt</code>, <code>$pow</code></li>
+</ul>
+<h4>Comparison</h4>
+<ul>
+<li><code>$eq</code>, <code>$ne</code>, <code>$gt</code>, <code>$gte</code>, <code>$lt</code>, <code>$lte</code>, <code>$cmp</code></li>
+</ul>
+<h4>Boolean</h4>
+<ul>
+<li><code>$and</code>, <code>$or</code>, <code>$not</code></li>
+</ul>
+<h4>String</h4>
+<ul>
+<li><code>$concat</code>, <code>$substr</code>, <code>$toLower</code>, <code>$toUpper</code></li>
+<li><code>$split</code>, <code>$strLen</code>, <code>$trim</code>, <code>$ltrim</code>, <code>$rtrim</code></li>
+</ul>
+<h4>Array Operations</h4>
+<ul>
+<li><code>$size</code>, <code>$arrayElemAt</code>, <code>$slice</code>, <code>$concatArrays</code></li>
+<li><code>$in</code>, <code>$indexOfArray</code>, <code>$reverseArray</code></li>
+<li><code>$filter</code>, <code>$map</code> - Advanced array transformations</li>
+<li><code>$avg</code>, <code>$sum</code>, <code>$min</code>, <code>$max</code> - Array aggregation (expression context)</li>
+</ul>
+<h4>Date</h4>
+<ul>
+<li><code>$year</code>, <code>$month</code>, <code>$dayOfMonth</code>, <code>$dayOfYear</code>, <code>$dayOfWeek</code></li>
+<li><code>$hour</code>, <code>$minute</code>, <code>$second</code>, <code>$millisecond</code></li>
+</ul>
+<h4>Set Operations</h4>
+<ul>
+<li><code>$setEquals</code>, <code>$setIntersection</code>, <code>$setUnion</code>, <code>$setDifference</code>, <code>$setIsSubset</code></li>
+<li><code>$anyElementTrue</code>, <code>$allElementsTrue</code></li>
+</ul>
+<h4>Conditional</h4>
+<ul>
+<li><code>$cond</code>, <code>$ifNull</code></li>
+</ul>
+<h3>Accumulator Operators</h3>
+<ul>
+<li><strong><code>$sum</code></strong> - Sum values</li>
+<li><strong><code>$avg</code></strong> - Average values</li>
+<li><strong><code>$min</code></strong>, <strong><code>$max</code></strong> - Minimum/maximum values</li>
+<li><strong><code>$first</code></strong>, <strong><code>$last</code></strong> - First/last values</li>
+<li><strong><code>$push</code></strong> - Collect values into array</li>
+<li><strong><code>$addToSet</code></strong> - Collect unique values</li>
+</ul>
+<h2>🏷️ TypeScript Support</h2>
+<p>Modash.js is built TypeScript-first with zero compilation steps needed. It provides comprehensive type definitions for exceptional developer experience:</p>
+<pre class="prettyprint source lang-typescript"><code>import Modash, { type Collection, type Pipeline, type Document } from 'modash';
+
+// Define your document types with full type safety
+interface Customer extends Document {
+  _id: number;
+  name: string;
+  email: string;
+  age: number;
+  orders: Order[];
+  address: {
+    street: string;
+    city: string;
+    country: string;
+  };
+}
+
+interface Order extends Document {
+  _id: string;
+  total: number;
+  items: string[];
+  status: 'pending' | 'shipped' | 'delivered';
+}
+
+// Type-safe collections with IntelliSense
+const customers: Collection&lt;Customer> = [
+  {
+    _id: 1,
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
+    age: 30,
+    orders: [],
+    address: { street: '123 Main St', city: 'Seattle', country: 'USA' },
+  },
+];
+
+// Fully typed pipelines with compile-time validation
+const pipeline: Pipeline = [
+  // $match with typed query operators
+  { $match: { age: { $gte: 25 }, 'address.country': 'USA' } },
+
+  // $addFields with expression type checking
+  {
+    $addFields: {
+      orderCount: { $size: '$orders' },
+      isVip: { $gte: [{ $size: '$orders' }, 5] },
+      fullAddress: {
+        $concat: [
+          '$address.street',
+          ', ',
+          '$address.city',
+          ', ',
+          '$address.country',
+        ],
+      },
+      customerTier: {
+        $cond: {
+          if: { $gte: ['$age', 35] },
+          then: 'senior',
+          else: 'standard',
+        },
+      },
+    },
+  },
+
+  // $project with field selection and computed fields
+  {
+    $project: {
+      name: 1,
+      email: 1,
+      orderCount: 1,
+      isVip: 1,
+      customerTier: 1,
+      fullAddress: 1,
+      _id: 0, // Exclude _id field
+    },
+  },
+
+  { $sort: { orderCount: -1 } },
+];
+
+// Fully typed results with IntelliSense support
+const result = Modash.aggregate(customers, pipeline);
+// TypeScript infers: Collection&lt;{name: string, email: string, orderCount: number, isVip: boolean, ...}>
+
+// Type-safe individual stage operations
+const activeCustomers = Modash.$match(customers, {
+  age: { $gte: 18 },
+  'orders.status': { $in: ['pending', 'shipped'] },
+});
+
+const customerSummary = Modash.$group(activeCustomers, {
+  _id: '$address.country',
+  totalCustomers: { $sum: 1 },
+  avgAge: { $avg: '$age' },
+  customerNames: { $push: '$name' },
+});
+</code></pre>
+<h3>Advanced TypeScript Features</h3>
+<pre class="prettyprint source lang-typescript"><code>// Generic helper for typed aggregation results
+function typedAggregate&lt;TInput extends Document, TOutput extends Document>(
+  collection: Collection&lt;TInput>,
+  pipeline: Pipeline
+): Collection&lt;TOutput> {
+  return Modash.aggregate(collection, pipeline);
+}
+
+// Custom document interfaces with nested objects
+interface ProductSale extends Document {
+  productId: string;
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  product: {
+    name: string;
+    category: string;
+    price: number;
+  };
+  quantity: number;
+  saleDate: Date;
+  tags: string[];
+}
+
+// Complex aggregation with full type safety
+const salesAnalysis = Modash.aggregate(sales, [
+  {
+    $match: {
+      'product.category': { $in: ['electronics', 'computers'] },
+      quantity: { $gte: 1 },
+      saleDate: { $gte: new Date('2023-01-01') },
+    },
+  },
+  {
+    $addFields: {
+      revenue: { $multiply: ['$product.price', '$quantity'] },
+      customerEmail: '$customer.email',
+      isHighValue: {
+        $gte: [{ $multiply: ['$product.price', '$quantity'] }, 1000],
+      },
+      monthYear: {
+        $concat: [
+          { $toString: { $month: '$saleDate' } },
+          '-',
+          { $toString: { $year: '$saleDate' } },
+        ],
+      },
+    },
+  },
+  {
+    $group: {
+      _id: {
+        category: '$product.category',
+        month: '$monthYear',
+      },
+      totalRevenue: { $sum: '$revenue' },
+      avgOrderValue: { $avg: '$revenue' },
+      customerCount: { $addToSet: '$customer.id' },
+      highValueSales: { $sum: { $cond: ['$isHighValue', 1, 0] } },
+      topProducts: { $push: '$product.name' },
+    },
+  },
+]);
+</code></pre>
+<h3>Key TypeScript Features</h3>
+<ul>
+<li><strong>Zero Build Step</strong>: Direct execution with <code>tsx</code> - no compilation needed</li>
+<li><strong>Complete Type Coverage</strong>: All 40+ operators with full type definitions</li>
+<li><strong>Generic Document Types</strong>: Work with your custom interfaces seamlessly</li>
+<li><strong>Pipeline Type Safety</strong>: Catch errors at compile-time before runtime</li>
+<li><strong>Expression Validation</strong>: Ensure correct operator usage and field references</li>
+<li><strong>IntelliSense Support</strong>: Full autocomplete for operators, fields, and options</li>
+<li><strong>Nested Object Support</strong>: Type-safe access to embedded document fields</li>
+<li><strong>Union Types</strong>: Support for complex data structures and conditional logic</li>
+</ul>
+<h2>🎯 Real-World Examples</h2>
+<h3>Advanced Array Processing</h3>
+<pre class="prettyprint source lang-javascript"><code>const blogPosts = [
+  {
+    _id: 1,
+    title: 'Getting Started with React',
+    tags: ['react', 'javascript', 'frontend'],
+    authors: ['Alice', 'Bob'],
+    views: [100, 150, 200],
+    metadata: { featured: true, difficulty: 'beginner' },
+  },
+  // ... more posts
+];
+
+// Complex array analysis
+const tagAnalysis = Modash.aggregate(blogPosts, [
+  // Filter featured posts only
+  { $match: { 'metadata.featured': true } },
+
+  // Add computed array fields
+  {
+    $addFields: {
+      tagCount: { $size: '$tags' },
+      authorCount: { $size: '$authors' },
+      totalViews: { $sum: '$views' },
+      avgViews: { $avg: '$views' },
+      primaryTag: { $arrayElemAt: ['$tags', 0] },
+      lastTwoTags: { $slice: ['$tags', -2] },
+      allAuthorsUpper: {
+        $map: {
+          input: '$authors',
+          in: { $toUpper: '$$this' },
+        },
+      },
+      frontendTags: {
+        $filter: {
+          input: '$tags',
+          cond: { $in: ['$$this', ['react', 'vue', 'angular', 'frontend']] },
+        },
+      },
+    },
+  },
+
+  // Unwind tags for analysis
+  { $unwind: '$tags' },
+
+  // Group by tag with advanced metrics
+  {
+    $group: {
+      _id: '$tags',
+      postCount: { $sum: 1 },
+      totalViews: { $sum: '$totalViews' },
+      avgViewsPerPost: { $avg: '$totalViews' },
+      posts: { $push: { title: '$title', views: '$totalViews' } },
+      authors: { $addToSet: '$authors' },
+      difficulties: { $addToSet: '$metadata.difficulty' },
+    },
+  },
+
+  // Add computed fields for each tag
+  {
+    $addFields: {
+      popularityScore: { $multiply: ['$postCount', '$avgViewsPerPost'] },
+      authorDiversity: { $size: '$authors' },
+      topPost: {
+        $arrayElemAt: [
+          {
+            $filter: {
+              input: '$posts',
+              cond: { $eq: ['$$this.views', { $max: '$posts.views' }] },
+            },
+          },
+          0,
+        ],
+      },
+    },
+  },
+
+  { $sort: { popularityScore: -1 } },
+  { $limit: 5 },
+]);
+</code></pre>
+<h3>Data Joins and Relationships</h3>
+<pre class="prettyprint source lang-javascript"><code>// Users and their posts with enhanced lookup
+const userPostStats = Modash.aggregate(users, [
+  // Join with posts
+  {
+    $lookup: {
+      from: posts,
+      localField: '_id',
+      foreignField: 'authorId',
+      as: 'posts',
+    },
+  },
+
+  // Join with comments
+  {
+    $lookup: {
+      from: comments,
+      localField: '_id',
+      foreignField: 'userId',
+      as: 'comments',
+    },
+  },
+
+  // Add comprehensive user metrics
+  {
+    $addFields: {
+      postCount: { $size: '$posts' },
+      commentCount: { $size: '$comments' },
+      totalPostViews: { $sum: '$posts.views' },
+      avgPostViews: { $avg: '$posts.views' },
+      recentPosts: {
+        $filter: {
+          input: '$posts',
+          cond: {
+            $gte: [
+              '$$this.createdAt',
+              {
+                $dateSubtract: {
+                  startDate: new Date(),
+                  unit: 'day',
+                  amount: 30,
+                },
+              },
+            ],
+          },
+        },
+      },
+      topCategories: {
+        $slice: [
+          {
+            $map: {
+              input: { $setUnion: ['$posts.categories', []] },
+              in: '$$this',
+            },
+          },
+          3,
+        ],
+      },
+    },
+  },
+]);
+</code></pre>
+<h2>📦 Packaging &amp; Types</h2>
+<ul>
+<li>Runtime bundles ship as ESM in <code>dist/</code>.</li>
+<li>Public TypeScript declarations are emitted to <code>dist/index.d.ts</code>.</li>
+<li>Only <code>dist/</code> and top-level docs are published; sources are excluded.</li>
+<li>Readonly public types are exposed while internals use mutable types for performance.</li>
+<li>RowId model: physical rows are numbers; virtual rows (e.g., from <code>$unwind</code>, <code>$group</code>) are strings and materialized by their operators, not stored in <code>store.documents</code>.</li>
+</ul>
+<p>To validate the publish tarball locally:</p>
+<pre class="prettyprint source"><code>npm run build && npm run pack:audit
+</code></pre>
+<p>The audit enforces that only <code>dist/</code> and docs are included and that <code>dist/index.d.ts</code> is present.</p>
+<h2>🏗️ Development</h2>
+<p>This project uses TypeScript natively with zero build steps:</p>
+<pre class="prettyprint source lang-bash"><code># Install dependencies
+npm install
+
+# Run tests (TypeScript executed directly via tsx)
+npm test
+
+# Run fast core tests only (recommended for quick iterations)
+npm run test:fast
+
+# Run all unit tests (including slow/problematic tests)
+npm run test:units
+
+# Run streaming-related tests separately
+npm run test:streaming
+
+# Run slow tests (aggregation, enhanced operators, etc.)
+npm run test:slow
+
+# Run comprehensive test suite (all units + performance)
+npm run test:all
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run performance measurement standalone
+npm run test:performance
+
+# Lint code (ESLint with TypeScript support)
+npm run lint
+
+# Auto-fix linting issues
+npm run lint:fix
+
+# Format code with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Run all quality checks
+npm run quality
+
+# Build step produces `dist/` via tsup
+npm run build
+</code></pre>
+<h3>Development Workflow</h3>
+<ol>
+<li><strong>Build Artifacts</strong>: <code>tsup</code> compiles to <code>dist/</code> for production/runtime</li>
+<li><strong>Type-Safe Development</strong>: Full TypeScript checking in your IDE</li>
+<li><strong>Test-Driven Development</strong>: Comprehensive test suite with 80+ tests</li>
+<li><strong>Modern Tooling</strong>: ESLint + Prettier for code quality</li>
+</ol>
+<h3>📊 Performance Tracking</h3>
+<p>The test suite includes automatic performance measurement and tracking:</p>
+<ul>
+<li><strong>Primary Test Command</strong>: <code>npm test</code> runs complete test suite + performance benchmarks (~3 seconds)</li>
+<li><strong>Comprehensive Testing</strong>: <code>npm run test:all</code> (alias for <code>npm test</code>) runs all unit tests + performance benchmarks</li>
+<li><strong>Automatic Measurement</strong>: Performance results are compared against first run and previous runs</li>
+<li><strong>Multiple Iterations</strong>: Each benchmark runs multiple times and reports averages with standard deviation</li>
+<li><strong>CI-Safe</strong>: In CI environments, performance is measured but not persisted to files</li>
+</ul>
+<h3>Test Commands Explained</h3>
+<ul>
+<li><strong><code>npm test</code></strong> (~3s): Complete test suite (all unit tests + performance benchmarks) - primary command for development</li>
+<li><strong><code>npm run test:fast</code></strong>: Only fast core tests (count, modash, docs, operators, regression tests) - for quick iterations</li>
+<li><strong><code>npm run test:streaming</code></strong>: Streaming collection tests (may have some failing tests)</li>
+<li><strong><code>npm run test:slow</code></strong>: Slower tests like aggregation and enhanced operators</li>
+<li><strong><code>npm run test:all</code></strong>: Alias for complete test suite (same as <code>npm test</code>)</li>
+</ul>
+<p>Performance results are saved in <code>performance-results/</code> as timestamped JSON files:</p>
+<ul>
+<li><code>performance-{timestamp}.json</code> - Contains detailed benchmark data</li>
+<li>Includes comparisons showing percentage changes vs baseline and previous runs</li>
+<li>Memory usage tracking and scaling efficiency analysis</li>
+</ul>
+<p>Example performance output:</p>
+<pre class="prettyprint source lang-bash"><code>📊 Measuring dataset size: 1,000 documents
+  simpleFilter         :    120μs     ±0.2ms | 8,333,333 docs/sec
+  vs First: -0.07ms (-36.84%) 📉
+  vs Previous: -0.08ms (-40%) 📉
+</code></pre>
+<h2>🔄 Migration from v0.7.x</h2>
+<p>The new v0.8.0 is a complete modernization with breaking changes:</p>
+<ul>
+<li><strong>ES Modules</strong>: Now uses native ES modules instead of CommonJS</li>
+<li><strong>Modern API</strong>: No more need to mixin with lodash</li>
+<li><strong>Node.js</strong>: Requires Node.js 18+</li>
+<li><strong>Import Style</strong>: Use <code>import Modash from 'modash'</code> instead of <code>_.mixin(Modash)</code></li>
+</ul>
+<h3>Before (v0.7.x)</h3>
+<pre class="prettyprint source lang-javascript"><code>const _ = require('lodash');
+const Modash = require('modash');
+_.mixin(Modash);
+
+const result = _(data).aggregate([...]).value();
+</code></pre>
+<h3>After (v0.8.0+ - TypeScript Native)</h3>
+<pre class="prettyprint source lang-typescript"><code>import Modash from 'modash';
+
+// Direct TypeScript execution - no build step needed
+const result = Modash.aggregate(data, [...]);
+</code></pre>
+<h2>📄 License</h2>
+<p>MIT © <a href="https://github.com/TomNeyland">Tom Neyland</a></p>
+<h2>🙏 Contributing</h2>
+<p>Contributions welcome! Please read our contributing guide and submit pull requests to our GitHub repository.</p>
+<hr>
+<p><em>Bringing MongoDB aggregation elegance to JavaScript arrays since 2014, now modernized for 2024 and beyond.</em></p></article>
+    </section>
+
 
 
 
@@ -50,13 +1451,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#$geoNear">$geoNear</a></li><li><a href="global.html#$group">$group</a></li><li><a href="global.html#$limit">$limit</a></li><li><a href="global.html#$match">$match</a></li><li><a href="global.html#$out">$out</a></li><li><a href="global.html#$project">$project</a></li><li><a href="global.html#$redact">$redact</a></li><li><a href="global.html#$skip">$skip</a></li><li><a href="global.html#$sort">$sort</a></li><li><a href="global.html#$unwind">$unwind</a></li><li><a href="global.html#aggregate">aggregate</a></li></ul>
+    <h2><a href="index.html">Home</a></h2>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0-dev</a> on Wed Aug 19 2015 18:43:33 GMT-0400 (EDT)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Sep 15 2025 04:01:41 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

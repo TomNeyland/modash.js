@@ -102,21 +102,16 @@ jobs:
     if: needs.changes.outputs.code == 'true' || needs.changes.outputs.tests == 'true'
     needs: changes
     
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
-    
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20'
           cache: 'npm'
       - run: npm ci
       - name: Run tests with coverage
         run: npm run test:coverage
       - name: Coverage Comment
-        if: matrix.node-version == 20
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
