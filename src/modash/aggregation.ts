@@ -25,6 +25,10 @@ import { BufferPool } from './performance-optimized-engine';
 import { expressionInliner, shouldUseExpressionInlining, optimizeWithExpressionInlining } from './expression-inlining';
 import { cacheLocalityOptimizer, shouldOptimizeForCacheLocality, createCacheOptimizedCollection } from './cache-locality-optimizer';
 
+// Phase 4C: Ultra-Advanced Optimizations
+import { advancedLoopFusion, shouldUseAdvancedLoopFusion } from './advanced-loop-fusion';
+import { advancedVectorization, shouldUseVectorization } from './advanced-vectorization';
+
 // Global buffer pool for hot path operations
 const globalBufferPool = new BufferPool();
 
@@ -427,6 +431,53 @@ function cmpString(a: unknown, b: unknown): number {
 /**
  * Reorders the document stream by a specified sort key.
  */
+/**
+ * Extract numerical operations from pipeline for vectorization
+ */
+function extractNumericalOperations(stages: PipelineStage[]): string[] {
+  const operations = new Set<string>();
+  
+  for (const stage of stages) {
+    if ('$project' in stage && stage.$project) {
+      Object.values(stage.$project).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$add', '$subtract', '$multiply', '$divide', '$abs', '$sqrt'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$group' in stage && stage.$group) {
+      Object.values(stage.$group).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$sum', '$avg', '$min', '$max'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$addFields' in stage && stage.$addFields) {
+      Object.values(stage.$addFields).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.keys(spec).forEach(op => {
+            if (['$add', '$subtract', '$multiply', '$divide'].includes(op)) {
+              operations.add(op);
+            }
+          });
+        }
+      });
+    }
+  }
+  
+  return Array.from(operations);
+}
+
 /**
  * Analyze field access patterns in pipeline for cache optimization
  */
@@ -917,6 +968,19 @@ function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
   stages: PipelineStage[]
 ): Collection<T> {
+  // Phase 4C: Advanced Loop Fusion for maximum performance
+  if (shouldUseAdvancedLoopFusion(collection, stages)) {
+    try {
+      const result = advancedLoopFusion.optimizePipeline(collection, stages);
+      if (result.length !== collection.length || stages.length > 2) {
+        // Only use fused result if it actually processed the pipeline
+        return result as Collection<T>;
+      }
+    } catch (error) {
+      console.warn('Advanced loop fusion failed, falling back:', error);
+    }
+  }
+
   // Phase 4B: Expression Inlining Optimization
   let optimizedStages = stages;
   if (shouldUseExpressionInlining(stages)) {
@@ -938,6 +1002,16 @@ function traditionalAggregate<T extends Document = Document>(
     if (analysisFields.length > 0) {
       cacheOptimized = createCacheOptimizedCollection(collection, analysisFields);
       // Note: For now we keep using AoS but could switch to SoA for specific operations
+    }
+  }
+
+  // Phase 4C: Vectorization for numerical operations
+  const numericalOps = extractNumericalOperations(optimizedStages);
+  if (shouldUseVectorization(collection, numericalOps)) {
+    const vectorized = advancedVectorization.vectorizeCollection(collection, analyzeFieldAccess(optimizedStages));
+    if (vectorized) {
+      // Process vectorizable operations first, then fall back for others
+      // This is a placeholder for vectorized pipeline execution
     }
   }
 
