@@ -71,7 +71,8 @@ type GroupResult = Record<string, DocumentValue>;
  */
 function $project<T extends Document = Document>(
   collection: Collection<T>,
-  specifications: ProjectStage['$project']
+  specifications: ProjectStage['$project'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   const specs = { ...specifications };
   if (!('_id' in specs)) {
@@ -95,7 +96,8 @@ function $project<T extends Document = Document>(
  */
 function $match<T extends Document = Document>(
   collection: Collection<T>,
-  query: QueryExpression
+  query: QueryExpression,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -329,7 +331,8 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
  */
 function $limit<T extends Document = Document>(
   collection: Collection<T>,
-  count: number
+  count: number,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -343,7 +346,8 @@ function $limit<T extends Document = Document>(
  */
 function $skip<T extends Document = Document>(
   collection: Collection<T>,
-  count: number
+  count: number,
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -365,7 +369,8 @@ function cmpString(a: unknown, b: unknown): number {
  */
 function $sort<T extends Document = Document>(
   collection: Collection<T>,
-  sortSpec: SortStage['$sort']
+  sortSpec: SortStage['$sort'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -419,7 +424,8 @@ function $unwind<T extends Document = Document>(
         path: string;
         includeArrayIndex?: string;
         preserveNullAndEmptyArrays?: boolean;
-      }
+      },
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -540,9 +546,18 @@ function $unwind<T extends Document = Document>(
  */
 function $group<T extends Document = Document>(
   collection: Collection<T>,
-  specifications: GroupStage['$group'] = { _id: null }
+  specifications: GroupStage['$group'] = { _id: null },
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   const _idSpec = specifications._id;
+
+  // Mode-specific optimization placeholder
+  // TODO: Implement toggle mode with refcounts for membership operations
+  // TODO: Implement stream mode with streaming accumulators for event feeds
+  if (mode === 'toggle') {
+    // For now, use same implementation but with future optimization hook
+    // Future: maintain refcounts, recompute min/max with side maps
+  }
 
   // Group by using native JavaScript
   const groupsMap = new Map<string, Document[]>();
@@ -585,7 +600,8 @@ function $group<T extends Document = Document>(
 function aggregateWithBindings<T extends Document = Document>(
   collection: Collection<T>,
   pipeline: Pipeline,
-  bindings: Record<string, DocumentValue>
+  bindings: Record<string, DocumentValue>,
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
   let result = collection;
 
@@ -607,7 +623,7 @@ function aggregateWithBindings<T extends Document = Document>(
         });
       } else {
         // Regular $match without bindings
-        result = $match(result, matchSpec);
+        result = $match(result, matchSpec, options?.mode);
       }
     } else if ('$project' in stage) {
       // Project with bindings support
@@ -629,11 +645,11 @@ function aggregateWithBindings<T extends Document = Document>(
         return projected as T;
       }) as Collection<T>;
     } else if ('$limit' in stage) {
-      result = $limit(result, stage.$limit);
+      result = $limit(result, stage.$limit, options?.mode);
     } else if ('$skip' in stage) {
-      result = $skip(result, stage.$skip);
+      result = $skip(result, stage.$skip, options?.mode);
     } else if ('$sort' in stage) {
-      result = $sort(result, stage.$sort);
+      result = $sort(result, stage.$sort, options?.mode);
     } else {
       // For other stages, fall back to regular processing (no bindings support yet)
       throw new Error(
@@ -651,7 +667,8 @@ function aggregateWithBindings<T extends Document = Document>(
  */
 function $lookup<T extends Document = Document>(
   collection: Collection<T>,
-  spec: LookupStage['$lookup']
+  spec: LookupStage['$lookup'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -715,7 +732,7 @@ function $lookup<T extends Document = Document>(
 
       // Execute the pipeline on the foreign collection with bindings
       // We need a special version of aggregate that accepts bindings
-      const matches = aggregateWithBindings(from, pipeline, bindings);
+      const matches = aggregateWithBindings(from, pipeline, bindings, { mode });
 
       return {
         ...doc,
@@ -735,7 +752,8 @@ function $lookup<T extends Document = Document>(
  */
 function $addFields<T extends Document = Document>(
   collection: Collection<T>,
-  fieldSpecs: AddFieldsStage['$addFields']
+  fieldSpecs: AddFieldsStage['$addFields'],
+  mode: 'stream' | 'toggle' = 'stream'
 ): Collection<T> {
   if (!Array.isArray(collection)) {
     return [];
@@ -758,7 +776,8 @@ const $set = $addFields;
  */
 function aggregate<T extends Document = Document>(
   collection: Collection<T>,
-  pipeline: Pipeline | PipelineStage
+  pipeline: Pipeline | PipelineStage,
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
   // Handle null/undefined collections
   if (!collection || !Array.isArray(collection)) {
@@ -782,14 +801,18 @@ function aggregate<T extends Document = Document>(
   }
 
   // Execute using native JavaScript pipeline processing
-  return traditionalAggregate(collection, stages);
+  return traditionalAggregate(collection, stages, options);
 }
 
 function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
-  stages: PipelineStage[]
+  stages: PipelineStage[],
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
   let result = collection as Collection<T>;
+  
+  // Default to 'stream' mode for backward compatibility
+  const executionMode = options?.mode || 'stream';
 
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
@@ -800,29 +823,29 @@ function traditionalAggregate<T extends Document = Document>(
       result = $group(result, {
         _id: null,
         [fieldName]: { $sum: 1 },
-      });
+      }, executionMode);
       result = $project(result, {
         _id: 0,
         [fieldName]: 1,
-      });
+      }, executionMode);
     }
     if ('$match' in stage) {
-      result = $match(result, stage.$match);
+      result = $match(result, stage.$match, executionMode);
     }
     if ('$project' in stage) {
-      result = $project(result, stage.$project);
+      result = $project(result, stage.$project, executionMode);
     }
     if ('$group' in stage) {
-      result = $group(result, stage.$group);
+      result = $group(result, stage.$group, executionMode);
     }
     if ('$sort' in stage) {
-      result = $sort(result, stage.$sort);
+      result = $sort(result, stage.$sort, executionMode);
     }
     if ('$skip' in stage) {
-      result = $skip(result, stage.$skip);
+      result = $skip(result, stage.$skip, executionMode);
     }
     if ('$limit' in stage) {
-      result = $limit(result, stage.$limit);
+      result = $limit(result, stage.$limit, executionMode);
     }
     if ('$unwind' in stage) {
       if (process.env.DEBUG_UNWIND) {
@@ -832,36 +855,88 @@ function traditionalAggregate<T extends Document = Document>(
         );
         console.log('[DEBUG] Input collection length:', result.length);
       }
-      result = $unwind(result, stage.$unwind);
+      result = $unwind(result, stage.$unwind, executionMode);
       if (process.env.DEBUG_UNWIND) {
         console.log('[DEBUG] Output collection length:', result.length);
       }
     }
     if ('$lookup' in stage) {
-      result = $lookup(result, stage.$lookup);
+      result = $lookup(result, stage.$lookup, executionMode);
     }
     if ('$addFields' in stage) {
-      result = $addFields(result, stage.$addFields);
+      result = $addFields(result, stage.$addFields, executionMode);
     }
     if ('$set' in stage) {
-      result = $addFields(result, stage.$set);
+      result = $addFields(result, stage.$set, executionMode);
     }
   }
 
   return result;
 }
 
+// Wrapper functions for standalone stage operators (backward compatibility)
+const $projectWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: ProjectStage['$project']
+): Collection<T> => $project(collection, specifications, 'stream');
+
+const $groupWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  specifications: GroupStage['$group'] = { _id: null }
+): Collection<T> => $group(collection, specifications, 'stream');
+
+const $matchWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  query: QueryExpression
+): Collection<T> => $match(collection, query, 'stream');
+
+const $limitWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T> => $limit(collection, count, 'stream');
+
+const $skipWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  count: number
+): Collection<T> => $skip(collection, count, 'stream');
+
+const $sortWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  sortSpec: SortStage['$sort']
+): Collection<T> => $sort(collection, sortSpec, 'stream');
+
+const $unwindWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  unwindSpec:
+    | string
+    | {
+        path: string;
+        includeArrayIndex?: string;
+        preserveNullAndEmptyArrays?: boolean;
+      }
+): Collection<T> => $unwind(collection, unwindSpec, 'stream');
+
+const $lookupWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  spec: LookupStage['$lookup']
+): Collection<T> => $lookup(collection, spec, 'stream');
+
+const $addFieldsWrapper = <T extends Document = Document>(
+  collection: Collection<T>,
+  fieldSpecs: AddFieldsStage['$addFields']
+): Collection<T> => $addFields(collection, fieldSpecs, 'stream');
+
 export {
   aggregate,
-  $project,
-  $group,
-  $match,
-  $limit,
-  $skip,
-  $sort,
-  $unwind,
-  $lookup,
-  $addFields,
-  $set,
+  $projectWrapper as $project,
+  $groupWrapper as $group,
+  $matchWrapper as $match,
+  $limitWrapper as $limit,
+  $skipWrapper as $skip,
+  $sortWrapper as $sort,
+  $unwindWrapper as $unwind,
+  $lookupWrapper as $lookup,
+  $addFieldsWrapper as $addFields,
+  $addFieldsWrapper as $set, // $set is an alias for $addFields
 };
-export default { aggregate, $project, $group };
+export default { aggregate, $project: $projectWrapper, $group: $groupWrapper };

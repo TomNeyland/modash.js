@@ -293,6 +293,18 @@ export type PipelineStage = (
 // Pipeline type
 export type Pipeline = PipelineStage[];
 
+// Execution mode types
+export type ExecutionMode = 'stream' | 'toggle';
+
+export interface AggregationOptions {
+  /**
+   * Execution mode for the aggregation:
+   * - 'stream' (default): True incremental streaming for event feeds
+   * - 'toggle': Fixed dataset with membership toggling for analytics/filtering
+   */
+  mode?: ExecutionMode;
+}
+
 // Main Modash interface
 export interface ModashStatic {
   /**
@@ -300,11 +312,13 @@ export interface ModashStatic {
    * Now supports both regular arrays and streaming collections transparently.
    * @param collection - Array of documents or StreamingCollection to process
    * @param pipeline - Array of pipeline stages
+   * @param options - Aggregation options including execution mode
    * @returns Processed array of documents
    */
   aggregate<T extends Document = Document>(
     collection: Collection<T> | StreamingCollection<T>,
-    pipeline: Pipeline
+    pipeline: Pipeline,
+    options?: AggregationOptions
   ): Collection<T>;
 
   /**

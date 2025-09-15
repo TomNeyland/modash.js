@@ -28,18 +28,20 @@ import { explain, benchmark, fromJSONL } from './api-enhancements';
  */
 const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
   collection: PublicCollection<T>,
-  pipeline: Pipeline
+  pipeline: Pipeline,
+  options?: { mode?: 'stream' | 'toggle' }
 ): PublicCollection<T> => {
   // D) Pipeline Input Validation - Check pipeline before routing to hot path
   if (!Array.isArray(pipeline)) {
     // Let the underlying aggregate handle single stages and invalid inputs
-    return originalAggregate(collection as any, pipeline as any) as any;
+    return originalAggregate(collection as any, pipeline as any, options) as any;
   }
 
   // Route to hot path for maximum performance
   return hotPathAggregate(
     collection as any,
-    pipeline
+    pipeline,
+    options
   ) as unknown as PublicCollection<T>;
 };
 
@@ -49,13 +51,15 @@ const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
  */
 const transparentAggregate = <T extends PublicDocument = PublicDocument>(
   collection: PublicCollection<T> | StreamingCollection<T>,
-  pipeline: Pipeline
+  pipeline: Pipeline,
+  options?: { mode?: 'stream' | 'toggle' }
 ): PublicCollection<T> => {
   // For regular collections, use hot path optimization
   if (!(collection instanceof StreamingCollection)) {
     return optimizedAggregate(
       collection as any,
-      pipeline
+      pipeline,
+      options
     ) as PublicCollection<T>;
   }
 
@@ -73,9 +77,10 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  * work with both regular arrays and streaming collections.
  */
 const Modash: ModashStatic = {
-  aggregate: transparentAggregate,
-  aggregateStreaming: (collection: any, pipeline: Pipeline) =>
-    transparentAggregate(collection as any, pipeline) as any,
+  aggregate: (collection: any, pipeline: Pipeline, options?: { mode?: 'stream' | 'toggle' }) =>
+    transparentAggregate(collection as any, pipeline, options) as any,
+  aggregateStreaming: (collection: any, pipeline: Pipeline, options?: { mode?: 'stream' | 'toggle' }) =>
+    transparentAggregate(collection as any, pipeline, options) as any,
   count,
   $expression,
   $group,

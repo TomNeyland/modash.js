@@ -514,7 +514,8 @@ function isSimpleExpression(expr: any): boolean {
  */
 export function hotPathAggregate<T extends Document = Document>(
   collection: Collection<T>,
-  pipeline: Pipeline
+  pipeline: Pipeline,
+  options?: { mode?: 'stream' | 'toggle' }
 ): Collection<Document> {
   counters.totalOperations++;
 
@@ -530,7 +531,7 @@ export function hotPathAggregate<T extends Document = Document>(
       `Pipeline is not an array: ${typeof pipeline}`
     );
     counters.fallbacks++;
-    return originalAggregate(collection, pipeline);
+    return originalAggregate(collection, pipeline, options);
   }
 
   const startTime = Date.now();
@@ -559,7 +560,7 @@ export function hotPathAggregate<T extends Document = Document>(
       }
       console.warn(`Hot path failed, falling back: ${errorMessage}`);
       counters.fallbacks++;
-      result = originalAggregate(collection, pipeline);
+      result = originalAggregate(collection, pipeline, options);
 
       const duration = Date.now() - startTime;
       // Safe length access
@@ -574,7 +575,7 @@ export function hotPathAggregate<T extends Document = Document>(
     }
     // Use regular aggregation
     counters.fallbacks++;
-    result = originalAggregate(collection, pipeline);
+    result = originalAggregate(collection, pipeline, options);
 
     const duration = Date.now() - startTime;
     // Safe length access
