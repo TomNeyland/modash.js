@@ -503,6 +503,10 @@ export class ZeroAllocEngine {
     const [field, order] = Object.entries(sortSpec)[0] as [string, 1 | -1];
 
     return (context: HotPathContext): number => {
+      // Check if we have group results
+      const groupResults = (context as any)._groupResults as any[] | undefined;
+      const usingGroups = Array.isArray(groupResults);
+
       // Use Top-K algorithm for better performance when limit << activeCount
       if (limit >= context.activeCount * 0.5) {
         // Use regular sort for large limits
@@ -517,8 +521,10 @@ export class ZeroAllocEngine {
         const heap: Array<{ rowId: number; value: any }> = [];
 
         for (let i = 0; i < context.activeCount; i++) {
-          const rowId = context.activeRowIds[i];
-          const value = context.documents[rowId][field];
+          const rowId = usingGroups ? i : context.activeRowIds[i];
+          const value = usingGroups
+            ? groupResults[i][field]
+            : context.documents[rowId][field];
 
           if (heap.length < limit) {
             heap.push({ rowId, value });
@@ -541,8 +547,19 @@ export class ZeroAllocEngine {
         // Extract sorted results
         heap.sort((a, b) => order * this.compareValues(a.value, b.value));
 
-        for (let i = 0; i < heap.length; i++) {
-          context.scratchBuffer[i] = heap[i].rowId;
+        if (usingGroups) {
+          // Reorder group results according to heap
+          const sortedGroups = new Array(heap.length);
+          for (let i = 0; i < heap.length; i++) {
+            sortedGroups[i] = groupResults[heap[i].rowId];
+            context.scratchBuffer[i] = i; // indices 0..n-1
+          }
+          (context as any)._groupResults = sortedGroups;
+          (context as any)._groupIndexModeActive = true;
+        } else {
+          for (let i = 0; i < heap.length; i++) {
+            context.scratchBuffer[i] = heap[i].rowId;
+          }
         }
 
         return heap.length;
