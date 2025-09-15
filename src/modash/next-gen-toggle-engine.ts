@@ -59,7 +59,7 @@ export class AdaptiveOptimizationEngine {
   private static readonly MEMORY_OPTIMIZATION_THRESHOLD = 5000; // Enable advanced memory mgmt > 5K elements
 
   /**
-   * Execute pipeline with adaptive optimization
+   * Execute pipeline with adaptive optimization - simplified for better performance
    */
   execute<T extends Document>(
     documents: Collection<T>,
@@ -68,35 +68,13 @@ export class AdaptiveOptimizationEngine {
   ): Collection<T> {
     if (documents.length === 0) return documents;
 
-    // Analyze data characteristics
-    const characteristics = context?.dataCharacteristics || this.analyzeData(documents);
-    const optimizationContext: OptimizationContext = context || {
-      dataSize: documents.length,
-      dataCharacteristics: characteristics,
-      pipelineComplexity: this.analyzePipelineComplexity(pipeline),
-      memoryPressure: this.getMemoryPressure(),
-      executionHistory: [],
-    };
-
-    // Monitor memory usage
-    MemoryMonitor.measure();
-
-    // Select optimal execution strategy
-    const strategy = this.selectOptimizationStrategy(optimizationContext, pipeline);
-    
-    try {
-      const result = this.executeWithStrategy(documents, pipeline, strategy, optimizationContext);
-      
-      // Record execution statistics
-      this.recordExecution(pipeline, optimizationContext, strategy, Date.now());
-      
-      return result;
-    } finally {
-      // Clean up memory pools if needed
-      if (optimizationContext.memoryPressure > 0.8) {
-        this.cleanupMemory();
-      }
+    // Fast path: for small datasets or simple pipelines, use direct optimization
+    if (documents.length < 1000 || pipeline.length <= 2) {
+      return this.executeSimplified(documents, pipeline);
     }
+
+    // For larger datasets, use targeted optimizations
+    return this.executeOptimized(documents, pipeline);
   }
 
   private analyzeData<T extends Document>(documents: Collection<T>): DataCharacteristics {
