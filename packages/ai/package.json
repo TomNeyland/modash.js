@@ -1,0 +1,50 @@
+{
+  "name": "@modash/plugin-ai",
+  "version": "0.1.0",
+  "description": "AI plugin for modash.js - Natural language to MongoDB pipeline conversion using OpenAI",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "bin": {
+    "modash-ai": "./src/cli.ts"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "mocha --import=tsx/esm tests/*.test.js",
+    "test:watch": "mocha --import=tsx/esm tests/*.test.js --watch"
+  },
+  "keywords": [
+    "modash",
+    "ai",
+    "openai",
+    "natural-language",
+    "mongodb",
+    "aggregation",
+    "pipeline",
+    "schema-inference"
+  ],
+  "author": "Tom Neyland",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.1",
+    "openai": "^4.67.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "chai": "^6.0.1",
+    "mocha": "^11.7.2",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src/",
+    "README.md"
+  ]
+}

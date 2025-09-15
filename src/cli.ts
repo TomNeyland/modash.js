@@ -15,10 +15,22 @@ interface CLIOptions {
 
 // JSONLProcessor was removed in favor of simpler streaming readers below
 
-function parseArgs(): { pipeline: Pipeline; options: CLIOptions } {
+function parseArgs(): {
+  pipeline: Pipeline;
+  options: CLIOptions;
+  subcommand?: string;
+} {
   const args = process.argv.slice(2);
   const options: CLIOptions = {};
   let pipelineStr = '';
+  let subcommand: string | undefined;
+
+  // Check for AI subcommand
+  if (args[0] === 'ai') {
+    subcommand = 'ai';
+    // Delegate to AI plugin CLI
+    return { pipeline: [] as Pipeline, options, subcommand };
+  }
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -61,7 +73,7 @@ function parseArgs(): { pipeline: Pipeline; options: CLIOptions } {
     process.exit(1);
   }
 
-  return { pipeline, options };
+  return { pipeline, options, ...(subcommand && { subcommand }) };
 }
 
 function showHelp() {
@@ -71,6 +83,10 @@ function showHelp() {
 Usage:
   cat data.jsonl | npx modash '[{"$match": {"score": {"$gte": 80}}}]'
   npx modash '[{"$project": {"name": 1}}]' --file data.jsonl
+  cat data.jsonl | npx modash ai "sum revenue by category"
+
+Commands:
+  ai <query>       Natural language query using AI (requires @modash/plugin-ai)
 
 Options:
   --file <path>    Read data from file instead of stdin
@@ -89,6 +105,10 @@ Examples:
   
   # Complex pipeline with explanation
   npx modash '[{"$match":{"active":true}},{"$project":{"name":1,"score":1}}]' --explain --stats
+  
+  # AI-powered natural language query (requires @modash/plugin-ai)
+  cat sales.jsonl | npx modash ai "average order value by product category"
+  npx modash ai "top 10 customers by total spent" --file orders.jsonl
 
 Pipeline Format:
   JSON array of MongoDB-style aggregation stages:
@@ -186,7 +206,30 @@ async function explainPipeline(pipeline: Pipeline): Promise<void> {
 
 async function main() {
   try {
-    const { pipeline, options } = parseArgs();
+    const { pipeline, options, subcommand } = parseArgs();
+
+    // Handle AI subcommand
+    if (subcommand === 'ai') {
+      try {
+        // Try to dynamically import the AI plugin
+        const pluginName = '@modash/plugin-ai';
+        await import(pluginName).catch(() => {
+          throw new Error('Plugin not found');
+        });
+        console.error('🤖 AI plugin not yet integrated with main CLI');
+        console.error(
+          '💡 For now, use: npx @modash/plugin-ai <query> [options]'
+        );
+        process.exit(1);
+      } catch (_error) {
+        console.error('❌ Error: @modash/plugin-ai is not installed');
+        console.error('💡 Install it with: npm install @modash/plugin-ai');
+        console.error(
+          '💡 Then use: cat data.jsonl | npx modash ai "your query"'
+        );
+        process.exit(1);
+      }
+    }
 
     if (options.explain) {
       await explainPipeline(pipeline);
