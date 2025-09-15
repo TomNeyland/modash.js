@@ -21,6 +21,10 @@ import { simdGroupingEngine, isSIMDOptimizable } from './simd-grouping';
 import { MatchProjectFusion, detectFusiblePatterns, optimizePipelineWithFusion } from './match-project-fusion';
 import { BufferPool } from './performance-optimized-engine';
 
+// Phase 4B: Advanced Optimizations  
+import { expressionInliner, shouldUseExpressionInlining, optimizeWithExpressionInlining } from './expression-inlining';
+import { cacheLocalityOptimizer, shouldOptimizeForCacheLocality, createCacheOptimizedCollection } from './cache-locality-optimizer';
+
 // Global buffer pool for hot path operations
 const globalBufferPool = new BufferPool();
 
@@ -423,6 +427,48 @@ function cmpString(a: unknown, b: unknown): number {
 /**
  * Reorders the document stream by a specified sort key.
  */
+/**
+ * Analyze field access patterns in pipeline for cache optimization
+ */
+function analyzeFieldAccess(stages: PipelineStage[]): string[] {
+  const fieldAccess = new Set<string>();
+  
+  for (const stage of stages) {
+    if ('$project' in stage && stage.$project) {
+      Object.keys(stage.$project).forEach(field => fieldAccess.add(field));
+    }
+    
+    if ('$group' in stage && stage.$group) {
+      // Add fields used in group expressions
+      if (typeof stage.$group._id === 'string' && stage.$group._id.startsWith('$')) {
+        fieldAccess.add(stage.$group._id.slice(1));
+      }
+      
+      Object.values(stage.$group).forEach(spec => {
+        if (typeof spec === 'object' && spec) {
+          Object.values(spec).forEach(expr => {
+            if (typeof expr === 'string' && expr.startsWith('$')) {
+              fieldAccess.add(expr.slice(1));
+            }
+          });
+        }
+      });
+    }
+    
+    if ('$sort' in stage && stage.$sort) {
+      Object.keys(stage.$sort).forEach(field => fieldAccess.add(field));
+    }
+    
+    if ('$match' in stage && stage.$match) {
+      Object.keys(stage.$match).forEach(field => {
+        if (!field.startsWith('$')) fieldAccess.add(field);
+      });
+    }
+  }
+  
+  return Array.from(fieldAccess).slice(0, 8); // Limit for cache efficiency
+}
+
 // Store the next $limit value for TopK optimization
 let nextLimitValue: number | null = null;
 
@@ -871,20 +917,38 @@ function traditionalAggregate<T extends Document = Document>(
   collection: Collection<T>,
   stages: PipelineStage[]
 ): Collection<T> {
-  // Phase 4A: Match+Project Fusion Optimization
-  const fusiblePatterns = detectFusiblePatterns(stages);
-  if (fusiblePatterns.length > 0) {
-    return optimizePipelineWithFusion(collection, stages) as Collection<T>;
+  // Phase 4B: Expression Inlining Optimization
+  let optimizedStages = stages;
+  if (shouldUseExpressionInlining(stages)) {
+    optimizedStages = optimizeWithExpressionInlining(stages);
   }
 
-  let result = collection as Collection<T>;
+  // Phase 4A: Match+Project Fusion Optimization
+  const fusiblePatterns = detectFusiblePatterns(optimizedStages);
+  if (fusiblePatterns.length > 0) {
+    return optimizePipelineWithFusion(collection, optimizedStages) as Collection<T>;
+  }
 
-  for (let i = 0; i < stages.length; i++) {
-    const stage = stages[i]!;
+  // Phase 4B: Cache Locality Optimization for large collections
+  let workingCollection = collection;
+  let cacheOptimized = null;
+  
+  if (shouldOptimizeForCacheLocality(collection)) {
+    const analysisFields = analyzeFieldAccess(optimizedStages);
+    if (analysisFields.length > 0) {
+      cacheOptimized = createCacheOptimizedCollection(collection, analysisFields);
+      // Note: For now we keep using AoS but could switch to SoA for specific operations
+    }
+  }
+
+  let result = workingCollection as Collection<T>;
+
+  for (let i = 0; i < optimizedStages.length; i++) {
+    const stage = optimizedStages[i]!;
 
     // Phase 4A: TopK Optimization - Look ahead for $limit after $sort
-    if ('$sort' in stage && i + 1 < stages.length && '$limit' in stages[i + 1]!) {
-      nextLimitValue = stages[i + 1]!.$limit;
+    if ('$sort' in stage && i + 1 < optimizedStages.length && '$limit' in optimizedStages[i + 1]!) {
+      nextLimitValue = optimizedStages[i + 1]!.$limit;
     }
 
     if ('$count' in stage) {
