@@ -1,0 +1,18 @@
+# Fail fast on any error
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged first (fixes and formats staged files)
+echo "📝 Running lint-staged..."
+npx lint-staged
+
+# Run typecheck
+echo "🔧 Running typecheck..."
+npm run typecheck
+
+# Run fast tests (excludes slow/1M record tests)
+echo "🧪 Running tests (excluding slow tests)..."
+npm run test:fast
+
+echo "✅ All pre-commit checks passed!"

@@ -47,6 +47,15 @@
   "engines": {
     "node": ">=18"
   },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
   "scripts": {
     "test": "npm run test:units && npm run test:performance",
     "test:fast": "mocha --import=tsx/esm --exit tests/count.spec.js tests/modash.spec.js tests/documentation-examples.spec.js tests/operators.spec.js tests/issue-41-regression.spec.js tests/ivm-regression.spec.js tests/ivm-context-chaining.spec.js",
@@ -67,7 +76,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "prepare": "npm run build",
+    "prepare": "husky",
     "prepack": "npm run build",
     "prepublishOnly": "npm run build && npm run type-check && npm run format:check",
     "quality": "npm run format:check && npm run lint && npm run type-check && npm run test:coverage",
@@ -111,6 +120,8 @@
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
     "mocha": "^10.8.2",
     "prettier": "^3.3.3",
     "tsup": "^8.1.0",
