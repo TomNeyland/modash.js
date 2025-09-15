@@ -450,8 +450,10 @@ function $unwind<T extends Document = Document>(
         result.push(doc);
       } else if (options.preserveNullAndEmptyArrays) {
         // Null/undefined field with preserveNullAndEmptyArrays
-        // TODO(refactor): Replace deep clone with structuredClone or field-level copy to reduce GC pressure.
-        const newDoc: any = JSON.parse(JSON.stringify(doc));
+        // Use structuredClone when available, fallback to JSON for compatibility
+        const newDoc: any = structuredClone
+          ? structuredClone(doc)
+          : JSON.parse(JSON.stringify(doc));
         if (cleanPath.includes('.')) {
           // For nested paths, set the final property to null
           const parts = cleanPath.split('.');
@@ -476,9 +478,13 @@ function $unwind<T extends Document = Document>(
     if (arrayValue.length === 0) {
       if (options.preserveNullAndEmptyArrays) {
         // Empty array with preserveNullAndEmptyArrays
-        // TODO(refactor): Avoid object spread in hot paths; consider targeted field updates.
-        const newDoc: any = { ...doc };
+        // Use targeted field updates instead of object spread for better performance
+        let newDoc: any;
         if (cleanPath.includes('.')) {
+          // For nested paths, we need a deep copy
+          newDoc = structuredClone
+            ? structuredClone(doc)
+            : JSON.parse(JSON.stringify(doc));
           const parts = cleanPath.split('.');
           let current = newDoc;
           for (let i = 0; i < parts.length - 1; i++) {
@@ -487,6 +493,8 @@ function $unwind<T extends Document = Document>(
           }
           current[parts[parts.length - 1]] = null;
         } else {
+          // For shallow updates, copy only necessary fields
+          newDoc = Object.assign({}, doc);
           newDoc[cleanPath] = null;
         }
         if (options.includeArrayIndex) {
@@ -500,8 +508,10 @@ function $unwind<T extends Document = Document>(
     // Unwind the array
     arrayValue.forEach((item, index) => {
       // Deep clone the document to avoid mutations
-      // TODO(refactor): Replace deep clone with structuredClone where available.
-      const newDoc: any = JSON.parse(JSON.stringify(doc));
+      // Use structuredClone when available for better performance
+      const newDoc: any = structuredClone
+        ? structuredClone(doc)
+        : JSON.parse(JSON.stringify(doc));
 
       // Set the unwound field value - preserve nested structure
       if (cleanPath.includes('.')) {

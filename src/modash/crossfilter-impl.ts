@@ -93,6 +93,12 @@ export class RefCountedMultiSetImpl<T> implements RefCountedMultiSet<T> {
   }
 
   private compareValues(a: T, b: T): number {
+    // Handle null/undefined values properly for comparisons
+    if (a === null && b === null) return 0;
+    if (a === undefined && b === undefined) return 0;
+    if (a === null || a === undefined) return -1; // null/undefined comes before all values
+    if (b === null || b === undefined) return 1; // null/undefined comes before all values
+
     if (a < b) return -1;
     if (a > b) return 1;
     return 0;
