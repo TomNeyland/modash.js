@@ -174,8 +174,27 @@ export class StreamingCollection<
   addBulk(newDocuments: T[]): void {
     if (newDocuments.length === 0) return;
 
-    // Process synchronously to ensure deterministic test behavior and immediate updates
-    this.processBatchAdd(newDocuments);
+    // Use delta optimizer for high-throughput batching
+    // Fallback to synchronous processing if batching is disabled or unavailable
+    const useDeltaBatching = process.env.DISABLE_DELTA_BATCHING !== '1';
+    
+    if (useDeltaBatching && this.deltaOptimizer) {
+      // Queue delta for optimized batching
+      const delta = {
+        operation: 'add' as const,
+        documents: newDocuments as Document[],
+        timestamp: performance.now(),
+      };
+      
+      const queued = this.deltaOptimizer.queueDelta(delta);
+      if (!queued) {
+        // Fallback to direct processing if queue is full (backpressure)
+        this.processBatchAdd(newDocuments);
+      }
+    } else {
+      // Process synchronously to ensure deterministic test behavior and immediate updates
+      this.processBatchAdd(newDocuments);
+    }
   }
 
   /**
