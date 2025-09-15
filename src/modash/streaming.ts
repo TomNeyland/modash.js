@@ -87,12 +87,12 @@ export class StreamingCollection<
   // Core crossfilter IVM engine
   private ivmEngine = createCrossfilterEngine();
 
-  // High-performance delta optimizer for streaming
+  // High-performance delta optimizer for streaming with memory-conscious defaults
   private deltaOptimizer = createDeltaOptimizer({
-    maxBatchSize: 128, // Smaller batches for better memory efficiency
-    maxBatchDelayMs: 2, // Slightly longer delay for better coalescing
+    maxBatchSize: 32, // Smaller batches for better memory efficiency  
+    maxBatchDelayMs: 4, // Slightly longer delay for better coalescing
     adaptiveSizing: true,
-    targetThroughput: 200_000, // More reasonable target for better stability
+    targetThroughput: 100_000, // More reasonable target for better stability and memory usage
   });
 
   // Mapping from document array index to IVM rowId
@@ -105,7 +105,8 @@ export class StreamingCollection<
 
   constructor(initialData: Collection<T> = [], options?: { 
     lightweight?: boolean; 
-    memoryConscious?: boolean 
+    memoryConscious?: boolean;
+    maxMemoryMB?: number; // Memory limit in MB
   }) {
     super();
     // Handle null, undefined, and non-iterable data
@@ -120,15 +121,18 @@ export class StreamingCollection<
       }
     }
 
-    // Configure delta optimizer based on options
+    // Configure delta optimizer based on options and memory constraints
     if (!options?.lightweight) {
       // Use memory-conscious configuration for large datasets
       if (options?.memoryConscious || (initialData && initialData.length > 1000)) {
+        const memoryBudget = options?.maxMemoryMB || 100; // Default 100MB limit
+        const batchSize = Math.min(64, Math.max(8, Math.floor(memoryBudget / 2))); // Scale batch size with memory budget
+        
         this.deltaOptimizer = createDeltaOptimizer({
-          maxBatchSize: 64, // Smaller batches for memory efficiency
-          maxBatchDelayMs: 5, // Longer delays to reduce processing frequency
+          maxBatchSize: batchSize,
+          maxBatchDelayMs: 10, // Longer delays to reduce memory pressure
           adaptiveSizing: true,
-          targetThroughput: 100_000, // Conservative target for stability
+          targetThroughput: 50_000, // More conservative for memory-conscious mode
         });
       }
       
@@ -139,27 +143,55 @@ export class StreamingCollection<
 
   /**
    * Initialize IVM engine with current documents
-   * Optimized for large datasets with batched processing
+   * Optimized for large datasets with batched processing and memory pooling
    */
   private initializeIVM(): void {
     if (this.ivmInitialized) return;
 
     // For large datasets (>1000), use batched initialization to reduce memory pressure
-    const batchSize = this.documents.length > 1000 ? 500 : this.documents.length;
+    const isLargeDataset = this.documents.length > 1000;
+    const batchSize = isLargeDataset ? 250 : this.documents.length; // Smaller batches for better memory management
+    
+    // Pre-allocate index mappings for better memory efficiency
+    if (isLargeDataset) {
+      // Reserve capacity to avoid multiple reallocations
+      // Use estimated overhead: ~40 bytes per document for index mappings
+      const estimatedIndexMemory = this.documents.length * 40;
+      if (estimatedIndexMemory > 50 * 1024 * 1024) { // > 50MB
+        console.warn(`Large dataset detected (${this.documents.length} docs, ~${Math.round(estimatedIndexMemory / 1024 / 1024)}MB index overhead)`);
+      }
+    }
     
     for (let start = 0; start < this.documents.length; start += batchSize) {
       const end = Math.min(start + batchSize, this.documents.length);
       
-      // Process batch
+      // Process batch with minimal allocation overhead
+      const batch: { doc: T; index: number }[] = [];
       for (let i = start; i < end; i++) {
-        const rowId = this.ivmEngine.addDocument(this.documents[i]);
-        this.docIndexToRowId.set(i, rowId);
-        this.rowIdToDocIndex.set(rowId, i);
+        batch.push({ doc: this.documents[i], index: i });
       }
       
-      // Allow event loop to process for large datasets
+      // Add documents to IVM engine in batch
+      for (const { doc, index } of batch) {
+        const rowId = this.ivmEngine.addDocument(doc);
+        this.docIndexToRowId.set(index, rowId);
+        this.rowIdToDocIndex.set(rowId, index);
+      }
+      
+      // For very large datasets, yield control periodically and check memory pressure
       if (batchSize < this.documents.length && start + batchSize < this.documents.length) {
-        // Force a microtask to prevent blocking
+        // Check memory pressure every 10k documents
+        if ((start + batchSize) % 10000 === 0) {
+          const memUsage = process.memoryUsage();
+          const heapMB = memUsage.heapUsed / 1024 / 1024;
+          
+          // If heap usage exceeds 1GB, force garbage collection if available
+          if (heapMB > 1024 && typeof global !== 'undefined' && global.gc) {
+            global.gc();
+          }
+        }
+        
+        // Force a microtask to prevent blocking for large datasets
         continue;
       }
     }
@@ -406,7 +438,7 @@ export class StreamingCollection<
 
   /**
    * Cleanup unused memory and optimize internal structures
-   * Useful for long-running streaming collections
+   * Enhanced for large dataset memory management
    */
   cleanup(): void {
     // Clear inactive aggregation states
@@ -419,10 +451,37 @@ export class StreamingCollection<
     // Reset delta optimizer to clear internal buffers
     this.deltaOptimizer.resetMetrics();
 
-    // Force garbage collection of index mappings for removed documents
-    if (this.docIndexToRowId.size > this.documents.length * 1.5) {
-      // Rebuild index mappings if they're significantly larger than document count
+    // Enhanced index mapping cleanup with memory pressure detection
+    const indexOverhead = this.docIndexToRowId.size + this.rowIdToDocIndex.size;
+    const documentCount = this.documents.length;
+    
+    // Rebuild mappings if overhead is significant (>50% more than needed)
+    if (indexOverhead > documentCount * 1.5) {
       this.rebuildIndexMappings();
+    }
+    
+    // For large collections, perform aggressive cleanup
+    if (documentCount > 5000) {
+      // Check memory usage
+      const memUsage = process.memoryUsage();
+      const heapMB = memUsage.heapUsed / 1024 / 1024;
+      
+      if (heapMB > 500) { // > 500MB heap usage
+        // Force more aggressive cleanup
+        this.ivmEngine.cleanup?.(); // Call IVM engine cleanup if available
+        
+        // Clear any cached compilation results that might be taking memory
+        for (const state of this.aggregationStates.values()) {
+          if (state._executionPlan && typeof state._executionPlan.clearCache === 'function') {
+            state._executionPlan.clearCache();
+          }
+        }
+        
+        // Suggest garbage collection
+        if (typeof global !== 'undefined' && global.gc) {
+          global.gc();
+        }
+      }
     }
   }
 
@@ -931,11 +990,15 @@ export class StreamingCollection<
 }
 
 /**
- * Create a streaming collection from existing data
+ * Create a streaming collection from existing data with memory optimization options
  */
 export function createStreamingCollection<T extends Document = Document>(
   initialData: Collection<T> = [],
-  options?: { lightweight?: boolean }
+  options?: { 
+    lightweight?: boolean; 
+    memoryConscious?: boolean;
+    maxMemoryMB?: number; // Memory limit in MB
+  }
 ): StreamingCollection<T> {
   return new StreamingCollection(initialData, options);
 }

@@ -53,7 +53,7 @@ interface DeltaMetrics {
 }
 
 /**
- * Ring buffer for zero-allocation delta queuing
+ * Ring buffer for zero-allocation delta queuing with memory-conscious sizing
  */
 class DeltaRingBuffer {
   private buffer: Delta[];
@@ -62,9 +62,14 @@ class DeltaRingBuffer {
   private size = 0;
   private readonly capacity: number;
 
-  constructor(capacity = 1024) {
+  constructor(capacity = 512) { // Reduced default capacity for better memory efficiency
     this.capacity = capacity;
     this.buffer = new Array(capacity);
+    
+    // Pre-allocate with null objects to avoid allocation overhead
+    for (let i = 0; i < capacity; i++) {
+      this.buffer[i] = null as any;
+    }
   }
 
   enqueue(delta: Delta): boolean {
@@ -84,6 +89,7 @@ class DeltaRingBuffer {
     }
 
     const delta = this.buffer[this.head];
+    this.buffer[this.head] = null as any; // Clear reference for GC
     this.head = (this.head + 1) % this.capacity;
     this.size--;
     return delta;
@@ -110,38 +116,57 @@ class DeltaRingBuffer {
   isFull(): boolean {
     return this.size >= this.capacity;
   }
+  
+  /**
+   * Get memory usage estimate in bytes
+   */
+  getMemoryEstimate(): number {
+    // Rough estimate: each delta ~ 200 bytes + buffer overhead
+    return this.capacity * 200 + 1024; // Buffer overhead
+  }
 }
 
 /**
  * High-performance delta optimizer
  */
 export class StreamingDeltaOptimizer extends EventEmitter {
-  private deltaBuffer = new DeltaRingBuffer(2048);
+  private deltaBuffer = new DeltaRingBuffer(1024); // Smaller default buffer
   private batchTimer: NodeJS.Timeout | null = null;
   private processingBatch = false;
   private batchIdCounter = 0;
 
-  // Performance tracking
+  // Performance tracking with memory-conscious limits
   private metrics: DeltaMetrics = {
     totalDeltas: 0,
     totalBatches: 0,
     throughputDeltasPerSec: 0,
     avgBatchSize: 0,
     p99LatencyMs: 0,
-    adaptiveBatchSize: 32,
+    adaptiveBatchSize: 16, // Start smaller for better memory efficiency
   };
 
   private latencyHistory: number[] = [];
   private throughputWindow: Array<{ timestamp: number; deltas: number }> = [];
+  private maxLatencyHistorySize = 500; // Reduced from 1000 for memory efficiency
 
-  // Adaptive batching state
+  // Adaptive batching state with memory awareness
   private lastBatchTime = 0;
-  private adaptiveBatchSize = 32;
-  private targetThroughput = 250_000; // 250k deltas/sec
+  private adaptiveBatchSize = 16;
+  private targetThroughput = 100_000; // More conservative default
+  private memoryPressureThreshold = 0.8; // Trigger memory-conscious behavior at 80% buffer capacity
 
   constructor(private config: BatchConfig) {
     super();
 
+    // Adjust buffer size based on config
+    if (config.maxBatchSize > 64) {
+      // For larger batch sizes, use larger buffer but cap for memory efficiency
+      this.deltaBuffer = new DeltaRingBuffer(Math.min(2048, config.maxBatchSize * 8));
+    }
+
+    // Set memory-conscious target throughput
+    this.targetThroughput = config.targetThroughput || 100_000;
+    
     // Start processing timer
     this.scheduleNextBatch();
   }
@@ -268,7 +293,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   }
 
   /**
-   * Update performance metrics
+   * Update performance metrics with memory-conscious history management
    */
   private updateMetrics(batch: Delta[], _batchDuration: number): void {
     this.metrics.totalBatches++;
@@ -282,9 +307,11 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       this.latencyHistory.push(latency);
     }
 
-    // Keep only recent latency history (last 1000 deltas)
-    if (this.latencyHistory.length > 1000) {
-      this.latencyHistory = this.latencyHistory.slice(-1000);
+    // Keep only recent latency history with memory-conscious limit
+    if (this.latencyHistory.length > this.maxLatencyHistorySize) {
+      // Remove older entries to prevent unbounded growth
+      const excessCount = this.latencyHistory.length - this.maxLatencyHistorySize;
+      this.latencyHistory.splice(0, excessCount);
     }
 
     // Calculate P99 latency
@@ -294,13 +321,13 @@ export class StreamingDeltaOptimizer extends EventEmitter {
       this.metrics.p99LatencyMs = sorted[p99Index];
     }
 
-    // Calculate throughput
+    // Calculate throughput with bounded window
     const now = Date.now();
     this.throughputWindow.push({ timestamp: now, deltas: batch.length });
 
-    // Keep throughput window to last 5 seconds
+    // Keep throughput window to last 3 seconds (reduced from 5 for memory efficiency)
     this.throughputWindow = this.throughputWindow.filter(
-      entry => now - entry.timestamp < 5000
+      entry => now - entry.timestamp < 3000
     );
 
     if (this.throughputWindow.length > 1) {
@@ -314,7 +341,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   }
 
   /**
-   * Phase 3: Enhanced adaptive batch sizing for ≥250k deltas/sec @ <5ms P99 latency
+   * Enhanced adaptive batch sizing with memory pressure awareness
    */
   private adaptBatchSize(batchSize: number, batchDuration: number): void {
     if (!this.config.adaptiveSizing) {
@@ -323,49 +350,54 @@ export class StreamingDeltaOptimizer extends EventEmitter {
 
     const currentThroughput = this.metrics.throughputDeltasPerSec;
     const targetThroughput = this.targetThroughput;
-    const queuePressure = this.deltaBuffer.getSize() / 2048; // Normalized queue pressure
+    const queuePressure = this.deltaBuffer.getSize() / this.deltaBuffer.capacity;
+    const memoryPressure = queuePressure > this.memoryPressureThreshold;
 
-    // Phase 3: Multi-factor adaptive batching
-    const latencyOk = this.metrics.p99LatencyMs < 5.0; // Target: <5ms P99
-    const throughputOk = currentThroughput >= targetThroughput * 0.9; // 90% of target
+    // Enhanced conditions with memory awareness
+    const latencyOk = this.metrics.p99LatencyMs < 8.0; // Slightly relaxed for memory efficiency
+    const throughputOk = currentThroughput >= targetThroughput * 0.8; // More lenient threshold
 
     let adjustmentFactor = 1.0;
     let reason = 'stable';
 
-    if (!latencyOk && this.adaptiveBatchSize > 8) {
-      // P99 latency too high - reduce batch size aggressively
-      adjustmentFactor = 0.7;
+    if (memoryPressure && this.adaptiveBatchSize > 8) {
+      // Memory pressure is high - prioritize memory efficiency
+      adjustmentFactor = 0.6;
+      reason = 'memory_pressure';
+    } else if (!latencyOk && this.adaptiveBatchSize > 4) {
+      // P99 latency too high - reduce batch size
+      adjustmentFactor = 0.75;
       reason = 'latency_high';
-    } else if (!throughputOk && this.adaptiveBatchSize < 512 && latencyOk) {
-      // Throughput below target but latency ok - increase batch size
-      adjustmentFactor = 1.3;
+    } else if (!throughputOk && this.adaptiveBatchSize < 128 && latencyOk && !memoryPressure) {
+      // Throughput below target but latency ok and no memory pressure - increase batch size
+      adjustmentFactor = 1.2;
       reason = 'throughput_low';
-    } else if (queuePressure > 0.8 && latencyOk) {
-      // High queue pressure - larger batches to drain faster
-      adjustmentFactor = 1.5;
+    } else if (queuePressure > 0.6 && latencyOk && !memoryPressure) {
+      // Moderate queue pressure - slightly larger batches to drain faster
+      adjustmentFactor = 1.1;
       reason = 'queue_pressure';
-    } else if (queuePressure < 0.1 && throughputOk && latencyOk) {
+    } else if (queuePressure < 0.2 && throughputOk && latencyOk) {
       // Low pressure, good performance - optimize for efficiency
-      adjustmentFactor = batchDuration > 1 ? 0.95 : 1.05;
+      adjustmentFactor = batchDuration > 2 ? 0.9 : 1.05;
       reason = 'optimize';
-    } else if (batchDuration > 3 && batchSize > 32) {
+    } else if (batchDuration > 5 && batchSize > 16) {
       // Batch processing too slow
-      adjustmentFactor = 0.85;
+      adjustmentFactor = 0.8;
       reason = 'processing_slow';
     }
 
-    // Apply adjustment with bounds
+    // Apply adjustment with tighter bounds for memory efficiency
     const oldSize = this.adaptiveBatchSize;
     this.adaptiveBatchSize = Math.max(
-      8,
-      Math.min(512, Math.round(this.adaptiveBatchSize * adjustmentFactor))
+      4, // Minimum batch size for efficiency
+      Math.min(256, Math.round(this.adaptiveBatchSize * adjustmentFactor)) // Maximum for memory control
     );
     this.metrics.adaptiveBatchSize = this.adaptiveBatchSize;
 
     if (DEBUG && Math.abs(adjustmentFactor - 1.0) > 0.05) {
       logPipelineExecution(
         'DELTA_OPTIMIZER',
-        `Adaptive batch size adjustment`,
+        `Memory-aware batch size adjustment`,
         {
           reason,
           oldSize,
@@ -373,6 +405,7 @@ export class StreamingDeltaOptimizer extends EventEmitter {
           adjustmentFactor: adjustmentFactor.toFixed(2),
           latencyOk,
           throughputOk,
+          memoryPressure,
           queuePressure: `${Math.round(queuePressure * 100)}%`,
           p99Latency: `${this.metrics.p99LatencyMs.toFixed(2)}ms`,
           throughput: `${Math.round(currentThroughput)} deltas/sec`,
@@ -398,12 +431,19 @@ export class StreamingDeltaOptimizer extends EventEmitter {
   }
 
   /**
-   * Get performance metrics
+   * Get performance metrics with memory usage information
    */
-  getMetrics(): DeltaMetrics & { queueSize: number } {
+  getMetrics(): DeltaMetrics & { queueSize: number; memoryUsageMB: number } {
+    const bufferMemory = this.deltaBuffer.getMemoryEstimate();
+    const historyMemory = this.latencyHistory.length * 8; // ~8 bytes per number
+    const throughputMemory = this.throughputWindow.length * 16; // ~16 bytes per entry
+    
+    const totalMemoryBytes = bufferMemory + historyMemory + throughputMemory;
+    
     return {
       ...this.metrics,
       queueSize: this.deltaBuffer.getSize(),
+      memoryUsageMB: totalMemoryBytes / 1024 / 1024,
     };
   }
 
@@ -438,16 +478,16 @@ export class StreamingDeltaOptimizer extends EventEmitter {
 }
 
 /**
- * Create optimized delta processor
+ * Create optimized delta processor with memory-conscious defaults
  */
 export function createDeltaOptimizer(
   config: Partial<BatchConfig> = {}
 ): StreamingDeltaOptimizer {
   const defaultConfig: BatchConfig = {
-    maxBatchSize: 128,
-    maxBatchDelayMs: 2,
+    maxBatchSize: 32, // Reduced from 128 for better memory efficiency
+    maxBatchDelayMs: 4, // Slightly increased from 2ms for better batching
     adaptiveSizing: true,
-    targetThroughput: 250_000,
+    targetThroughput: 100_000, // More conservative than 250k for stability
   };
 
   return new StreamingDeltaOptimizer({ ...defaultConfig, ...config });

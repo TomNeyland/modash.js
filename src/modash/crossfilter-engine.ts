@@ -29,7 +29,7 @@ import { OptimizedIVMOperatorFactory } from './crossfilter-operators';
 import { getPhysicalDocument } from './store-utils';
 
 /**
- * Main crossfilter-inspired IVM engine
+ * Memory-conscious crossfilter-inspired IVM engine with lazy initialization
  */
 export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
   readonly _store: CrossfilterStore;
@@ -39,15 +39,24 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
   private executionPlans = new Map<string, ExecutionPlan>();
   private compiledOperators = new Map<string, IVMOperator[]>();
+  
+  // Lazy initialization flags for memory optimization
+  private storeInitialized = false;
+  private maxCachedPlans = 50; // Limit cache size to prevent memory bloat
 
   constructor() {
-    this._store = this.createStore();
+    // Defer store creation to reduce initialization overhead
+    this._store = null as any; // Will be initialized on first use
     this.compiler = new ExpressionCompilerImpl();
     this.performance = new PerformanceEngineImpl();
     this.operatorFactory = new OptimizedIVMOperatorFactory(this.compiler);
   }
 
   get store(): CrossfilterStore {
+    if (!this.storeInitialized) {
+      this._store = this.createStore();
+      this.storeInitialized = true;
+    }
     return this._store;
   }
 
@@ -56,6 +65,16 @@ export class CrossfilterIVMEngineImpl implements CrossfilterIVMEngine {
 
     if (this.executionPlans.has(pipelineKey)) {
       return this.executionPlans.get(pipelineKey)!;
+    }
+
+    // Memory management: if cache is getting large, remove oldest entries
+    if (this.executionPlans.size >= this.maxCachedPlans) {
+      // Remove oldest 25% of cached plans
+      const keysToRemove = Array.from(this.executionPlans.keys()).slice(0, Math.floor(this.maxCachedPlans * 0.25));
+      for (const key of keysToRemove) {
+        this.executionPlans.delete(key);
+        this.compiledOperators.delete(key);
+      }
     }
 
     // Create execution plan
