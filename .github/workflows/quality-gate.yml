@@ -35,8 +35,7 @@ jobs:
         
       - name: Generate detailed test report
         run: |
-          npm run test:coverage -- --reporter json > test-results.json
-          npm run test:coverage -- --reporter tap > test-results.tap
+          npm run test:coverage -- --reporter json > test-results.json || true
         continue-on-error: true
         
       - name: Publish Test Results
@@ -44,8 +43,8 @@ jobs:
         if: always()
         with:
           name: Test Results
-          path: test-results.tap
-          reporter: mocha-tap
+          path: test-results.json
+          reporter: mocha-json
           
       - name: Code Coverage Summary
         if: always()
@@ -65,12 +64,19 @@ jobs:
         run: |
           echo "## 🔍 ESLint Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          npm run lint -- --format json > eslint-results.json || true
-          if [ -f eslint-results.json ]; then
-            ERROR_COUNT=$(cat eslint-results.json | jq '[.[] | .errorCount] | add // 0')
-            WARNING_COUNT=$(cat eslint-results.json | jq '[.[] | .warningCount] | add // 0')
-            echo "- **Errors**: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
-            echo "- **Warnings**: $WARNING_COUNT" >> $GITHUB_STEP_SUMMARY
+          npx eslint src/ tests/ examples/ --format json > eslint-results.json 2>&1 || true
+          if [ -f eslint-results.json ] && [ -s eslint-results.json ]; then
+            # Check if file contains valid JSON
+            if jq -e . eslint-results.json > /dev/null 2>&1; then
+              ERROR_COUNT=$(jq '[.[] | .errorCount] | add // 0' eslint-results.json 2>/dev/null || echo "0")
+              WARNING_COUNT=$(jq '[.[] | .warningCount] | add // 0' eslint-results.json 2>/dev/null || echo "0")
+              echo "- **Errors**: $ERROR_COUNT" >> $GITHUB_STEP_SUMMARY
+              echo "- **Warnings**: $WARNING_COUNT" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **Status**: ESLint output not in JSON format" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- **Status**: No ESLint results found" >> $GITHUB_STEP_SUMMARY
           fi
           
       - name: Type Check Report  
@@ -107,7 +113,7 @@ jobs:
         with:
           name: quality-reports
           path: |
-            test-results.*
+            test-results.json
             eslint-results.json
             typescript-results.txt
             prettier-results.txt
