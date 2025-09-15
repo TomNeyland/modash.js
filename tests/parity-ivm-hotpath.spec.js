@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash, { createStreamingCollection } from '../src/index.ts';
+import Modash, { createStreamingCollection } from '../src/index';
 
 describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
   const base = [

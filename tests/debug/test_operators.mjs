@@ -1,4 +1,4 @@
-import Modash from '../../src/modash/index.ts';
+import Modash from '../../src/modash/index';
 
 // Test $toUpper and $toLower
 const data = [

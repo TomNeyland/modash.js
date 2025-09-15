@@ -1,4 +1,4 @@
-import Modash from '../../src/index.js';
+import Modash from '../../src/index';
 
 const testData = [
   { _id: 1, name: 'Alice', scores: [85, 90, 88] },

@@ -1,4 +1,4 @@
-import Modash from '../../src/index.js';
+import Modash from '../../src/index';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },

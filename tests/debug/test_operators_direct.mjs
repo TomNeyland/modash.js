@@ -1,5 +1,5 @@
-import EXPRESSION_OPERATORS from '../../src/modash/operators.js';
-import { $expressionObject, $expression } from '../../src/modash/expressions.js';
+import EXPRESSION_OPERATORS from '../../src/modash/operators';
+import { $expressionObject, $expression } from '../../src/modash/expressions';
 
 console.log('\n📋 Testing EXPRESSION_OPERATORS:');
 console.log('Has $toUpper?', '$toUpper' in EXPRESSION_OPERATORS);

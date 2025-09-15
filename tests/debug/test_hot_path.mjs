@@ -1,5 +1,5 @@
-import Modash from '../../src/modash/index.ts';
-import { getHotPathStats, resetHotPathStats } from '../../src/modash/hot-path-aggregation.ts';
+import Modash from '../../src/modash/index';
+import { getHotPathStats, resetHotPathStats } from '../../src/modash/hot-path-aggregation';
 
 // Generate test data
 const testData = [];

@@ -1,6 +1,6 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.js';
-import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler.js';
-import { ProjectOperator } from '../../src/modash/crossfilter-operators.js';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
+import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler';
+import { ProjectOperator } from '../../src/modash/crossfilter-operators';
 
 // Test data
 const testData = [

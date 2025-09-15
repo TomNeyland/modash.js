@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.js';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },

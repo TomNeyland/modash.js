@@ -1,5 +1,5 @@
-import Modash from '../../src/modash/index.ts';
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.js';
+import Modash from '../../src/modash/index';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 // Test data
 const testData = [

@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.ts';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 // Minimal test to understand the issue
 const testData = [

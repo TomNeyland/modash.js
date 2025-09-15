@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index.ts';
+import Modash from '../src/index';
 
 /**
  * Documentation-style tests showcasing real-world scenarios

@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.js';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 // Enable debug
 process.env.DEBUG_IVM = 'true';

@@ -1,4 +1,4 @@
-import Modash from '../../src/index.js';
+import Modash from '../../src/index';
 
 const data = Array.from({ length: 50 }, (_, i) => ({
   _id: i,

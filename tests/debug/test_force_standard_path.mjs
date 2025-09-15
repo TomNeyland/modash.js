@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import Modash from '../../src/index.ts';
+import Modash from '../../src/index';
 
 console.log('Testing with forced standard aggregation path...');
 

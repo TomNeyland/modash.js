@@ -6,14 +6,14 @@
 
 import { describe, it } from 'mocha';
 import { expect } from 'chai';
-import Modash from '../src/index.ts';
+import Modash from '../src/index';
 import {
   $text,
   getTextSearchStats,
   resetTextSearchStats,
   configureTextSearch,
   clearTextSearchIndex,
-} from '../src/modash/text-search.ts';
+} from '../src/modash/text-search';
 import {
   enhancedRegexMatch,
   getRegexSearchStats,
@@ -21,13 +21,13 @@ import {
   analyzeRegexPattern,
   configureRegexSearch,
   clearRegexSearchIndex,
-} from '../src/modash/regex-search.ts';
+} from '../src/modash/regex-search';
 import {
   BloomFilter,
   extractTokens,
   extractTrigrams,
   extractLiteralsFromRegex,
-} from '../src/modash/bloom-filter.ts';
+} from '../src/modash/bloom-filter';
 
 describe('Phase 3.5: Text & Regex Prefiltering', () => {
   // Test data

@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.ts';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 const testData = [
   { _id: 1, name: 'Alice', tags: ['a'], extra: 'x' },

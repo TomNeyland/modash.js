@@ -1,4 +1,4 @@
-import Modash from '../src/index.ts';
+import Modash from '../src/index';
 import { expect } from 'chai';
 
 describe('Modash Module Exports', () => {

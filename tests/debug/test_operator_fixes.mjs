@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.ts';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
 
 console.log('Testing operator fixes for RowId[] returns and upstreamActiveIds...\n');
 

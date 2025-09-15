@@ -1,4 +1,4 @@
-import Modash from '../../src/index.js';
+import Modash from '../../src/index';
 
 const testDoc = [
   { _id: 1, tags: ['red', 'blue'], name: 'item1' },

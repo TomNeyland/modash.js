@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index.ts';
+import Modash from '../src/index';
 
 describe('IVM Context Chaining Regression Tests', () => {
   describe('$addFields -> $project chaining', () => {

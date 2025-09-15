@@ -1,4 +1,4 @@
-import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler.js';
+import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler';
 
 const compiler = new ExpressionCompilerImpl();
 

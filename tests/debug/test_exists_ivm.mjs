@@ -1,5 +1,5 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine.js';
-import { resetFallbackTracking, getFallbackCount } from '../../src/modash/debug.js';
+import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
+import { resetFallbackTracking, getFallbackCount } from '../../src/modash/debug';
 
 const testData = [
   { _id: 1, name: 'Alice', tags: ['a'] },

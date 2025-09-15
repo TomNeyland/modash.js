@@ -5,7 +5,7 @@
  * Run with: DEBUG_IVM=1 node test_unwind_buffer_management.mjs
  */
 
-import Modash from '../../src/index.ts';
+import Modash from '../../src/index';
 
 console.log('🧪 Testing $unwind Buffer Management & Dynamic Growth...\n');
 
