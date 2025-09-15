@@ -27,6 +27,10 @@ const ACCUMULATORS: Record<string, AccumulatorFunction> = {
   $max,
   $push,
   $addToSet,
+  $stdDevPop,
+  $stdDevSamp,
+  $variancePop,
+  $varianceSamp,
 };
 
 function isAccumulatorExpression(
@@ -141,6 +145,142 @@ function $addToSet(
   return [...new Set(values.map(obj => JSON.stringify(obj)))].map(str =>
     JSON.parse(str)
   );
+}
+
+/**
+ * Standard Deviation Population using Welford's online algorithm
+ * Returns null for empty sets, sqrt(variance) for non-empty sets
+ * Numerically stable single-pass algorithm
+ */
+function $stdDevPop(collection: Collection, spec: Expression): number | null {
+  let n = 0;
+  let mean = 0;
+  let M2 = 0;
+
+  for (const obj of collection) {
+    const value = $expression(obj, spec, obj);
+
+    // Skip non-numeric values (MongoDB behavior)
+    if (typeof value !== 'number' || isNaN(value)) {
+      continue;
+    }
+
+    // Welford's algorithm - incremental update
+    n++;
+    const delta = value - mean;
+    mean += delta / n;
+    const delta2 = value - mean;
+    M2 += delta * delta2;
+  }
+
+  // Return null for empty set
+  if (n === 0) {
+    return null;
+  }
+
+  // Population variance = M2 / n
+  // Standard deviation = sqrt(variance)
+  return Math.sqrt(M2 / n);
+}
+
+/**
+ * Standard Deviation Sample using Welford's online algorithm
+ * Returns null for sets with 0 or 1 elements
+ * Uses (n-1) divisor for sample variance (Bessel's correction)
+ */
+function $stdDevSamp(collection: Collection, spec: Expression): number | null {
+  let n = 0;
+  let mean = 0;
+  let M2 = 0;
+
+  for (const obj of collection) {
+    const value = $expression(obj, spec, obj);
+
+    // Skip non-numeric values (MongoDB behavior)
+    if (typeof value !== 'number' || isNaN(value)) {
+      continue;
+    }
+
+    // Welford's algorithm - incremental update
+    n++;
+    const delta = value - mean;
+    mean += delta / n;
+    const delta2 = value - mean;
+    M2 += delta * delta2;
+  }
+
+  // Return null for sets with 0 or 1 elements (can't compute sample std dev)
+  if (n <= 1) {
+    return null;
+  }
+
+  // Sample variance = M2 / (n - 1)
+  // Standard deviation = sqrt(variance)
+  return Math.sqrt(M2 / (n - 1));
+}
+
+/**
+ * Variance Population - companion to $stdDevPop
+ * Returns the variance without taking the square root
+ */
+function $variancePop(collection: Collection, spec: Expression): number | null {
+  let n = 0;
+  let mean = 0;
+  let M2 = 0;
+
+  for (const obj of collection) {
+    const value = $expression(obj, spec, obj);
+
+    // Skip non-numeric values
+    if (typeof value !== 'number' || isNaN(value)) {
+      continue;
+    }
+
+    // Welford's algorithm
+    n++;
+    const delta = value - mean;
+    mean += delta / n;
+    const delta2 = value - mean;
+    M2 += delta * delta2;
+  }
+
+  if (n === 0) {
+    return null;
+  }
+
+  return M2 / n;
+}
+
+/**
+ * Variance Sample - companion to $stdDevSamp
+ * Returns the sample variance without taking the square root
+ */
+function $varianceSamp(collection: Collection, spec: Expression): number | null {
+  let n = 0;
+  let mean = 0;
+  let M2 = 0;
+
+  for (const obj of collection) {
+    const value = $expression(obj, spec, obj);
+
+    // Skip non-numeric values
+    if (typeof value !== 'number' || isNaN(value)) {
+      continue;
+    }
+
+    // Welford's algorithm
+    n++;
+    const delta = value - mean;
+    mean += delta / n;
+    const delta2 = value - mean;
+    M2 += delta * delta2;
+  }
+
+  if (n <= 1) {
+    return null;
+  }
+
+  return M2 / (n - 1);
 }
 
 export { $accumulate };
