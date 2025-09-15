@@ -17,6 +17,9 @@ import { DEBUG } from './debug';
 // Crossfilter-optimized toggle mode imports
 import { CrossfilterIVMEngineImpl } from './crossfilter-engine';
 
+// Next-generation optimization engine imports
+import { NextGenToggleModeEngine } from './next-gen-toggle-engine';
+
 // Import complex types from main index for now
 import type {
   Pipeline,
@@ -1323,10 +1326,20 @@ function traditionalAggregate<T extends Document = Document>(
   stages: PipelineStage[],
   options?: { mode?: 'stream' | 'toggle' }
 ): Collection<T> {
-  let result = collection as Collection<T>;
-  
   // Default to 'stream' mode for backward compatibility
   const executionMode = options?.mode || 'stream';
+
+  // Use next-generation toggle engine for toggle mode
+  if (executionMode === 'toggle') {
+    const nextGenEngine = new NextGenToggleModeEngine();
+    return nextGenEngine.aggregate(collection, stages, {
+      enableProfiler: DEBUG,
+      memoryLimit: undefined, // No limit for now
+    });
+  }
+
+  // Traditional stream mode processing
+  let result = collection as Collection<T>;
 
   for (let i = 0; i < stages.length; i++) {
     const stage = stages[i]!;
