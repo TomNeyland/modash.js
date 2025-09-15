@@ -1,22 +1,38 @@
+#!/bin/sh
+
 # Fail fast on any error
 set -e
 
+# Check if we're in CI environment - skip hooks in CI
+if [ "$CI" = "true" ] || [ "$HUSKY" = "0" ]; then
+  echo "ℹ️  CI environment detected or HUSKY=0 set, skipping pre-commit checks."
+  exit 0
+fi
+
 echo "🔍 Running pre-commit checks..."
+
+# Function to handle errors with better reporting
+handle_error() {
+  echo "❌ Pre-commit check failed: $1"
+  echo "💡 To skip pre-commit hooks temporarily, use: HUSKY_SKIP_HOOKS=1 git commit"
+  echo "💡 To disable husky entirely, use: HUSKY=0 git commit"
+  exit 1
+}
 
 # Run lint-staged first (fixes and formats staged files)
 echo "📝 Running lint-staged..."
-npx lint-staged
+npx lint-staged || handle_error "lint-staged failed"
 
 # Run typecheck
 echo "🔧 Running typecheck..."
-npm run typecheck
+npm run typecheck || handle_error "TypeScript type checking failed"
 
 # Run fast tests (excludes slow/1M record tests)
 echo "🧪 Running tests (excluding slow tests)..."
-npm run test:fast
+npm run test:fast || handle_error "Fast tests failed"
 
 # Skip debug tests for now - some have issues
 # echo "🔍 Running debug tests..."
-# npm run test:debug
+# npm run test:debug || handle_error "Debug tests failed"
 
 echo "✅ All pre-commit checks passed!"
