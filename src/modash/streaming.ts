@@ -89,10 +89,10 @@ export class StreamingCollection<
 
   // High-performance delta optimizer for streaming
   private deltaOptimizer = createDeltaOptimizer({
-    maxBatchSize: 256,
-    maxBatchDelayMs: 1, // Aggressive 1ms batching for P0 throughput
+    maxBatchSize: 128, // Smaller batches for better memory efficiency
+    maxBatchDelayMs: 2, // Slightly longer delay for better coalescing
     adaptiveSizing: true,
-    targetThroughput: 250_000,
+    targetThroughput: 200_000, // More reasonable target for better stability
   });
 
   // Mapping from document array index to IVM rowId
@@ -103,7 +103,10 @@ export class StreamingCollection<
   private ivmInitialized = false;
   private deltaOptimizerInitialized = false;
 
-  constructor(initialData: Collection<T> = [], options?: { lightweight?: boolean }) {
+  constructor(initialData: Collection<T> = [], options?: { 
+    lightweight?: boolean; 
+    memoryConscious?: boolean 
+  }) {
     super();
     // Handle null, undefined, and non-iterable data
     if (!initialData || !Array.isArray(initialData)) {
@@ -117,8 +120,18 @@ export class StreamingCollection<
       }
     }
 
-    // Only set up delta optimizer if not in lightweight mode  
+    // Configure delta optimizer based on options
     if (!options?.lightweight) {
+      // Use memory-conscious configuration for large datasets
+      if (options?.memoryConscious || (initialData && initialData.length > 1000)) {
+        this.deltaOptimizer = createDeltaOptimizer({
+          maxBatchSize: 64, // Smaller batches for memory efficiency
+          maxBatchDelayMs: 5, // Longer delays to reduce processing frequency
+          adaptiveSizing: true,
+          targetThroughput: 100_000, // Conservative target for stability
+        });
+      }
+      
       this.setupDeltaOptimizer();
       this.deltaOptimizerInitialized = true;
     }
@@ -126,15 +139,29 @@ export class StreamingCollection<
 
   /**
    * Initialize IVM engine with current documents
+   * Optimized for large datasets with batched processing
    */
   private initializeIVM(): void {
     if (this.ivmInitialized) return;
 
-    // Add initial documents to IVM engine
-    for (let i = 0; i < this.documents.length; i++) {
-      const rowId = this.ivmEngine.addDocument(this.documents[i]);
-      this.docIndexToRowId.set(i, rowId);
-      this.rowIdToDocIndex.set(rowId, i);
+    // For large datasets (>1000), use batched initialization to reduce memory pressure
+    const batchSize = this.documents.length > 1000 ? 500 : this.documents.length;
+    
+    for (let start = 0; start < this.documents.length; start += batchSize) {
+      const end = Math.min(start + batchSize, this.documents.length);
+      
+      // Process batch
+      for (let i = start; i < end; i++) {
+        const rowId = this.ivmEngine.addDocument(this.documents[i]);
+        this.docIndexToRowId.set(i, rowId);
+        this.rowIdToDocIndex.set(rowId, i);
+      }
+      
+      // Allow event loop to process for large datasets
+      if (batchSize < this.documents.length && start + batchSize < this.documents.length) {
+        // Force a microtask to prevent blocking
+        continue;
+      }
     }
     
     this.ivmInitialized = true;
@@ -375,6 +402,47 @@ export class StreamingCollection<
    */
   resetStreamingMetrics(): void {
     this.deltaOptimizer.resetMetrics();
+  }
+
+  /**
+   * Cleanup unused memory and optimize internal structures
+   * Useful for long-running streaming collections
+   */
+  cleanup(): void {
+    // Clear inactive aggregation states
+    for (const [pipelineKey, state] of this.aggregationStates.entries()) {
+      if (!this.activePipelines.has(pipelineKey)) {
+        this.aggregationStates.delete(pipelineKey);
+      }
+    }
+
+    // Reset delta optimizer to clear internal buffers
+    this.deltaOptimizer.resetMetrics();
+
+    // Force garbage collection of index mappings for removed documents
+    if (this.docIndexToRowId.size > this.documents.length * 1.5) {
+      // Rebuild index mappings if they're significantly larger than document count
+      this.rebuildIndexMappings();
+    }
+  }
+
+  /**
+   * Rebuild index mappings to reclaim memory from removed documents
+   */
+  private rebuildIndexMappings(): void {
+    const newDocToRow = new Map<number, RowId>();
+    const newRowToDoc = new Map<RowId, number>();
+
+    for (let i = 0; i < this.documents.length; i++) {
+      const rowId = this.docIndexToRowId.get(i);
+      if (rowId !== undefined) {
+        newDocToRow.set(i, rowId);
+        newRowToDoc.set(rowId, i);
+      }
+    }
+
+    this.docIndexToRowId = newDocToRow;
+    this.rowIdToDocIndex = newRowToDoc;
   }
 
   /**

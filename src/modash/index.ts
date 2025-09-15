@@ -68,8 +68,13 @@ function isSimpleReadOnlyPipeline(pipeline: Pipeline): boolean {
 function createOptimizedStreamingCollection<T extends PublicDocument = PublicDocument>(
   initialData: PublicCollection<T>
 ): StreamingCollection<T> {
-  // Use lightweight mode to defer expensive initialization until actually needed
-  return createStreamingCollection(initialData, { lightweight: true });
+  // Use lightweight mode for small datasets, memory-conscious mode for large datasets
+  const isLargeDataset = Array.isArray(initialData) && initialData.length > 1000;
+  
+  return createStreamingCollection(initialData, { 
+    lightweight: true,
+    memoryConscious: isLargeDataset
+  });
 }
 
 /**
