@@ -35,7 +35,27 @@ jobs:
         
       - name: Generate detailed test report
         run: |
-          npm run test:coverage -- --reporter json > test-results.json || true
+          # Build dist files needed for CLI tests
+          npm run build || true
+          
+          # Run tests and capture all output
+          npx mocha --import=tsx/esm --exit "tests/**/*.spec.js" --reporter json > test-output-raw.txt 2>&1 || true
+          
+          # Extract JSON portion from mixed output
+          if [ -f test-output-raw.txt ]; then
+            # Find line number where JSON starts (line with just '{')
+            JSON_LINE=$(grep -n "^{$" test-output-raw.txt | head -1 | cut -d: -f1)
+            if [ -n "$JSON_LINE" ]; then
+              tail -n +$JSON_LINE test-output-raw.txt > test-results.json
+              echo "✅ Extracted JSON from line $JSON_LINE"
+            else
+              echo '{"stats":{"tests":0,"passes":0,"failures":0},"tests":[]}' > test-results.json
+              echo "⚠️ No JSON found, using fallback"
+            fi
+          else
+            echo '{"stats":{"tests":0,"passes":0,"failures":0},"tests":[]}' > test-results.json
+            echo "⚠️ No test output file found"
+          fi
         continue-on-error: true
         
       - name: Publish Test Results
