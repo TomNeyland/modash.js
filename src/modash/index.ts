@@ -44,8 +44,27 @@ const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
 };
 
 /**
- * Fully transparent aggregation function that creates streaming collections
- * for all operations, providing unified incremental capabilities
+ * Fully streaming aggregation function that always uses StreamingCollection
+ * for all operations, providing unified incremental capabilities by default
+ */
+const streamingDefaultAggregate = <T extends PublicDocument = PublicDocument>(
+  collection: PublicCollection<T> | StreamingCollection<T>,
+  pipeline: Pipeline
+): PublicCollection<T> => {
+  // Always use StreamingCollection for consistent streaming capabilities
+  if (!(collection instanceof StreamingCollection)) {
+    // Convert regular arrays to StreamingCollection automatically
+    const streamingCollection = createStreamingCollection(collection);
+    return streamingCollection.stream(pipeline) as unknown as PublicCollection<T>;
+  }
+
+  // For existing streaming collections, use streaming path
+  return collection.stream(pipeline) as unknown as PublicCollection<T>;
+};
+
+/**
+ * Legacy transparent aggregation function for backward compatibility
+ * Uses hot path optimization for regular arrays, streaming for StreamingCollection
  */
 const transparentAggregate = <T extends PublicDocument = PublicDocument>(
   collection: PublicCollection<T> | StreamingCollection<T>,
@@ -69,13 +88,13 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  * Provides a clean, elegant API for processing JavaScript arrays using
  * MongoDB aggregation pipeline syntax and operators.
  *
- * Now includes transparent streaming support - all aggregations automatically
- * work with both regular arrays and streaming collections.
+ * Now uses streaming by default - all aggregations automatically 
+ * create and use StreamingCollection internally for consistent behavior.
  */
 const Modash: ModashStatic = {
-  aggregate: transparentAggregate,
+  aggregate: streamingDefaultAggregate,
   aggregateStreaming: (collection: any, pipeline: Pipeline) =>
-    transparentAggregate(collection as any, pipeline) as any,
+    streamingDefaultAggregate(collection as any, pipeline) as any,
   count,
   $expression,
   $group,
@@ -100,7 +119,10 @@ export default Modash;
 export {
   // Export the original aggregate for backwards compatibility if needed
   originalAggregate as aggregateOriginal,
-  transparentAggregate as aggregate,
+  // Export the old transparent aggregate for comparison benchmarks
+  transparentAggregate as aggregateTransparent,
+  // Export the new streaming default as the main aggregate
+  streamingDefaultAggregate as aggregate,
   count,
   $expression,
   $group,
