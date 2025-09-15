@@ -20,24 +20,19 @@ import type {
   Pipeline,
 } from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
-import { hotPathAggregate } from './hot-path-aggregation';
+import { streamingFirstAggregate } from './streaming-first-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
 
 /**
- * High-performance aggregation function with hot path optimization
+ * High-performance aggregation function with streaming-first execution
  */
 const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
   collection: PublicCollection<T>,
   pipeline: Pipeline
 ): PublicCollection<T> => {
-  // D) Pipeline Input Validation - Check pipeline before routing to hot path
-  if (!Array.isArray(pipeline)) {
-    // Let the underlying aggregate handle single stages and invalid inputs
-    return originalAggregate(collection as any, pipeline as any) as any;
-  }
-
-  // Route to hot path for maximum performance
-  return hotPathAggregate(
+  // Route all pipelines (including invalid ones) through streaming-first execution
+  // The streaming-first function will handle validation and fallback appropriately
+  return streamingFirstAggregate(
     collection as any,
     pipeline
   ) as unknown as PublicCollection<T>;
@@ -69,8 +64,9 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  * Provides a clean, elegant API for processing JavaScript arrays using
  * MongoDB aggregation pipeline syntax and operators.
  *
- * Now includes transparent streaming support - all aggregations automatically
- * work with both regular arrays and streaming collections.
+ * Now features streaming-first execution - all aggregations default to the
+ * high-performance streaming engine with explicit fallback only for
+ * operators that require standard aggregation (e.g., $lookup, $function, $where).
  */
 const Modash: ModashStatic = {
   aggregate: transparentAggregate,

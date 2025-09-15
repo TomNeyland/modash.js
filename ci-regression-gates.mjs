@@ -244,8 +244,85 @@ function validateOperatorCoverage() {
 }
 
 /**
- * Main validation function
+ * Validate streaming-first execution model
+ * Ensures pipelines use streaming engine unless they contain known fallback operators
  */
+async function validateStreamingFirstExecution() {
+  console.log(`🚀 Validating streaming-first execution...`);
+  
+  const data = generateTestData(100);
+  
+  const testCases = [
+    {
+      name: 'Simple match should use streaming',
+      pipeline: [{ $match: { active: true } }],
+      expectsStandardFallback: false
+    },
+    {
+      name: 'Group operation should use streaming', 
+      pipeline: [{ $group: { _id: '$category', count: { $sum: 1 } } }],
+      expectsStandardFallback: false
+    },
+    {
+      name: 'Complex supported pipeline should use streaming',
+      pipeline: [
+        { $match: { active: true } },
+        { $group: { _id: '$category', total: { $sum: '$value' } } },
+        { $sort: { total: -1 } }
+      ],
+      expectsStandardFallback: false
+    },
+    {
+      name: '$lookup should fallback to standard engine',
+      pipeline: [{ $lookup: { from: [], localField: 'id', foreignField: '_id', as: 'joined' } }],
+      expectsStandardFallback: true
+    }
+  ];
+  
+  let passedTests = 0;
+  const results = [];
+  
+  for (const testCase of testCases) {
+    // Import streaming-first stats functions to check routing
+    let streamingFirstStats;
+    try {
+      const streamingFirstModule = await import('./src/modash/streaming-first-aggregation.js');
+      streamingFirstModule.resetStreamingFirstStats();
+      
+      // Execute the pipeline
+      const result = Modash.aggregate(data, testCase.pipeline);
+      
+      // Check routing stats
+      streamingFirstStats = streamingFirstModule.getStreamingFirstStats();
+      
+      const actualUsedStandard = streamingFirstStats.standardFallbacks > 0;
+      const testPassed = actualUsedStandard === testCase.expectsStandardFallback;
+      
+      if (testPassed) {
+        results.push(`✅ ${testCase.name}`);
+        passedTests++;
+      } else {
+        const expected = testCase.expectsStandardFallback ? 'standard engine' : 'streaming engine';
+        const actual = actualUsedStandard ? 'standard engine' : 'streaming engine';
+        results.push(`❌ ${testCase.name}: expected ${expected}, got ${actual}`);
+      }
+      
+    } catch (error) {
+      results.push(`❌ ${testCase.name}: execution failed - ${error.message}`);
+    }
+  }
+  
+  // Display results
+  console.log(`  📊 Streaming-first tests: ${passedTests}/${testCases.length} passed`);
+  results.forEach(result => console.log(`    ${result}`));
+  
+  if (passedTests < testCases.length) {
+    throw new Error(`❌ Streaming-first validation failed: ${passedTests}/${testCases.length} tests passed`);
+  }
+  
+  console.log(`  ✅ Streaming-first execution: PASSED`);
+  return passedTests / testCases.length;
+}
 async function main() {
   console.log('🚀 Phase 3 CI Regression Gates\n');
   
@@ -303,7 +380,22 @@ async function main() {
   }
   
   try {
-    // 3. Operator Coverage Validation
+    // 3. Streaming-First Execution Validation
+    console.log('🚀 Streaming-First Execution Validation');
+    console.log('═'.repeat(50));
+    
+    const streamingFirstScore = await validateStreamingFirstExecution();
+    results.streamingFirst = streamingFirstScore;
+    
+    console.log('');
+    
+  } catch (error) {
+    console.error(`❌ Streaming-first validation failed: ${error.message}`);
+    exitCode = 1;
+  }
+  
+  try {
+    // 4. Operator Coverage Validation
     console.log('🔧 Operator Coverage Validation');
     console.log('═'.repeat(50));
     
@@ -333,6 +425,10 @@ async function main() {
   
   console.log(`${results.fallbacks === 0 ? '✅' : '⚠️'}  Fallback Count: ${results.fallbacks || 0}`);
   
+  if (results.streamingFirst) {
+    console.log(`✅ Streaming-First Execution: ${Math.round(results.streamingFirst * 100)}%`);
+  }
+  
   if (results.coverage) {
     console.log(`✅ Operator Coverage: ${Math.round(results.coverage * 100)}%`);
   }
@@ -354,4 +450,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   });
 }
 
-export { validatePerformanceBudget, detectSilentFallbacks, validateOperatorCoverage };
+export { validatePerformanceBudget, detectSilentFallbacks, validateOperatorCoverage, validateStreamingFirstExecution };

@@ -4,7 +4,9 @@
  */
 
 export const DEBUG =
-  process.env.DEBUG_IVM === 'true' || process.env.NODE_ENV === 'test';
+  process.env.DEBUG_IVM === 'true' ||
+  process.env.DEBUG_IVM === '1' ||
+  process.env.NODE_ENV === 'test';
 
 // Fallback tracking
 let fallbackCount = 0;
@@ -51,6 +53,109 @@ export function recordFallback(
     payload.details = meta.details;
   }
   fallbackErrors.push(payload);
+}
+
+/**
+ * Record when pipeline falls back to standard aggregation engine
+ * with clear reason for streaming-first execution model
+ */
+export function recordStandardEngineFallback(
+  pipeline: any,
+  reason: string,
+  stage?: { index: number; type: string }
+): void {
+  fallbackCount++;
+
+  const payload: any = {
+    pipeline,
+    error: `Standard engine fallback: ${reason}`,
+    fallbackType: 'standard_engine',
+    reason,
+  };
+
+  if (stage) {
+    payload.stageIndex = stage.index;
+    payload.stageType = stage.type;
+  }
+
+  fallbackErrors.push(payload);
+
+  // Always log when DEBUG_IVM is enabled for explicit visibility
+  if (
+    DEBUG ||
+    process.env.DEBUG_IVM === '1' ||
+    process.env.DEBUG_IVM === 'true'
+  ) {
+    console.warn(`🔥 DEBUG_IVM: Standard aggregation fallback - ${reason}`);
+    if (stage) {
+      console.warn(`   → Stage ${stage.index}: ${stage.type}`);
+    }
+    console.warn(`   → Pipeline: ${JSON.stringify(pipeline)}`);
+  }
+}
+
+/**
+ * Check if pipeline contains operators that fundamentally require standard aggregation engine
+ * These are operators that break IVM invariants or require side effects
+ */
+export function requiresStandardEngine(pipeline: any[]): {
+  required: boolean;
+  reason?: string;
+  stage?: { index: number; type: string };
+} {
+  if (!Array.isArray(pipeline)) {
+    return { required: false };
+  }
+
+  for (let i = 0; i < pipeline.length; i++) {
+    const stage = pipeline[i];
+    const stageType = Object.keys(stage)[0];
+
+    switch (stageType) {
+      case '$lookup':
+        // All $lookup operations require standard engine since streaming engine doesn't support them
+        return {
+          required: true,
+          reason:
+            '$lookup operations require standard aggregation engine (multi-collection joins)',
+          stage: { index: i, type: stageType },
+        };
+
+      case '$function':
+        return {
+          required: true,
+          reason:
+            '$function operator requires standard aggregation engine (arbitrary JS execution)',
+          stage: { index: i, type: stageType },
+        };
+
+      case '$where':
+        return {
+          required: true,
+          reason:
+            '$where operator requires standard aggregation engine (arbitrary JS execution)',
+          stage: { index: i, type: stageType },
+        };
+
+      case '$merge':
+        return {
+          required: true,
+          reason:
+            '$merge operator requires standard aggregation engine (side-effect stage)',
+          stage: { index: i, type: stageType },
+        };
+
+      case '$out':
+        return {
+          required: true,
+          reason:
+            '$out operator requires standard aggregation engine (side-effect stage)',
+          stage: { index: i, type: stageType },
+        };
+    }
+  }
+
+  return { required: false };
 }
 
 export function getFallbackCount(): number {
