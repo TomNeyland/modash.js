@@ -448,10 +448,6 @@ export {
   $addFields,
   $set,
   default,
-  // Phase 6: Enhanced DX APIs
-  explain,
-  benchmark,
-  fromJSONL,
 } from './modash/index';
 
 // Re-export streaming capabilities
@@ -468,39 +464,4 @@ export type {
   EventConsumerConfig,
 } from './modash/streaming';
 
-// Phase 3.5: Export text and regex search capabilities
-export {
-  $text,
-  getTextSearchStats,
-  resetTextSearchStats,
-  configureTextSearch,
-  clearTextSearchIndex,
-} from './modash/text-search';
-
-export {
-  enhancedRegexMatch,
-  getRegexSearchStats,
-  resetRegexSearchStats,
-  analyzeRegexPattern,
-  configureRegexSearch,
-  clearRegexSearchIndex,
-} from './modash/regex-search';
-
-export {
-  BloomFilter,
-  TextSearchBloomFilter,
-  RegexSearchBloomFilter,
-  extractTokens,
-  extractTrigrams,
-  extractLiteralsFromRegex,
-} from './modash/bloom-filter';
-
-// Phase 3.5: Export enhanced search types
-export type { TextSearchStats, TextSearchConfig } from './modash/text-search';
-
-export type {
-  RegexSearchStats,
-  RegexSearchConfig,
-} from './modash/regex-search';
-
-export type { BloomFilterStats } from './modash/bloom-filter';
+// Simplified mode: Advanced search capabilities removed

@@ -20,8 +20,8 @@ import type {
   Pipeline,
 } from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
-import { hotPathAggregate } from './hot-path-aggregation';
-import { explain, benchmark, fromJSONL } from './api-enhancements';
+// Hot path aggregation removed in simplified mode - use original aggregate
+// API enhancements removed in simplified mode
 
 /**
  * High-performance aggregation function with hot path optimization
@@ -31,14 +31,14 @@ const optimizedAggregate = <T extends PublicDocument = PublicDocument>(
   pipeline: Pipeline,
   options?: { mode?: 'stream' | 'toggle' }
 ): PublicCollection<T> => {
-  // D) Pipeline Input Validation - Check pipeline before routing to hot path
+  // D) Pipeline Input Validation - Check pipeline before processing
   if (!Array.isArray(pipeline)) {
     // Let the underlying aggregate handle single stages and invalid inputs
     return originalAggregate(collection as any, pipeline as any, options) as any;
   }
 
-  // Route to hot path for maximum performance
-  return hotPathAggregate(
+  // Use original aggregate with simplified toggle mode
+  return originalAggregate(
     collection as any,
     pipeline,
     options
@@ -95,10 +95,6 @@ const Modash: ModashStatic = {
   $set,
   // Streaming methods for advanced users
   createStreamingCollection,
-  // Phase 6: Enhanced DX APIs
-  explain,
-  benchmark,
-  fromJSONL,
 };
 
 export default Modash;
@@ -118,10 +114,6 @@ export {
   $lookup,
   $addFields,
   $set,
-  // Phase 6: Enhanced DX APIs
-  explain,
-  benchmark,
-  fromJSONL,
 };
 
 // Re-export basic types for convenience from the public surface

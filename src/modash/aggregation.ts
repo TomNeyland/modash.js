@@ -10,15 +10,10 @@ import {
 } from './expressions';
 import { $accumulate } from './accumulators';
 
-// Phase 3.5: Import enhanced text and regex search capabilities
-import { $text } from './text-search';
 import { DEBUG } from './debug';
 
-// Crossfilter-optimized toggle mode imports
-import { CrossfilterIVMEngineImpl } from './crossfilter-engine';
-
-// Next-generation optimization engine imports
-import { NextGenToggleModeEngine } from './next-gen-toggle-engine';
+// Simplified toggle mode imports
+import { trySimplifiedToggleOptimization } from './simplified-toggle.js';
 
 // Import complex types from main index for now
 import type {
@@ -52,7 +47,7 @@ export interface QueryOperators {
   $nor?: QueryExpression[];
   $regex?: string;
   $options?: string;
-  $text?: string; // Phase 3.5: Text search operator
+  $text?: string; // Simplified mode: basic text matching only
   $exists?: boolean;
   $all?: DocumentValue[];
   $elemMatch?: QueryExpression;
@@ -98,7 +93,7 @@ function $project<T extends Document = Document>(
 /**
  * Filters the document stream to allow only matching documents to pass
  * unmodified into the next pipeline stage.
- * Phase 3.5: Enhanced with Bloom filter acceleration for $text and $regex
+ * Simplified mode: Basic text matching without advanced search features
  */
 function $match<T extends Document = Document>(
   collection: Collection<T>,
@@ -109,16 +104,18 @@ function $match<T extends Document = Document>(
     return [];
   }
 
-  // Phase 3.5: Check for $text operator at top level
+  // Simplified text search for $text operator
   if (query.$text && typeof query.$text === 'string') {
     if (DEBUG) {
       console.log(
-        `🔍 Phase 3.5: Using accelerated $text search for query: "${query.$text}"`
+        `🔍 Simplified: Using basic text search for query: "${query.$text}"`
       );
     }
 
-    // Use accelerated text search for the entire collection
-    const textResults = $text(collection, query.$text);
+    // Simple text search across all string fields in documents
+    const textResults = collection.filter(doc => 
+      simpleTextSearch(doc, query.$text as string)
+    );
 
     // If there are other conditions, apply them to the text search results
     const remainingQuery = { ...query };
@@ -429,19 +426,17 @@ function matchDocument(doc: Document, query: QueryExpression): boolean {
 
     // Handle logical operators and special queries
     if (field === '$text') {
-      // $text operator - this should be handled at collection level for efficiency
-      // but we support it here for consistency
+      // $text operator - simplified text matching
       if (typeof condition !== 'string') return false;
 
       if (DEBUG) {
         console.log(
-          `🔍 Phase 3.5: Document-level $text matching: "${condition}"`
+          `🔍 Simplified: Document-level $text matching: "${condition}"`
         );
       }
 
-      // For document-level text search, use simple token matching
-      const results = $text([doc], condition);
-      return results.length > 0;
+      // Simple text search within the document
+      return simpleTextSearch(doc, condition);
     }
 
     if (field === '$and') {
@@ -1329,13 +1324,13 @@ function traditionalAggregate<T extends Document = Document>(
   // Default to 'stream' mode for backward compatibility
   const executionMode = options?.mode || 'stream';
 
-  // Use next-generation toggle engine for toggle mode
+  // Try simplified toggle mode optimizations for toggle mode
   if (executionMode === 'toggle') {
-    const nextGenEngine = new NextGenToggleModeEngine();
-    return nextGenEngine.aggregate(collection, stages, {
-      enableProfiler: DEBUG,
-      memoryLimit: undefined, // No limit for now
-    });
+    const toggleResult = trySimplifiedToggleOptimization(collection, stages);
+    if (toggleResult.success && toggleResult.result) {
+      return toggleResult.result as Collection<T>;
+    }
+    // Fall back to stream mode if optimization not applicable
   }
 
   // Traditional stream mode processing
@@ -1452,6 +1447,27 @@ const $addFieldsWrapper = <T extends Document = Document>(
   collection: Collection<T>,
   fieldSpecs: AddFieldsStage['$addFields']
 ): Collection<T> => $addFields(collection, fieldSpecs, 'stream');
+
+/**
+ * Simple text search function for basic $text operator support
+ * Searches for the query text in all string fields of the document
+ */
+function simpleTextSearch(doc: any, query: string): boolean {
+  const searchText = query.toLowerCase();
+  
+  function searchInValue(value: any): boolean {
+    if (typeof value === 'string') {
+      return value.toLowerCase().includes(searchText);
+    } else if (Array.isArray(value)) {
+      return value.some(item => searchInValue(item));
+    } else if (typeof value === 'object' && value !== null) {
+      return Object.values(value).some(val => searchInValue(val));
+    }
+    return false;
+  }
+  
+  return searchInValue(doc);
+}
 
 export {
   aggregate,
