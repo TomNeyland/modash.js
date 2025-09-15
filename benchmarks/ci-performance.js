@@ -349,7 +349,19 @@ async function runCIPerformanceBudgets() {
 
 // CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runCIPerformanceBudgets().catch(console.error);
+  runCIPerformanceBudgets()
+    .then(() => {
+      // Ensure process exits cleanly after CI performance check
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(0);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
+    });
 }
 
 export { runCIPerformanceBudgets, PERFORMANCE_BUDGETS };

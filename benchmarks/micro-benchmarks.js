@@ -370,5 +370,17 @@ export async function runMicroBenchmarks() {
 
 // CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runMicroBenchmarks().catch(console.error);
+  runMicroBenchmarks()
+    .then(() => {
+      // Ensure process exits cleanly after micro-benchmarks
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(0);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
+    });
 }

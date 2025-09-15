@@ -7,10 +7,46 @@ import Modash from '../src/modash/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES } from './setup.js';
 import { PerformanceTracker } from './performance-tracker.js';
 
+// Add safety timeout to prevent hanging in CI environments
+const PERFORMANCE_TEST_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+let timeoutHandle;
+
+// Global cleanup function to ensure clean exit
+function cleanup() {
+  if (timeoutHandle) {
+    clearTimeout(timeoutHandle);
+  }
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+  }
+}
+
+// Set up process cleanup handlers
+process.on('exit', cleanup);
+process.on('SIGINT', () => {
+  console.log('\n⚠️  Performance test interrupted');
+  cleanup();
+  process.exit(130);
+});
+process.on('SIGTERM', () => {
+  console.log('\n⚠️  Performance test terminated');
+  cleanup();
+  process.exit(143);
+});
+
 // Test data sizes for comprehensive benchmarking
 const TEST_SIZES = [100, 500, 1000, 2500, 5000, 10000];
 
 export async function runPerformanceMeasurement() {
+  // Set up timeout to prevent hanging in CI environments
+  timeoutHandle = setTimeout(() => {
+    console.error('\n❌ Performance test timed out after 5 minutes');
+    console.error('This may indicate a hanging process or infinite loop');
+    cleanup();
+    process.exit(1);
+  }, PERFORMANCE_TEST_TIMEOUT);
+
   const tracker = new PerformanceTracker();
   
   console.log('🚀 Running modash.js Performance Measurement\n');
@@ -79,6 +115,7 @@ export async function runPerformanceMeasurement() {
   } catch (error) {
     console.error('❌ Performance measurement failed:', error.message);
     console.error('Stack trace:', error.stack);
+    cleanup();
     throw error;
   }
 }
@@ -153,9 +190,26 @@ function printPerformanceInsights(results) {
   }
   
   console.log('\n✨ Measurement completed successfully!');
+  
+  // Clear timeout and cleanup resources
+  cleanup();
 }
 
 // Run the measurement if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runPerformanceMeasurement().catch(console.error);
+  runPerformanceMeasurement()
+    .then(() => {
+      // Ensure process exits cleanly after performance measurement
+      cleanup();
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(0);
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      cleanup();
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
+    });
 }
