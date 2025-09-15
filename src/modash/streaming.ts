@@ -866,7 +866,8 @@ export class StreamingCollection<
  * Create a streaming collection from existing data
  */
 export function createStreamingCollection<T extends Document = Document>(
-  initialData: Collection<T> = []
+  initialData: Collection<T> = [],
+  options?: { lightweight?: boolean }
 ): StreamingCollection<T> {
-  return new StreamingCollection(initialData);
+  return new StreamingCollection(initialData, options);
 }
