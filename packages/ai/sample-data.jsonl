@@ -1,0 +1,5 @@
+{"id": 1, "name": "Alice Johnson", "age": 30, "department": "Engineering", "salary": 95000, "active": true, "skills": ["JavaScript", "TypeScript", "React"], "address": {"city": "Seattle", "state": "WA", "zip": 98101}}
+{"id": 2, "name": "Bob Smith", "age": 25, "department": "Marketing", "salary": 75000, "active": true, "skills": ["SEO", "Analytics", "Social Media"], "address": {"city": "Portland", "state": "OR", "zip": 97201}}
+{"id": 3, "name": "Carol Davis", "age": 35, "department": "Engineering", "salary": 110000, "active": false, "skills": ["Python", "Machine Learning", "SQL"], "address": {"city": "San Francisco", "state": "CA", "zip": 94102}}
+{"id": 4, "name": "David Wilson", "age": 28, "department": "Sales", "salary": 82000, "active": true, "skills": ["CRM", "Communication", "Negotiation"], "address": {"city": "Austin", "state": "TX", "zip": 78701}}
+{"id": 5, "name": "Eve Brown", "age": 32, "department": "Marketing", "salary": 88000, "active": true, "skills": ["Content Marketing", "Brand Management"], "address": {"city": "Denver", "state": "CO", "zip": 80202}}
