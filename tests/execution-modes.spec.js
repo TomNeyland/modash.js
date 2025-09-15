@@ -313,4 +313,172 @@ describe('Execution Modes - Stream vs Toggle', () => {
       expect(streamResult.every(r => r.count > 0)).to.be.true;
     });
   });
+
+  describe('Crossfilter/DC.js Style Optimizations for Toggle Mode', () => {
+    const dashboardData = [
+      { date: '2023-01-01', category: 'sales', region: 'north', amount: 1000, count: 10 },
+      { date: '2023-01-02', category: 'sales', region: 'south', amount: 1500, count: 15 },
+      { date: '2023-01-03', category: 'marketing', region: 'north', amount: 800, count: 8 },
+      { date: '2023-01-04', category: 'marketing', region: 'south', amount: 1200, count: 12 },
+      { date: '2023-01-05', category: 'sales', region: 'east', amount: 2000, count: 20 },
+      { date: '2023-01-06', category: 'support', region: 'west', amount: 600, count: 6 },
+      { date: '2023-01-07', category: 'support', region: 'north', amount: 700, count: 7 },
+      { date: '2023-01-08', category: 'marketing', region: 'east', amount: 1800, count: 18 }
+    ];
+
+    it('should optimize dimension-based filtering like crossfilter', () => {
+      // Simulate crossfilter dimension filtering pattern
+      const filterPipeline = [
+        { $match: { category: { $in: ['sales', 'marketing'] } } },
+        { $match: { region: 'north' } },
+        { $project: { category: 1, amount: 1, region: 1 } }
+      ];
+
+      const streamResult = Modash.aggregate(dashboardData, filterPipeline, { mode: 'stream' });
+      const toggleResult = Modash.aggregate(dashboardData, filterPipeline, { mode: 'toggle' });
+      
+      expect(toggleResult).to.deep.equal(streamResult);
+      expect(toggleResult.every(r => ['sales', 'marketing'].includes(r.category))).to.be.true;
+      expect(toggleResult.every(r => r.region === 'north')).to.be.true;
+    });
+
+    it('should optimize refcounted aggregates like crossfilter', () => {
+      // Simulate crossfilter group.reduceSum() pattern
+      const groupPipeline = [
+        { 
+          $group: { 
+            _id: '$category', 
+            totalAmount: { $sum: '$amount' },
+            totalCount: { $sum: '$count' },
+            avgAmount: { $avg: '$amount' },
+            minAmount: { $min: '$amount' },
+            maxAmount: { $max: '$amount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ];
+
+      const streamResult = Modash.aggregate(dashboardData, groupPipeline, { mode: 'stream' });
+      const toggleResult = Modash.aggregate(dashboardData, groupPipeline, { mode: 'toggle' });
+      
+      expect(toggleResult).to.deep.equal(streamResult);
+      
+      // Verify crossfilter-style aggregations work correctly
+      const salesGroup = toggleResult.find(g => g._id === 'sales');
+      expect(salesGroup.totalAmount).to.equal(4500); // 1000 + 1500 + 2000
+      expect(salesGroup.totalCount).to.equal(45); // 10 + 15 + 20
+    });
+
+    it('should optimize multi-dimensional filtering for dashboard analytics', () => {
+      // Simulate dc.js chart filtering pattern
+      const multiDimPipeline = [
+        { $match: { amount: { $gte: 1000 } } },
+        { $match: { region: { $in: ['north', 'south'] } } },
+        { 
+          $group: { 
+            _id: { category: '$category', region: '$region' },
+            totalAmount: { $sum: '$amount' },
+            recordCount: { $sum: 1 }
+          }
+        },
+        { $sort: { '_id.category': 1, '_id.region': 1 } }
+      ];
+
+      const streamResult = Modash.aggregate(dashboardData, multiDimPipeline, { mode: 'stream' });
+      const toggleResult = Modash.aggregate(dashboardData, multiDimPipeline, { mode: 'toggle' });
+      
+      expect(toggleResult).to.deep.equal(streamResult);
+      expect(toggleResult.length).to.be.greaterThan(0);
+    });
+
+    it('should optimize sorted operations for ranking dashboards', () => {
+      // Simulate dc.js ordinal chart pattern
+      const sortPipeline = [
+        { $match: { amount: { $gte: 800 } } },
+        { $sort: { amount: -1, category: 1 } },
+        { $limit: 5 },
+        { $project: { category: 1, amount: 1, rank: '$$ROOT' } }
+      ];
+
+      const streamResult = Modash.aggregate(dashboardData, sortPipeline, { mode: 'stream' });
+      const toggleResult = Modash.aggregate(dashboardData, sortPipeline, { mode: 'toggle' });
+      
+      expect(toggleResult).to.deep.equal(streamResult);
+      expect(toggleResult.length).to.equal(5);
+      
+      // Verify sorting is correct (highest amounts first)
+      for (let i = 0; i < toggleResult.length - 1; i++) {
+        expect(toggleResult[i].amount).to.be.at.least(toggleResult[i + 1].amount);
+      }
+    });
+
+    it('should handle complex crossfilter-style pipelines efficiently', () => {
+      // Simulate complex dc.js dashboard with multiple charts
+      const complexPipeline = [
+        { $match: { amount: { $gte: 700 } } },
+        { 
+          $addFields: { 
+            amountTier: {
+              $switch: {
+                branches: [
+                  { case: { $lt: ['$amount', 1000] }, then: 'low' },
+                  { case: { $lt: ['$amount', 1500] }, then: 'medium' },
+                  { case: { $gte: ['$amount', 1500] }, then: 'high' }
+                ],
+                default: 'unknown'
+              }
+            }
+          }
+        },
+        { 
+          $group: { 
+            _id: { region: '$region', tier: '$amountTier' },
+            totalAmount: { $sum: '$amount' },
+            averageAmount: { $avg: '$amount' },
+            countRecords: { $sum: 1 }
+          }
+        },
+        { $match: { countRecords: { $gte: 1 } } },
+        { $sort: { '_id.region': 1, totalAmount: -1 } }
+      ];
+
+      const streamResult = Modash.aggregate(dashboardData, complexPipeline, { mode: 'stream' });
+      const toggleResult = Modash.aggregate(dashboardData, complexPipeline, { mode: 'toggle' });
+      
+      expect(toggleResult).to.deep.equal(streamResult);
+      expect(toggleResult.length).to.be.greaterThan(0);
+      
+      // Verify all results have the expected structure
+      toggleResult.forEach(result => {
+        expect(result._id).to.have.property('region');
+        expect(result._id).to.have.property('tier');
+        expect(result).to.have.property('totalAmount');
+        expect(result).to.have.property('averageAmount');
+        expect(result).to.have.property('countRecords');
+        expect(['low', 'medium', 'high'].includes(result._id.tier)).to.be.true;
+      });
+    });
+
+    it('should maintain identical results between stream and toggle modes', () => {
+      // Test data consistency across execution modes
+      const testPipelines = [
+        [{ $match: { category: 'sales' } }],
+        [{ $group: { _id: '$region', total: { $sum: '$amount' } } }],
+        [{ $sort: { amount: -1 } }, { $limit: 3 }],
+        [
+          { $match: { amount: { $gte: 1000 } } },
+          { $group: { _id: '$category', count: { $sum: 1 } } },
+          { $sort: { count: -1 } }
+        ]
+      ];
+
+      testPipelines.forEach((pipeline, index) => {
+        const streamResult = Modash.aggregate(dashboardData, pipeline, { mode: 'stream' });
+        const toggleResult = Modash.aggregate(dashboardData, pipeline, { mode: 'toggle' });
+        
+        expect(toggleResult).to.deep.equal(streamResult, 
+          `Pipeline ${index} should produce identical results in both modes`);
+      });
+    });
+  });
 });
