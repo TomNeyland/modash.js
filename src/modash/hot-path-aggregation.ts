@@ -550,13 +550,17 @@ export function hotPathAggregate<T extends Document = Document>(
       `Pipeline is not an array: ${typeof pipeline}`
     );
     counters.fallbacks++;
-    
+
     // Enhanced fallback logging
-    recordFallback(pipeline as any, `Pipeline is not an array: ${typeof pipeline}`, {
-      reason: 'Invalid pipeline type',
-      code: 'INVALID_PIPELINE_TYPE'
-    });
-    
+    recordFallback(
+      pipeline as any,
+      `Pipeline is not an array: ${typeof pipeline}`,
+      {
+        reason: 'Invalid pipeline type',
+        code: 'INVALID_PIPELINE_TYPE',
+      }
+    );
+
     return originalAggregate(collection, pipeline);
   }
 
@@ -586,13 +590,13 @@ export function hotPathAggregate<T extends Document = Document>(
       }
       console.warn(`Hot path failed, falling back: ${errorMessage}`);
       counters.fallbacks++;
-      
+
       // Enhanced fallback logging
       recordFallback(pipeline, errorMessage, {
         reason: `Hot path execution error: ${errorMessage}`,
-        code: 'HOT_PATH_EXECUTION_ERROR'
+        code: 'HOT_PATH_EXECUTION_ERROR',
       });
-      
+
       result = originalAggregate(collection, pipeline);
 
       const duration = Date.now() - startTime;
@@ -608,21 +612,23 @@ export function hotPathAggregate<T extends Document = Document>(
     }
     // Use regular aggregation
     counters.fallbacks++;
-    
+
     // Enhanced fallback logging - collect reasons from optimizer rejections
     const rejections = getOptimizerRejections();
     const lastRejection = rejections[rejections.length - 1];
     const fallbackReason = lastRejection?.reason || 'Hot path not applicable';
-    
+
     const fallbackMeta: any = {
       reason: fallbackReason,
-      code: 'OPTIMIZER_REJECTED'
+      code: 'OPTIMIZER_REJECTED',
     };
-    if (lastRejection?.stageIndex !== undefined) fallbackMeta.stageIndex = lastRejection.stageIndex;
-    if (lastRejection?.stageType) fallbackMeta.stageType = lastRejection.stageType;
-    
+    if (lastRejection?.stageIndex !== undefined)
+      fallbackMeta.stageIndex = lastRejection.stageIndex;
+    if (lastRejection?.stageType)
+      fallbackMeta.stageType = lastRejection.stageType;
+
     recordFallback(pipeline, fallbackReason, fallbackMeta);
-    
+
     result = originalAggregate(collection, pipeline);
 
     const duration = Date.now() - startTime;

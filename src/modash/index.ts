@@ -22,8 +22,11 @@ import type {
 import { createStreamingCollection, StreamingCollection } from './streaming';
 import { hotPathAggregate } from './hot-path-aggregation';
 import { explain, benchmark, fromJSONL } from './api-enhancements';
-import { recordFallback, DEBUG } from './debug';
-import { minimalStandardEngine, requiresCompatibilityShim } from './compatibility-shim';
+import { DEBUG } from './debug';
+import {
+  minimalStandardEngine,
+  requiresCompatibilityShim,
+} from './compatibility-shim';
 
 /**
  * Streaming-first aggregation with explicit fallback only for unsupported operators
@@ -41,13 +44,17 @@ const streamingFirstAggregate = <T extends PublicDocument = PublicDocument>(
   // Use the compatibility shim for truly unsupported operators
   if (requiresCompatibilityShim(pipeline)) {
     if (DEBUG) {
-      console.warn(`📊 STREAMING-FIRST: Using compatibility shim for unsupported operators`);
+      console.warn(
+        `📊 STREAMING-FIRST: Using compatibility shim for unsupported operators`
+      );
     }
     return minimalStandardEngine(collection as any, pipeline as any) as any;
   }
 
   if (DEBUG) {
-    console.log(`📊 STREAMING-FIRST: Using streaming engine (${pipeline.length} stages)`);
+    console.log(
+      `📊 STREAMING-FIRST: Using streaming engine (${pipeline.length} stages)`
+    );
   }
 
   // Default to streaming engine for all other operations
@@ -105,11 +112,11 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  * - Defaults to IVM/streaming engine for maximum performance
  * - Minimal compatibility shim for truly unsupported operators:
  *   • $function, $where (arbitrary JavaScript execution)
- *   • $merge, $out (side-effect stages)  
+ *   • $merge, $out (side-effect stages)
  *   • Advanced $lookup with pipeline/let (multi-collection joins)
  * - All other operations use zero-allocation streaming engine
  * - Standard aggregation engine deprecated, replaced with minimal shim
- * 
+ *
  * Provides transparent streaming support - all aggregations automatically
  * work with both regular arrays and streaming collections.
  */

@@ -4,8 +4,8 @@
  */
 
 export const DEBUG =
-  process.env.DEBUG_IVM === '1' || 
-  process.env.DEBUG_IVM === 'true' || 
+  process.env.DEBUG_IVM === '1' ||
+  process.env.DEBUG_IVM === 'true' ||
   process.env.NODE_ENV === 'test';
 
 // Fallback tracking
@@ -50,7 +50,13 @@ export function resetFallbackTracking(): void {
 export function recordFallback(
   pipeline: any,
   error: Error | string,
-  meta?: { code?: string; details?: any; reason?: string; stageIndex?: number; stageType?: string }
+  meta?: {
+    code?: string;
+    details?: any;
+    reason?: string;
+    stageIndex?: number;
+    stageType?: string;
+  }
 ): void {
   fallbackCount++;
   const payload: any = {
@@ -67,14 +73,18 @@ export function recordFallback(
     payload.stageType = meta.stageType;
   }
   fallbackErrors.push(payload);
-  
+
   // Always log fallback to standard engine when DEBUG_IVM is enabled
   if (DEBUG) {
-    console.warn(`🚨 FALLBACK TO STANDARD ENGINE: ${payload.reason || payload.error}`);
+    console.warn(
+      `🚨 FALLBACK TO STANDARD ENGINE: ${payload.reason || payload.error}`
+    );
     if (meta?.stageType && meta?.stageIndex !== undefined) {
       console.warn(`   Stage: ${meta.stageType} at index ${meta.stageIndex}`);
     }
-    console.warn(`   Pipeline: ${JSON.stringify(pipeline.slice(0, 3))}${pipeline.length > 3 ? '...' : ''}`);
+    console.warn(
+      `   Pipeline: ${JSON.stringify(pipeline.slice(0, 3))}${pipeline.length > 3 ? '...' : ''}`
+    );
   }
 }
 
@@ -116,29 +126,35 @@ export function generateFallbackAnalysis(): {
   for (const error of fallbackErrors) {
     const reason = error.reason || error.error || 'Unknown';
     fallbacksByReason.set(reason, (fallbacksByReason.get(reason) || 0) + 1);
-    
+
     if (error.stageType) {
-      fallbacksByStageType.set(error.stageType, (fallbacksByStageType.get(error.stageType) || 0) + 1);
-      
+      fallbacksByStageType.set(
+        error.stageType,
+        (fallbacksByStageType.get(error.stageType) || 0) + 1
+      );
+
       // Track operators that consistently cause fallbacks
       if (reason.includes('not supported') || reason.includes('unsupported')) {
         unsupportedOperators.add(error.stageType);
       }
     }
-    
+
     const recentFallback: any = {
       timestamp: error.timestamp || 'Unknown',
       reason,
       pipelineLength: error.pipeline?.length || 0,
     };
     if (error.stageType) recentFallback.stageType = error.stageType;
-    if (error.stageIndex !== undefined) recentFallback.stageIndex = error.stageIndex;
-    
+    if (error.stageIndex !== undefined)
+      recentFallback.stageIndex = error.stageIndex;
+
     recentFallbacks.push(recentFallback);
   }
 
   // Keep only recent fallbacks (last 20)
-  recentFallbacks.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+  recentFallbacks.sort((a, b) =>
+    (b.timestamp || '').localeCompare(a.timestamp || '')
+  );
   recentFallbacks.splice(20);
 
   return {
@@ -155,53 +171,63 @@ export function generateFallbackAnalysis(): {
  */
 export function printFallbackAnalysis(): void {
   const analysis = generateFallbackAnalysis();
-  
+
   console.log('\n📊 STREAMING-FIRST EXECUTION ANALYSIS');
   console.log('=====================================');
   console.log(`Total fallbacks to standard engine: ${analysis.totalFallbacks}`);
-  
+
   if (analysis.totalFallbacks === 0) {
     console.log('✅ All pipelines successfully processed by streaming engine!');
     return;
   }
-  
+
   console.log('\n🔍 Fallback Reasons:');
-  const sortedReasons = Array.from(analysis.fallbacksByReason.entries())
-    .sort((a, b) => b[1] - a[1]);
+  const sortedReasons = Array.from(analysis.fallbacksByReason.entries()).sort(
+    (a, b) => b[1] - a[1]
+  );
   for (const [reason, count] of sortedReasons) {
     console.log(`  ${reason}: ${count} occurrences`);
   }
-  
+
   console.log('\n⚠️  Problem Stage Types:');
-  const sortedStages = Array.from(analysis.fallbacksByStageType.entries())
-    .sort((a, b) => b[1] - a[1]);
+  const sortedStages = Array.from(analysis.fallbacksByStageType.entries()).sort(
+    (a, b) => b[1] - a[1]
+  );
   for (const [stage, count] of sortedStages) {
     console.log(`  ${stage}: ${count} fallbacks`);
   }
-  
+
   if (analysis.unsupportedOperators.size > 0) {
     console.log('\n🚫 Confirmed Unsupported Operators:');
     for (const op of analysis.unsupportedOperators) {
       console.log(`  ${op}`);
     }
   }
-  
+
   console.log('\n📝 Recent Fallbacks:');
   for (const fallback of analysis.recentFallbacks.slice(0, 5)) {
     console.log(`  [${fallback.timestamp}] ${fallback.reason}`);
     if (fallback.stageType) {
-      console.log(`    Stage: ${fallback.stageType} at index ${fallback.stageIndex}`);
+      console.log(
+        `    Stage: ${fallback.stageType} at index ${fallback.stageIndex}`
+      );
     }
   }
-  
+
   console.log('\n💡 Recommendations:');
   if (analysis.unsupportedOperators.has('$lookup')) {
     console.log('  - $lookup operations require standard engine (expected)');
   }
-  if (analysis.fallbacksByReason.has('Complex $match not supported in hot path')) {
+  if (
+    analysis.fallbacksByReason.has('Complex $match not supported in hot path')
+  ) {
     console.log('  - Consider expanding streaming engine $match support');
   }
-  if (analysis.fallbacksByReason.has('Complex $project with unsupported computed fields')) {
+  if (
+    analysis.fallbacksByReason.has(
+      'Complex $project with unsupported computed fields'
+    )
+  ) {
     console.log('  - Consider expanding streaming engine expression support');
   }
 }
