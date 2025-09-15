@@ -28,6 +28,6 @@ echo "✅ No inappropriate liveSet usage found in operators"
 # Run invariant tests
 echo ""
 echo "🧪 Running invariant tests..."
-npx tsx test_invariants.mjs
+npx tsx tests/debug/test_invariants.mjs
 
 exit $?
