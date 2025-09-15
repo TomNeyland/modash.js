@@ -77,6 +77,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{js,ts,json}\" \"examples/**/*.{js,ts,json}\" \"*.{js,ts,json,md}\"",
     "build": "tsup",
     "build:watch": "tsup --watch",
+    "docs": "echo 'Documentation already exists in docs/ directory'",
     "prepare": "husky",
     "prepack": "npm run build",
     "prepublishOnly": "npm run build && npm run type-check && npm run format:check && npm run pack:audit",
