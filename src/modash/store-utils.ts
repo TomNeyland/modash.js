@@ -1,4 +1,9 @@
-import type { CrossfilterStore, RowId, PhysicalRowId } from './crossfilter-ivm';
+import type {
+  CrossfilterStore,
+  RowId,
+  PhysicalRowId,
+  VirtualRowId,
+} from './crossfilter-ivm';
 import type { Document } from './expressions';
 
 // Helper to safely access physical documents by rowId
@@ -11,4 +16,13 @@ export function getPhysicalDocument(
     return store.documents[rowId as PhysicalRowId] || null;
   }
   return null;
+}
+
+// Type guards for RowId variants
+export function isPhysicalRowId(rowId: RowId): rowId is PhysicalRowId {
+  return typeof rowId === 'number';
+}
+
+export function isVirtualRowId(rowId: RowId): rowId is VirtualRowId {
+  return typeof rowId === 'string';
 }
