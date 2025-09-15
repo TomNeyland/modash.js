@@ -11,7 +11,7 @@ describe('Resource Cleanup Verification', () => {
 
   afterEach(() => {
     // Ensure all collections are properly destroyed
-    collections.forEach((collection) => {
+    collections.forEach(collection => {
       if (collection && typeof collection.destroy === 'function') {
         collection.destroy();
       }
@@ -35,7 +35,7 @@ describe('Resource Cleanup Verification', () => {
 
     // Now destroy should clean up all resources
     collection.destroy();
-    
+
     // Remove from tracking since we manually destroyed it
     collections = collections.filter(c => c !== collection);
 
@@ -52,7 +52,7 @@ describe('Resource Cleanup Verification', () => {
     const consumerId = collection.connectEventSource({
       source: eventSource,
       eventName: 'data',
-      transform: (data) => ({ id: Date.now(), ...data }),
+      transform: data => ({ id: Date.now(), ...data }),
     });
 
     // Emit some events
@@ -67,15 +67,15 @@ describe('Resource Cleanup Verification', () => {
 
   it('should handle multiple streaming collections simultaneously', () => {
     const numCollections = 5;
-    
+
     for (let i = 0; i < numCollections; i++) {
-      const collection = createStreamingCollection([
-        { id: i, value: i * 10 }
-      ]);
+      const collection = createStreamingCollection([{ id: i, value: i * 10 }]);
       collections.push(collection);
 
       // Start streaming on each
-      collection.stream([{ $project: { id: 1, doubled: { $multiply: ['$value', 2] } } }]);
+      collection.stream([
+        { $project: { id: 1, doubled: { $multiply: ['$value', 2] } } },
+      ]);
       collection.add({ id: i + 100, value: (i + 100) * 10 });
     }
 
