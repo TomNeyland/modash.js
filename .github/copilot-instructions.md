@@ -8,26 +8,28 @@
 
 ## ⚠️ CRITICAL: Zero Build System - TypeScript Native
 
-**modash.js runs TypeScript DIRECTLY with NO build step required.**
+**modash.js runs TypeScript DIRECTLY with NO build step required for development.**
 
-- Do NOT try to compile TypeScript - it runs natively with `tsx`
-- Do NOT look for build artifacts or compiled JavaScript files
-- Do NOT run `npm run build` - it just echoes "No build step needed"
+- Do NOT try to compile TypeScript for development - it runs natively with `tsx`
 - Use `npx tsx` to run TypeScript files directly
+- `npm run build` DOES work and produces dist files for production distribution
+- Build creates `dist/index.js`, `dist/index.d.ts`, and `dist/cli.js` for publishing
+- For development and testing, always use direct TypeScript execution with `tsx`
 
 ## 🚨 MANDATORY Command Timeouts & Build Times
 
 **NEVER CANCEL any build or test commands. Set appropriate timeouts:**
 
-- `npm install`: 5 minutes timeout (measured: ~11 seconds)
-- `npm test`: 10 minutes timeout (measured: ~1.4 seconds) - **NEVER CANCEL**
-- `npm run test:performance`: 10 minutes timeout (measured: ~1.4 seconds) - **NEVER CANCEL**
+- `npm install`: 5 minutes timeout (measured: ~13 seconds)
+- `npm test`: 10 minutes timeout (measured: ~2 seconds) - **NEVER CANCEL**
+- `npm run test:performance`: 10 minutes timeout (measured: ~2 seconds) - **NEVER CANCEL**
 - `npm run test:coverage`: 5 minutes timeout (measured: ~1.0 seconds)
 - `npm run lint`: 5 minutes timeout (measured: ~2.3 seconds)
 - `npm run format:check`: 5 minutes timeout (measured: ~1.8 seconds)
-- `npm run quality`: 10 minutes timeout (measured: ~5.2 seconds) - **NEVER CANCEL**
+- `npm run quality`: 15 minutes timeout (measured: ~12 seconds) - **NEVER CANCEL**
 - `npm run typecheck`: 5 minutes timeout (measured: ~1.6 seconds)
-- `npm run precommit:check`: 5 minutes timeout - **Pre-commit validation suite**
+- `npm run precommit:check`: 10 minutes timeout - **Pre-commit validation suite**
+- `npm run build`: 5 minutes timeout (measured: ~3 seconds) - **Production build**
 
 ## Working Effectively
 
@@ -39,7 +41,7 @@
    npm install
    ```
 
-   **Timeout: 5 minutes. Expected: ~11 seconds.**
+   **Timeout: 5 minutes. Expected: ~13 seconds.**
 
 2. **Run all tests and performance benchmarks:**
 
@@ -47,7 +49,7 @@
    npm test
    ```
 
-   **Timeout: 10 minutes. Expected: ~1.4 seconds. NEVER CANCEL - includes critical performance tracking.**
+   **Timeout: 10 minutes. Expected: ~2 seconds. NEVER CANCEL - includes critical performance tracking.**
 
 3. **Run quality checks:**
 
@@ -55,13 +57,14 @@
    npm run quality
    ```
 
-   **Timeout: 10 minutes. Expected: ~5.2 seconds. NEVER CANCEL - required for CI.**
+   **Timeout: 15 minutes. Expected: ~12 seconds. NEVER CANCEL - required for CI.**
 
 4. **Individual commands:**
-   - `npm run test:units` - Unit tests only (~1 second)
-   - `npm run test:performance` - Performance benchmarks (~1.4 seconds) - **NEVER CANCEL**
+   - `npm run test:units` - Unit tests only (~2 seconds)
+   - `npm run test:performance` - Performance benchmarks (~2 seconds) - **NEVER CANCEL**
    - `npm run lint` - ESLint validation (~2.3 seconds)
    - `npm run format:check` - Prettier validation (~1.8 seconds)
+   - `npm run build` - Production build (~3 seconds) - Creates dist/ files
 
 ## 🎯 Validation Scenarios
 
@@ -108,6 +111,19 @@ npm run test:performance
 ```
 
 **MANDATORY: Must complete successfully. NEVER CANCEL. Performance tracking is critical.**
+
+### Scenario 4: CLI Validation
+
+```bash
+# Test CLI help
+node --import=tsx/esm src/cli.ts --help
+
+# Test CLI with sample data
+echo '{"name":"Alice","score":85}
+{"name":"Bob","score":92}' | node --import=tsx/esm src/cli.ts '[{"$match":{"score":{"$gte":80}}}]' --pretty --stats
+```
+
+**Validate CLI functionality including stats and pretty printing.**
 
 ## Core Technologies & Architecture
 
@@ -208,10 +224,11 @@ npm run quality       # MUST pass - Combined quality checks
 
 ## TypeScript Configuration Notes
 
-- **TypeScript Strict Checking**: `npm run typecheck` currently has 72 type errors but this is expected
-- **Runtime Execution**: TypeScript code runs perfectly with `tsx` despite strict checking issues
+- **TypeScript Strict Checking**: `npm run typecheck` currently shows 0 type errors - strict checking passes
+- **Runtime Execution**: TypeScript code runs perfectly with `tsx` for development
 - **Direct Execution**: Use `npx tsx filename.ts` to run TypeScript files directly
 - **Import Style**: `import Modash from './src/index.ts'` for local development
+- **Production Build**: `npm run build` creates compiled JS/d.ts files in `dist/` for publishing
 
 ## Core API Patterns
 
@@ -308,12 +325,12 @@ Quick reference of validated commands with exact timings:
 
 ```bash
 # Dependencies & Setup
-npm install                 # ~11s - Install all dependencies
+npm install                 # ~13s - Install all dependencies
 
 # Testing & Validation (NEVER CANCEL)
-npm test                   # ~1.4s - All tests + performance benchmarks
-npm run test:units         # ~1s   - Unit tests only
-npm run test:performance   # ~1.4s - Performance benchmarks only
+npm test                   # ~2s - All tests + performance benchmarks
+npm run test:units         # ~2s   - Unit tests only
+npm run test:performance   # ~2s - Performance benchmarks only
 npm run test:coverage      # ~1s   - Tests with coverage report
 npm run test:watch         # Continuous testing mode
 npm run test:fast          # Fast tests only (excludes slow 1M+ record tests)
@@ -324,29 +341,35 @@ npm run lint              # ~2.3s - ESLint validation
 npm run lint:fix          # ~2.3s - Auto-fix ESLint issues
 npm run format            # ~1.8s - Apply Prettier formatting
 npm run format:check      # ~1.8s - Check Prettier formatting
-npm run quality           # ~5.2s - All quality checks combined
+npm run quality           # ~12s - All quality checks combined
 
-# TypeScript
-npm run typecheck         # ~1.6s - TypeScript strict checking (72 known errors)
+# TypeScript & Build
+npm run typecheck         # ~1.6s - TypeScript strict checking (0 errors)
+npm run build             # ~3s - Production build (creates dist/ files)
 npx tsx file.ts          # Direct TypeScript execution
 
 # Performance & Analysis
 npm run test:performance  # Critical performance tracking - NEVER CANCEL
+
+# CLI Usage
+node --import=tsx/esm src/cli.ts --help  # CLI help
+echo '{"name":"Alice"}' | node --import=tsx/esm src/cli.ts '[{"$project":{"name":1}}]' --pretty
 ```
 
 ## Troubleshooting
 
 ### Known Issues
 
-- **TypeScript strict checking**: `npm run typecheck` has 72 type errors but runtime execution works perfectly
+- **Build vs Development**: Use `npm run build` for production distribution, but always use `npx tsx` for development/testing
 - **Examples directory**: Import paths may be incorrect in example files
 - **Performance tracking**: Never cancel performance tests - they maintain historical data
 
 ### Solutions
 
-- **For TypeScript execution**: Always use `npx tsx` not `node`
+- **For TypeScript execution**: Always use `npx tsx` not `node` for development
 - **For imports**: Use `import Modash from './src/index.ts'` for local development
 - **For performance**: Always wait for benchmarks to complete, never cancel
+- **For CLI testing**: Use `node --import=tsx/esm src/cli.ts` for CLI validation
 
 ---
 
