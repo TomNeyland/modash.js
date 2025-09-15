@@ -11,7 +11,7 @@
 **modash.js runs TypeScript DIRECTLY with NO build step required.**
 
 - Do NOT try to compile TypeScript - it runs natively with `tsx`
-- Do NOT look for build artifacts or compiled JavaScript files  
+- Do NOT look for build artifacts or compiled JavaScript files
 - Do NOT run `npm run build` - it just echoes "No build step needed"
 - Use `npx tsx` to run TypeScript files directly
 
@@ -20,34 +20,41 @@
 **NEVER CANCEL any build or test commands. Set appropriate timeouts:**
 
 - `npm install`: 5 minutes timeout (measured: ~11 seconds)
-- `npm test`: 10 minutes timeout (measured: ~1.4 seconds) - **NEVER CANCEL** 
+- `npm test`: 10 minutes timeout (measured: ~1.4 seconds) - **NEVER CANCEL**
 - `npm run test:performance`: 10 minutes timeout (measured: ~1.4 seconds) - **NEVER CANCEL**
 - `npm run test:coverage`: 5 minutes timeout (measured: ~1.0 seconds)
 - `npm run lint`: 5 minutes timeout (measured: ~2.3 seconds)
-- `npm run format:check`: 5 minutes timeout (measured: ~1.8 seconds)  
+- `npm run format:check`: 5 minutes timeout (measured: ~1.8 seconds)
 - `npm run quality`: 10 minutes timeout (measured: ~5.2 seconds) - **NEVER CANCEL**
 - `npm run typecheck`: 5 minutes timeout (measured: ~1.6 seconds)
+- `npm run precommit:check`: 5 minutes timeout - **Pre-commit validation suite**
 
 ## Working Effectively
 
 **Bootstrap, build, and test the repository:**
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
+
    **Timeout: 5 minutes. Expected: ~11 seconds.**
 
 2. **Run all tests and performance benchmarks:**
+
    ```bash
    npm test
-   ```  
+   ```
+
    **Timeout: 10 minutes. Expected: ~1.4 seconds. NEVER CANCEL - includes critical performance tracking.**
 
 3. **Run quality checks:**
+
    ```bash
    npm run quality
    ```
+
    **Timeout: 10 minutes. Expected: ~5.2 seconds. NEVER CANCEL - required for CI.**
 
 4. **Individual commands:**
@@ -61,6 +68,7 @@
 **ALWAYS manually validate any changes with these scenarios:**
 
 ### Scenario 1: Basic Aggregation Pipeline
+
 ```bash
 npx tsx -e "
 import Modash from './src/index.ts';
@@ -77,6 +85,7 @@ console.log('✅ Basic pipeline:', result.length, 'items');
 ```
 
 ### Scenario 2: Complex Grouping & Aggregation
+
 ```bash
 npx tsx -e "
 import Modash from './src/index.ts';
@@ -93,9 +102,11 @@ console.log('✅ Complex grouping:', JSON.stringify(result, null, 2));
 ```
 
 ### Scenario 3: Performance Validation
+
 ```bash
 npm run test:performance
 ```
+
 **MANDATORY: Must complete successfully. NEVER CANCEL. Performance tracking is critical.**
 
 ## Core Technologies & Architecture
@@ -134,18 +145,21 @@ examples/                 # Usage examples (may have import issues)
 **modash.js includes a comprehensive performance tracking system that MUST be utilized for ALL changes.**
 
 ### Performance Requirements
+
 - **MANDATORY**: Run `npm run test:performance` after ANY code changes
 - **NEVER CANCEL**: Performance tests must complete - they track historical data
 - **Timeout: 10 minutes** - Performance tests include multiple dataset sizes (100, 500, 1K, 2.5K, 5K, 10K documents)
 - Performance regressions will cause PR rejections
 
 ### Performance Data
+
 - Results saved in `performance-results/` directory as timestamped JSON files
 - Automatic comparison against baseline and previous runs
 - Trend indicators (📈/📉) show performance improvements/regressions
 - Statistical analysis with multiple iterations and standard deviation
 
 ### Usage Commands
+
 ```bash
 npm run test:performance   # Performance benchmarks only - NEVER CANCEL
 npm test                   # Includes performance tests automatically - NEVER CANCEL
@@ -155,7 +169,20 @@ npm test                   # Includes performance tests automatically - NEVER CA
 
 **ALL changes MUST pass these validation steps before work is considered complete:**
 
+### Pre-Commit Validation (FAIL-FAST MODE)
+
+```bash
+npm run precommit:check  # Runs ALL pre-commit checks in fail-fast mode:
+                        # 1. ESLint validation
+                        # 2. Prettier formatting check
+                        # 3. TypeScript type checking
+                        # 4. Fast test suite (excludes slow 1M+ record tests)
+```
+
+**NOTE: Git commits are automatically protected by husky pre-commit hooks that run these same checks.**
+
 ### Quality Gates (ALL MUST PASS)
+
 ```bash
 npm run format:check    # MUST pass - Prettier formatting validation
 npm run lint           # MUST pass - ESLint validation (no errors allowed)
@@ -164,12 +191,14 @@ npm run quality       # MUST pass - Combined quality checks
 ```
 
 ### Manual Validation Steps
+
 1. **Run scenario validation commands** (see Validation Scenarios above)
 2. **Verify library functionality** with real aggregation pipelines
 3. **Performance benchmarks must complete** - check for regressions
 4. **No TypeScript import errors** when using `npx tsx`
 
 ### Pre-Submission Checklist
+
 - [ ] All existing tests pass (`npm test`) - NEVER CANCEL
 - [ ] No linting errors (`npm run lint`)
 - [ ] Code is properly formatted (`npm run format:check`)
@@ -187,13 +216,15 @@ npm run quality       # MUST pass - Combined quality checks
 ## Core API Patterns
 
 ### Main Entry Point
+
 ```typescript
-import Modash from 'modash';  // Production usage
+import Modash from 'modash'; // Production usage
 // OR for local development:
 import Modash from './src/index.ts';
 ```
 
 ### Primary Methods
+
 - `Modash.aggregate(collection, pipeline)` - Main aggregation method
 - `Modash.count(collection)` - Count documents
 - `Modash.$match(collection, query)` - Filter documents
@@ -201,8 +232,9 @@ import Modash from './src/index.ts';
 - `Modash.$group(collection, groupSpec)` - Group and aggregate
 
 ### Supported Pipeline Stages
+
 - `$match`: Document filtering with query operators
-- `$project`: Field selection and transformation  
+- `$project`: Field selection and transformation
 - `$group`: Aggregation with accumulators
 - `$sort`: Document ordering
 - `$limit`/`$skip`: Pagination
@@ -213,6 +245,7 @@ import Modash from './src/index.ts';
 ## MongoDB Operator Coverage
 
 ### Query Operators (in $match)
+
 - Comparison: `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`
 - Logical: `$and`, `$or`, `$nor`, `$not`
 - Element: `$exists`, `$type`
@@ -220,6 +253,7 @@ import Modash from './src/index.ts';
 - Array: `$all`, `$elemMatch`, `$size`
 
 ### Expression Operators (40+ operators)
+
 - Arithmetic: `$add`, `$subtract`, `$multiply`, `$divide`, `$mod`, `$abs`, `$ceil`, `$floor`, `$round`, `$sqrt`, `$pow`
 - Array: `$arrayElemAt`, `$concatArrays`, `$filter`, `$in`, `$indexOfArray`, `$map`, `$reverseArray`, `$size`, `$slice`
 - Boolean: `$and`, `$or`, `$not`
@@ -230,18 +264,21 @@ import Modash from './src/index.ts';
 - Set: `$allElementsTrue`, `$anyElementTrue`, `$setDifference`, `$setEquals`, `$setIntersection`, `$setIsSubset`, `$setUnion`
 
 ### Accumulator Operators (in $group)
+
 - `$sum`, `$avg`, `$min`, `$max`, `$first`, `$last`, `$push`, `$addToSet`
 
 ## Common Tasks & Workflows
 
 ### Adding New Operators
+
 1. Add operator logic to `src/modash/operators.ts`
 2. Update type definitions in `src/index.ts`
 3. Add comprehensive tests in `tests/`
 4. **MANDATORY**: Run full validation suite including performance tests
 5. Update documentation if needed
 
-### Adding Pipeline Stages  
+### Adding Pipeline Stages
+
 1. Implement in `src/modash/aggregation.ts`
 2. Add to pipeline processor
 3. Update type definitions
@@ -249,6 +286,7 @@ import Modash from './src/index.ts';
 5. **MANDATORY**: Run performance benchmarks
 
 ### Debugging & Development
+
 - Use `npm run test:watch` for test-driven development
 - Console.log intermediate pipeline results for debugging
 - Check MongoDB docs for expected operator behavior
@@ -257,7 +295,7 @@ import Modash from './src/index.ts';
 ## Key Files to Understand
 
 1. **src/index.ts**: Main exports and TypeScript type definitions
-2. **src/modash/index.ts**: Core `aggregate()` implementation  
+2. **src/modash/index.ts**: Core `aggregate()` implementation
 3. **src/modash/aggregation.ts**: Pipeline stage handlers ($match, $project, $group, etc.)
 4. **src/modash/operators.ts**: Expression operators ($add, $concat, $multiply, etc.)
 5. **src/modash/expressions.ts**: Expression evaluation engine
@@ -274,10 +312,12 @@ npm install                 # ~11s - Install all dependencies
 
 # Testing & Validation (NEVER CANCEL)
 npm test                   # ~1.4s - All tests + performance benchmarks
-npm run test:units         # ~1s   - Unit tests only  
+npm run test:units         # ~1s   - Unit tests only
 npm run test:performance   # ~1.4s - Performance benchmarks only
 npm run test:coverage      # ~1s   - Tests with coverage report
 npm run test:watch         # Continuous testing mode
+npm run test:fast          # Fast tests only (excludes slow 1M+ record tests)
+npm run precommit:check    # Pre-commit validation suite (lint + format + typecheck + fast tests)
 
 # Code Quality
 npm run lint              # ~2.3s - ESLint validation
@@ -297,11 +337,13 @@ npm run test:performance  # Critical performance tracking - NEVER CANCEL
 ## Troubleshooting
 
 ### Known Issues
+
 - **TypeScript strict checking**: `npm run typecheck` has 72 type errors but runtime execution works perfectly
 - **Examples directory**: Import paths may be incorrect in example files
 - **Performance tracking**: Never cancel performance tests - they maintain historical data
 
 ### Solutions
+
 - **For TypeScript execution**: Always use `npx tsx` not `node`
 - **For imports**: Use `import Modash from './src/index.ts'` for local development
 - **For performance**: Always wait for benchmarks to complete, never cancel
