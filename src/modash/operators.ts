@@ -20,6 +20,12 @@ import type { Expression } from '../index';
  * Modern MongoDB Expression Operators for TypeScript
  */
 
+// Helper function to handle floating point precision issues
+function roundFloatingPoint(value: number): number {
+  // Round to 12 decimal places to handle JavaScript floating point precision
+  return Math.round(value * 1e12) / 1e12;
+}
+
 type EvaluatableValue = (() => DocumentValue) | DocumentValue;
 
 // Type for values that can be compared (excluding arrays for comparison operations)
@@ -241,13 +247,15 @@ function $subtract(
 }
 
 function $multiply(...values: EvaluatableValue[]): number {
-  return values
+  const result = values
     .map(evaluate)
     .reduce((product: number, n) => product * (n as number), 1);
+  return roundFloatingPoint(result);
 }
 
 function $divide(value1: EvaluatableValue, value2: EvaluatableValue): number {
-  return (evaluate(value1) as number) / (evaluate(value2) as number);
+  const result = (evaluate(value1) as number) / (evaluate(value2) as number);
+  return roundFloatingPoint(result);
 }
 
 function $mod(value1: EvaluatableValue, value2: EvaluatableValue): number {

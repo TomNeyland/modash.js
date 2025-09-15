@@ -23,6 +23,7 @@ export class SoAAccumulator {
   private static readonly TYPE_STRING = 1;
   private static readonly TYPE_OBJECT = 2;
   private static readonly TYPE_NULL = 3;
+  private static readonly TYPE_UNDEFINED = 4;
 
   private size = 0;
   private capacity: number;

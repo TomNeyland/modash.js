@@ -42,6 +42,11 @@ export class TopKHeap {
    * Add document to heap, maintaining top-K property
    */
   add(document: Document, originalIndex: number): void {
+    // Handle k=0 case - don't add anything
+    if (this.k === 0) {
+      return;
+    }
+
     const sortKey = this.extractSortKey(document);
     const item: HeapItem = { document, sortKey, originalIndex };
 
@@ -76,11 +81,9 @@ export class TopKHeap {
     // Extract all items and sort them properly
     const items = this.heap.slice();
 
-    // Sort the heap items to get final order
-    items.sort((a, b) => {
-      const comparison = this.compareItems(a, b);
-      return this.isMinHeap ? -comparison : comparison;
-    });
+    // Sort the heap items to get final order using compareItems
+    // compareItems already handles the sort order correctly
+    items.sort((a, b) => this.compareItems(a, b));
 
     return items.map(item => item.document);
   }
@@ -175,11 +178,15 @@ export class TopKHeap {
     if (this.heap.length === 0) return true;
 
     const rootItem = this.heap[0];
-    const comparison = this.compareItems(newItem, rootItem);
-
-    // For min-heap (getting largest items), replace if new item is larger
-    // For max-heap (getting smallest items), replace if new item is smaller
-    return this.isMinHeap ? comparison > 0 : comparison < 0;
+    
+    // Compare using raw values, not the sorted comparison
+    // For min-heap (descending sort), replace if new item > root
+    // For max-heap (ascending sort), replace if new item < root
+    const newVal = newItem.sortKey[0];
+    const rootVal = rootItem.sortKey[0];
+    const rawComparison = this.compareValues(newVal, rootVal);
+    
+    return this.isMinHeap ? rawComparison > 0 : rawComparison < 0;
   }
 
   /**
@@ -189,9 +196,15 @@ export class TopKHeap {
     if (index === 0) return;
 
     const parentIndex = Math.floor((index - 1) / 2);
+    
+    // Use raw comparison for heap property maintenance
+    const childVal = this.heap[index].sortKey[0];
+    const parentVal = this.heap[parentIndex].sortKey[0];
+    const rawComparison = this.compareValues(childVal, parentVal);
+    
     const shouldSwap = this.isMinHeap
-      ? this.compareItems(this.heap[index], this.heap[parentIndex]) < 0
-      : this.compareItems(this.heap[index], this.heap[parentIndex]) > 0;
+      ? rawComparison < 0  // Min-heap: child < parent
+      : rawComparison > 0; // Max-heap: child > parent
 
     if (shouldSwap) {
       this.swap(index, parentIndex);
@@ -207,11 +220,15 @@ export class TopKHeap {
     const rightChild = 2 * index + 2;
     let targetIndex = index;
 
-    // Find the appropriate child to swap with
+    // Find the appropriate child to swap with using raw comparison
     if (leftChild < this.heap.length) {
+      const parentVal = this.heap[targetIndex].sortKey[0];
+      const leftVal = this.heap[leftChild].sortKey[0];
+      const rawComparison = this.compareValues(leftVal, parentVal);
+      
       const shouldPreferLeft = this.isMinHeap
-        ? this.compareItems(this.heap[leftChild], this.heap[targetIndex]) < 0
-        : this.compareItems(this.heap[leftChild], this.heap[targetIndex]) > 0;
+        ? rawComparison < 0  // Min-heap: prefer smaller child
+        : rawComparison > 0; // Max-heap: prefer larger child
 
       if (shouldPreferLeft) {
         targetIndex = leftChild;
@@ -219,9 +236,13 @@ export class TopKHeap {
     }
 
     if (rightChild < this.heap.length) {
+      const currentVal = this.heap[targetIndex].sortKey[0];
+      const rightVal = this.heap[rightChild].sortKey[0];
+      const rawComparison = this.compareValues(rightVal, currentVal);
+      
       const shouldPreferRight = this.isMinHeap
-        ? this.compareItems(this.heap[rightChild], this.heap[targetIndex]) < 0
-        : this.compareItems(this.heap[rightChild], this.heap[targetIndex]) > 0;
+        ? rawComparison < 0  // Min-heap: prefer smaller child
+        : rawComparison > 0; // Max-heap: prefer larger child
 
       if (shouldPreferRight) {
         targetIndex = rightChild;
