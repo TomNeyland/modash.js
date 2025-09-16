@@ -12,6 +12,7 @@ import type {
   IVMOperatorFactory,
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
+import type { AccumulatorExpression, Expression } from '../index';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl';
 import { optimizedSortLimit } from './topk-heap';
 import { getPhysicalDocument, isPhysicalRowId } from './store-utils';
@@ -240,10 +241,10 @@ export class GroupOperator implements IVMOperator {
     }
 
     // Add document to group
-    const accumulators: any = {};
+    const accumulators: Record<string, AccumulatorExpression | Expression> = {};
     for (const [field, expr] of Object.entries(this.groupExpr)) {
       if (field !== '_id') {
-        accumulators[field] = expr;
+        accumulators[field] = expr as AccumulatorExpression | Expression;
       }
     }
 
@@ -280,10 +281,10 @@ export class GroupOperator implements IVMOperator {
     if (groupsMap) {
       const groupState = groupsMap.get(groupKeyStr);
       if (groupState) {
-        const accumulators: any = {};
+        const accumulators: Record<string, AccumulatorExpression | Expression> = {};
         for (const [field, expr] of Object.entries(this.groupExpr)) {
           if (field !== '_id') {
-            accumulators[field] = expr;
+            accumulators[field] = expr as AccumulatorExpression | Expression;
           }
         }
 
