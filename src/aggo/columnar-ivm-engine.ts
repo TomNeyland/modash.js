@@ -537,9 +537,10 @@ export class ColumnarIvmEngine {
     return batch;
   }
 
-  private compilePipeline(
-    pipeline: any[]
-  ): { operators: ColumnarOperator[]; compiledCount: number } {
+  private compilePipeline(pipeline: any[]): {
+    operators: ColumnarOperator[];
+    compiledCount: number;
+  } {
     const operators: ColumnarOperator[] = [];
     let compiledCount = 0;
 

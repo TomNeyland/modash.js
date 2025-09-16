@@ -642,7 +642,9 @@ export class ColumnarLimitOperator extends BaseColumnarOperator {
   push(batch: ColumnarBatch): OperatorResult {
     const start = performance.now();
     const inputSel = batch.getSelection();
-    const outSel = new SelectionVector(Math.min(inputSel.length, this.remaining));
+    const outSel = new SelectionVector(
+      Math.min(inputSel.length, this.remaining)
+    );
 
     const take = Math.min(this.remaining, inputSel.length);
     for (let i = 0; i < take; i++) {

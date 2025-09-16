@@ -5,10 +5,12 @@
 This document lists the supported environment variables (“engine flags”), what they do, their defaults, and where they’re observed in the codebase. These flags are intended for local testing, diagnostics, and controlled enablement of in‑progress features.
 
 How to set flags
+
 - Unix/macOS: `FLAG=VALUE node your-script.js`
 - Cross‑platform (npm scripts): use the provided scripts in `package.json` or a tool like `cross-env` when needed.
 
 Conventions
+
 - Boolean flags generally use `'1'` or `'0'`, or the literal string `'true'` for some older debug switches.
 - Unless specified, unspecified flags take their default behavior.
 
@@ -123,7 +125,7 @@ Conventions
   - Note: Execution may still fall back until HashGroupExec is implemented.
 
 ## Notes
+
 - Flags are intentionally conservative by default. Columnar `$group` is gated off until the hash aggregation kernel and accumulator coverage are finalized.
 - `$sort` remains fallback unless fused with `$limit` to a Top‑K operator (Phase 10 deliverable).
 - Debug flags can affect performance; avoid enabling in benchmarks unless specifically testing diagnostics.
-

@@ -22,7 +22,12 @@ export interface PipelineExplanation {
     index: number;
     stage: string;
     operator: string;
-    reasonCode?: 'NOT_IMPLEMENTED' | 'FEATURE_OFF' | 'UNSUPPORTED_ACCUM' | 'UNSUPPORTED_KEY_TYPE' | 'CAPACITY';
+    reasonCode?:
+      | 'NOT_IMPLEMENTED'
+      | 'FEATURE_OFF'
+      | 'UNSUPPORTED_ACCUM'
+      | 'UNSUPPORTED_KEY_TYPE'
+      | 'CAPACITY';
   }>;
 }
 
@@ -149,7 +154,9 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
 
     // Physical operator mapping (best-effort without running planner)
     let operator = `Fallback${stageName.substring(1)}`;
-    let reason: PipelineExplanation['physicalPlan'][number]['reasonCode'] | undefined = 'NOT_IMPLEMENTED';
+    let reason:
+      | PipelineExplanation['physicalPlan'][number]['reasonCode']
+      | undefined = 'NOT_IMPLEMENTED';
     switch (stageName) {
       case '$match':
         operator = 'ColumnarMatchExec';
@@ -194,7 +201,12 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
       default:
         break;
     }
-    physicalPlan!.push({ index, stage: stageName, operator, reasonCode: reason });
+    physicalPlan!.push({
+      index,
+      stage: stageName,
+      operator,
+      reasonCode: reason,
+    });
 
     // Update global flags based on stage analysis
     // Only certain stages break hot path eligibility (like complex operations)
