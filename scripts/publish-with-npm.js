@@ -5,7 +5,7 @@
  * This works around the issue where changesets detects pnpm from lockfile
  */
 
-const { execSync } = require('child_process');
+import { execSync } from 'child_process';
 
 // Set environment to force npm usage
 process.env.npm_config_user_agent = 'npm/10.0.0 node/v20.0.0 linux x64';
