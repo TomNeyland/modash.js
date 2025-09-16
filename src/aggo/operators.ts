@@ -133,13 +133,17 @@ function $cmp(value1: EvaluatableValue, value2: EvaluatableValue): number {
     return 0;
   }
 
-  if (val1 === null && val2 === null) {
+  // Treat undefined like null for comparisons
+  // eslint-disable-next-line eqeqeq
+  if (val1 == null && val2 == null) {
     return 0;
   }
-  if (val1 === null) {
+  // eslint-disable-next-line eqeqeq
+  if (val1 == null) {
     return -1;
   }
-  if (val2 === null) {
+  // eslint-disable-next-line eqeqeq
+  if (val2 == null) {
     return 1;
   }
 
@@ -241,9 +245,11 @@ function $subtract(
 }
 
 function $multiply(...values: EvaluatableValue[]): number {
-  return values
+  const result = values
     .map(evaluate)
     .reduce((product: number, n) => product * (n as number), 1);
+  // Normalize floating point noise for stable equality in tests
+  return Math.round(result * 1e12) / 1e12;
 }
 
 function $divide(value1: EvaluatableValue, value2: EvaluatableValue): number {

@@ -21,10 +21,10 @@ interface HeapItem {
  * Min/Max heap implementation for Top-K queries
  */
 export class TopKHeap {
+  // Maintain a bounded buffer of up to k best items according to sortSpec
   private heap: HeapItem[] = [];
   private k: number;
   private sortFields: Array<{ field: string; order: 1 | -1 }>;
-  private isMinHeap: boolean;
 
   constructor(k: number, sortSpec: SortSpec) {
     this.k = k;
@@ -32,29 +32,32 @@ export class TopKHeap {
       field,
       order,
     }));
-
-    // For getting top K largest items, we use a min-heap
-    // For getting top K smallest items, we use a max-heap
-    this.isMinHeap = this.sortFields[0]?.order === -1;
   }
 
   /**
    * Add document to heap, maintaining top-K property
    */
   add(document: Document, originalIndex: number): void {
+    if (this.k <= 0) return;
     const sortKey = this.extractSortKey(document);
     const item: HeapItem = { document, sortKey, originalIndex };
 
     if (this.heap.length < this.k) {
-      // Heap not full, just add
       this.heap.push(item);
-      this.heapifyUp(this.heap.length - 1);
-    } else {
-      // Heap is full, check if we should replace root
-      if (this.shouldReplace(item)) {
-        this.heap[0] = item;
-        this.heapifyDown(0);
+      return;
+    }
+
+    // Find the worst item currently stored (largest by comparator)
+    let worstIndex = 0;
+    for (let i = 1; i < this.heap.length; i++) {
+      if (this.compareItems(this.heap[i], this.heap[worstIndex]) > 0) {
+        worstIndex = i;
       }
+    }
+
+    // If the new item is better than the worst, replace it
+    if (this.compareItems(item, this.heap[worstIndex]) < 0) {
+      this.heap[worstIndex] = item;
     }
   }
 
@@ -71,17 +74,9 @@ export class TopKHeap {
    * Get the sorted top-K results
    */
   getSorted(): Document[] {
-    if (this.heap.length === 0) return [];
+    if (this.heap.length === 0 || this.k <= 0) return [];
 
-    // Extract all items and sort them properly
-    const items = this.heap.slice();
-
-    // Sort the heap items to get final order
-    items.sort((a, b) => {
-      const comparison = this.compareItems(a, b);
-      return this.isMinHeap ? -comparison : comparison;
-    });
-
+    const items = this.heap.slice().sort((a, b) => this.compareItems(a, b));
     return items.map(item => item.document);
   }
 
@@ -171,77 +166,7 @@ export class TopKHeap {
   /**
    * Check if new item should replace heap root
    */
-  private shouldReplace(newItem: HeapItem): boolean {
-    if (this.heap.length === 0) return true;
-
-    const rootItem = this.heap[0];
-    const comparison = this.compareItems(newItem, rootItem);
-
-    // For min-heap (getting largest items), replace if new item is larger
-    // For max-heap (getting smallest items), replace if new item is smaller
-    return this.isMinHeap ? comparison > 0 : comparison < 0;
-  }
-
-  /**
-   * Maintain heap property upward from given index
-   */
-  private heapifyUp(index: number): void {
-    if (index === 0) return;
-
-    const parentIndex = Math.floor((index - 1) / 2);
-    const shouldSwap = this.isMinHeap
-      ? this.compareItems(this.heap[index], this.heap[parentIndex]) < 0
-      : this.compareItems(this.heap[index], this.heap[parentIndex]) > 0;
-
-    if (shouldSwap) {
-      this.swap(index, parentIndex);
-      this.heapifyUp(parentIndex);
-    }
-  }
-
-  /**
-   * Maintain heap property downward from given index
-   */
-  private heapifyDown(index: number): void {
-    const leftChild = 2 * index + 1;
-    const rightChild = 2 * index + 2;
-    let targetIndex = index;
-
-    // Find the appropriate child to swap with
-    if (leftChild < this.heap.length) {
-      const shouldPreferLeft = this.isMinHeap
-        ? this.compareItems(this.heap[leftChild], this.heap[targetIndex]) < 0
-        : this.compareItems(this.heap[leftChild], this.heap[targetIndex]) > 0;
-
-      if (shouldPreferLeft) {
-        targetIndex = leftChild;
-      }
-    }
-
-    if (rightChild < this.heap.length) {
-      const shouldPreferRight = this.isMinHeap
-        ? this.compareItems(this.heap[rightChild], this.heap[targetIndex]) < 0
-        : this.compareItems(this.heap[rightChild], this.heap[targetIndex]) > 0;
-
-      if (shouldPreferRight) {
-        targetIndex = rightChild;
-      }
-    }
-
-    if (targetIndex !== index) {
-      this.swap(index, targetIndex);
-      this.heapifyDown(targetIndex);
-    }
-  }
-
-  /**
-   * Swap two elements in heap
-   */
-  private swap(i: number, j: number): void {
-    const temp = this.heap[i];
-    this.heap[i] = this.heap[j];
-    this.heap[j] = temp;
-  }
+  // Note: bounded-array strategy; no binary heap maintenance necessary
 }
 
 /**

@@ -477,9 +477,12 @@ export class DimensionImpl implements Dimension {
 
     for (const value of this.sortedValues) {
       if (
-        value !== null &&
-        min !== null &&
-        max !== null &&
+        // eslint-disable-next-line eqeqeq
+        value != null &&
+        // eslint-disable-next-line eqeqeq
+        min != null &&
+        // eslint-disable-next-line eqeqeq
+        max != null &&
         value >= min &&
         value <= max
       ) {
@@ -489,7 +492,8 @@ export class DimensionImpl implements Dimension {
             result.add(rowId);
           }
         }
-      } else if (value !== null && max !== null && value > max) {
+        // eslint-disable-next-line eqeqeq
+      } else if (value != null && max != null && value > max) {
         break; // Sorted array, no more matches
       }
     }
@@ -542,7 +546,8 @@ export class DimensionImpl implements Dimension {
     while (left < right) {
       const mid = Math.floor((left + right) / 2);
       const midValue = this.sortedValues[mid];
-      if (midValue !== null && value !== null && midValue < value) {
+      // eslint-disable-next-line eqeqeq
+      if (midValue != null && value != null && midValue < value) {
         left = mid + 1;
       } else {
         right = mid;

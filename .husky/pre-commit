@@ -19,9 +19,13 @@ handle_error() {
   exit 1
 }
 
-# Run lint-staged first (fixes and formats staged files)
-echo "📝 Running lint-staged..."
-npx lint-staged || handle_error "lint-staged failed"
+# Run linting on all files (no stashing)
+echo "📝 Running linting with auto-fix..."
+npm run lint:fix || handle_error "ESLint failed"
+
+# Run prettier on all files
+echo "🎨 Running formatter..."
+npm run format || handle_error "Prettier failed"
 
 # Run typecheck
 echo "🔧 Running typecheck..."

@@ -6,10 +6,7 @@
 
 import { expect } from 'chai';
 import Modash from '../src/aggo/index.js';
-import {
-  getFallbackCount,
-  resetFallbackTracking,
-} from '../src/aggo/debug.js';
+import { getFallbackCount, resetFallbackTracking } from '../src/aggo/debug.js';
 
 describe('IVM Regression Tests', () => {
   beforeEach(() => {

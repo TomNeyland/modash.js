@@ -13,6 +13,7 @@ import type {
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
 import { DimensionImpl, GroupStateImpl } from './crossfilter-impl';
+import { optimizedSortLimit } from './topk-heap';
 import { getPhysicalDocument, isPhysicalRowId } from './store-utils';
 import { ExpressionCompilerImpl } from './crossfilter-compiler';
 import {
@@ -491,12 +492,26 @@ export class OptimizedSortOperator implements IVMOperator {
       }
     }
 
-    // Use Top-K heap optimization when beneficial
-    if (this.useTopKHeap && this.limit && docsWithIds.length > 1000) {
-      // TODO: Use optimizedSortLimit for better performance
-      // For now, fallback to regular sort with limit
-      docsWithIds.sort((a, b) => this.compareDocuments(a.doc, b.doc));
-      return docsWithIds.slice(0, this.limit).map(item => item.rowId);
+    // Use Top-K optimization when a limit is present
+    if (this.limit && docsWithIds.length > 0) {
+      const docToRowId = new Map<Document, RowId>();
+      const docs: Document[] = new Array(docsWithIds.length);
+      for (let i = 0; i < docsWithIds.length; i++) {
+        const { doc, rowId } = docsWithIds[i];
+        docs[i] = doc;
+        docToRowId.set(doc, rowId);
+      }
+      const topDocs = optimizedSortLimit(
+        docs,
+        this.sortExpr as any,
+        this.limit
+      );
+      const out: RowId[] = new Array(topDocs.length);
+      for (let i = 0; i < topDocs.length; i++) {
+        const rid = docToRowId.get(topDocs[i]);
+        if (rid !== undefined) out[i] = rid;
+      }
+      return out;
     }
 
     // Regular sort

@@ -484,9 +484,6 @@ export {
 // Phase 3.5: Export enhanced search types
 export type { TextSearchStats, TextSearchConfig } from './aggo/text-search';
 
-export type {
-  RegexSearchStats,
-  RegexSearchConfig,
-} from './aggo/regex-search';
+export type { RegexSearchStats, RegexSearchConfig } from './aggo/regex-search';
 
 export type { BloomFilterStats } from './aggo/bloom-filter';

@@ -23,6 +23,7 @@ export class SoAAccumulator {
   private static readonly TYPE_STRING = 1;
   private static readonly TYPE_OBJECT = 2;
   private static readonly TYPE_NULL = 3;
+  private static readonly TYPE_UNDEFINED = 4;
 
   private size = 0;
   private capacity: number;
@@ -51,8 +52,10 @@ export class SoAAccumulator {
     } else if (typeof value === 'string') {
       this.strings[index] = value;
       this.masks[index] = SoAAccumulator.TYPE_STRING;
-    } else if (value === null || value === undefined) {
+    } else if (value === null) {
       this.masks[index] = SoAAccumulator.TYPE_NULL;
+    } else if (value === undefined) {
+      this.masks[index] = SoAAccumulator.TYPE_UNDEFINED;
     } else {
       this.objects[index] = value;
       this.masks[index] = SoAAccumulator.TYPE_OBJECT;
@@ -159,6 +162,8 @@ export class SoAAccumulator {
         return this.strings[0];
       case SoAAccumulator.TYPE_OBJECT:
         return this.objects[0];
+      case SoAAccumulator.TYPE_UNDEFINED:
+        return undefined;
       default:
         return null;
     }
@@ -179,6 +184,8 @@ export class SoAAccumulator {
         return this.strings[index];
       case SoAAccumulator.TYPE_OBJECT:
         return this.objects[index];
+      case SoAAccumulator.TYPE_UNDEFINED:
+        return undefined;
       default:
         return null;
     }
@@ -201,6 +208,10 @@ export class SoAAccumulator {
           break;
         case SoAAccumulator.TYPE_OBJECT:
           result.push(this.objects[i]);
+          break;
+        case SoAAccumulator.TYPE_UNDEFINED:
+          // Preserve explicit undefined values in $push semantics
+          result.push(undefined);
           break;
         default:
           result.push(null);

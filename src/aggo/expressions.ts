@@ -5,7 +5,13 @@ import EXPRESSION_OPERATORS, { set$expression } from './operators';
 
 // Basic value types that can appear in documents
 // Basic value types
-export type PrimitiveValue = string | number | boolean | Date | null;
+export type PrimitiveValue =
+  | string
+  | number
+  | boolean
+  | Date
+  | null
+  | undefined;
 export type DocumentValue =
   | PrimitiveValue
   | Document

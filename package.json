@@ -46,15 +46,6 @@
   "engines": {
     "node": ">=18"
   },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
-  },
   "scripts": {
     "test": "npm run test:units && npm run test:performance",
     "test:fast": "mocha --import=tsx/esm --exit tests/*.spec.js",
@@ -133,7 +124,6 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.6",
     "mocha": "^10.8.2",
     "nyc": "^17.1.0",
     "prettier": "^3.3.3",

@@ -133,7 +133,37 @@ function $push(
   collection: Collection,
   spec: Expression
 ): ReadonlyArray<DocumentValue> {
-  // C) $$ROOT resolution: Pass each obj as both current document and root
+  // $$ROOT fast path: return the original documents
+  if (spec === '$$ROOT') {
+    return collection as ReadonlyArray<DocumentValue>;
+  }
+
+  // Preserve explicit undefined vs missing for field paths
+  if (typeof spec === 'string' && spec.startsWith('$')) {
+    const path = spec.slice(1);
+    if (!path.includes('.')) {
+      return collection.map(obj =>
+        Object.prototype.hasOwnProperty.call(obj as any, path)
+          ? (obj as any)[path]
+          : null
+      );
+    } else {
+      const segments = path.split('.');
+      return collection.map(obj => {
+        let cur: any = obj;
+        for (const seg of segments) {
+          if (cur && typeof cur === 'object' && seg in cur) {
+            cur = cur[seg];
+          } else {
+            return null; // missing path → null
+          }
+        }
+        return cur; // may be undefined explicitly
+      });
+    }
+  }
+
+  // General expression
   return collection.map(obj => $expression(obj, spec, obj));
 }
 
