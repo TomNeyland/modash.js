@@ -226,6 +226,68 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
           return result;
         };
       }
+
+      // Handle field with comparison operators: { field: { $lt: value } }
+      if (keys.length === 1 && typeof expression[keys[0]] === 'object') {
+        const field = keys[0];
+        const condition = expression[field];
+        
+        if (condition && typeof condition === 'object') {
+          const operators = Object.keys(condition);
+          
+          // Handle single comparison operator
+          if (operators.length === 1) {
+            const op = operators[0];
+            const value = condition[op];
+            
+            return (batch: ColumnarBatch, selection: SelectionVector) => {
+              const result = new SelectionVector(batch.batchSize);
+              const vector = batch.getVector(field);
+              
+              if (vector) {
+                for (let i = 0; i < selection.length; i++) {
+                  const rowId = selection.get(i);
+                  const docValue = vector.get(rowId);
+                  
+                  let matches = false;
+                  switch (op) {
+                    case '$eq':
+                      matches = docValue === value;
+                      break;
+                    case '$ne':
+                      matches = docValue !== value;
+                      break;
+                    case '$lt':
+                      matches = docValue != null && docValue < value;
+                      break;
+                    case '$lte':
+                      matches = docValue != null && docValue <= value;
+                      break;
+                    case '$gt':
+                      matches = docValue != null && docValue > value;
+                      break;
+                    case '$gte':
+                      matches = docValue != null && docValue >= value;
+                      break;
+                    case '$in':
+                      matches = Array.isArray(value) && value.includes(docValue);
+                      break;
+                    case '$nin':
+                      matches = Array.isArray(value) && !value.includes(docValue);
+                      break;
+                  }
+                  
+                  if (matches) {
+                    result.push(rowId);
+                  }
+                }
+              }
+              
+              return result;
+            };
+          }
+        }
+      }
     }
 
     return undefined; // Fall back to row-by-row
