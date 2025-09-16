@@ -4,7 +4,7 @@
  */
 
 import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type { Pipeline } from 'aggo';
 import type { SimplifiedSchema } from './schema-inference.js';
 import { NL2QueryAndUI, type NL2QueryAndUIType } from './schemas.js';
@@ -101,9 +101,9 @@ export class OpenAIClient {
     const prompt = this.buildStructuredPrompt(query, schema, sampleDocuments, options.includeExplanation);
 
     try {
-      const completion = await this.client.chat.completions.create({
+      const response = await this.client.responses.parse({
         model: this.model,
-        messages: [
+        input: [
           {
             role: 'system',
             content: this.getStructuredSystemPrompt(),
@@ -113,17 +113,12 @@ export class OpenAIClient {
             content: prompt,
           },
         ],
-        max_tokens: this.maxTokens * 2, // More tokens for structured output
-        temperature: this.temperature,
-        response_format: zodResponseFormat(NL2QueryAndUI, 'spec'),
+        text: {
+          format: zodTextFormat(NL2QueryAndUI, 'spec'),
+        },
       });
 
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error('No response from OpenAI');
-      }
-
-      const result: NL2QueryAndUIType = JSON.parse(response);
+      const result = response.output_parsed;
 
       return {
         pipeline: result.query_plan.pipeline || [],
@@ -131,9 +126,9 @@ export class OpenAIClient {
         presentationSpec: result.presentation_spec,
         intent: result.intent,
         tokensUsed: {
-          prompt: completion.usage?.prompt_tokens || 0,
-          completion: completion.usage?.completion_tokens || 0,
-          total: completion.usage?.total_tokens || 0,
+          prompt: response.usage?.prompt_tokens || 0,
+          completion: response.usage?.completion_tokens || 0,
+          total: response.usage?.total_tokens || 0,
         },
       };
     } catch (error) {
