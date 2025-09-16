@@ -148,10 +148,15 @@ export async function aiQuery(
     });
 
     // Parse the JSONL output back to array
-    results = output
+    const rawResults = output
       .split('\n')
       .filter(line => line.trim())
       .map(line => JSON.parse(line));
+
+    // Deduplicate results (aggo CLI bug workaround)
+    results = Array.from(
+      new Map(rawResults.map(item => [JSON.stringify(item), item])).values()
+    );
   } catch (error) {
     throw new Error(`Aggo execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

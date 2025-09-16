@@ -333,7 +333,12 @@ async function executeAIQueryWithUI(
           .filter(line => line.trim())
           .map(line => JSON.parse(line));
 
-        return results;
+        // Deduplicate results (aggo CLI bug workaround)
+        const uniqueResults = Array.from(
+          new Map(results.map(item => [JSON.stringify(item), item])).values()
+        );
+
+        return uniqueResults;
       } catch (error) {
         if (error instanceof Error) {
           throw new Error(`Aggo execution failed: ${error.message}`);
