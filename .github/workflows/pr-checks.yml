@@ -43,14 +43,14 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Check formatting
         run: |
@@ -67,14 +67,14 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Run ESLint
         run: |
@@ -94,14 +94,14 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Validate TypeScript sources
         run: |
@@ -116,14 +116,14 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Run tests with coverage
         run: pnpm run test:coverage
