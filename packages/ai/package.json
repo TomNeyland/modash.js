@@ -1,5 +1,5 @@
 {
-  "name": "@aggo/plugin-ai",
+  "name": "aggo-ai",
   "version": "0.1.0",
   "description": "AI plugin for aggo.js - Natural language to MongoDB pipeline conversion using OpenAI",
   "type": "module",

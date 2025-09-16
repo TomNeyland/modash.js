@@ -15,7 +15,7 @@ This report documents all test failures found across the aggo.js test suite. Tes
 | issue-41-regression.spec.js    | ✅     | 0        | 3           | 100%      |
 | ivm-context-chaining.spec.js   | ✅     | 0        | 6           | 100%      |
 | ivm-regression.spec.js         | ✅     | 0        | 8           | 100%      |
-| aggo.spec.js                 | ✅     | 0        | 5           | 100%      |
+| aggo.spec.js                   | ✅     | 0        | 5           | 100%      |
 | new-operators.spec.js          | ✅     | 0        | 9           | 100%      |
 | operators.spec.js              | ✅     | 0        | 26          | 100%      |
 | phase3-optimization.spec.js    | ❌     | 1        | 10          | 90%       |
