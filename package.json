@@ -1,5 +1,5 @@
 {
-  "name": "modash",
+  "name": "aggo",
   "version": "0.8.1",
   "description": "Modern MongoDB-inspired aggregation library for JavaScript",
   "type": "module",
@@ -11,7 +11,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "modash": "dist/cli.js"
+    "aggo": "dist/cli.js"
   },
   "exports": {
     ".": {
