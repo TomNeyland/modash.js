@@ -1,5 +1,6 @@
 {
   "name": "aggo",
+  "private": true,
   "version": "0.8.1",
   "description": "Modern MongoDB-inspired aggregation library for JavaScript",
   "type": "module",
@@ -40,9 +41,7 @@
     "LICENSE",
     "CHANGELOG.md"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
+  
   "engines": {
     "node": ">=18"
   },

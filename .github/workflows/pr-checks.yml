@@ -46,11 +46,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Check formatting
         run: |
-          if ! npm run format:check; then
+          if ! pnpm run format:check; then
             echo "::error::Code formatting issues detected. Run 'npm run format' to fix them."
             exit 1
           fi
@@ -66,12 +70,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Run ESLint
         run: |
-          npm run lint -- --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
-          npm run lint
+          pnpm run lint -- --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif || true
+          pnpm run lint
       - name: Upload SARIF file
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -89,8 +97,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Validate TypeScript sources
         run: |
           echo "TypeScript-native project - source files are ready for direct usage"
@@ -107,10 +119,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Run tests with coverage
-        run: npm run test:coverage
+        run: pnpm run test:coverage
       - name: Coverage Comment
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
@@ -128,11 +144,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Run performance benchmark
         run: |
-          node --import=tsx/esm -e "
+          pnpm exec node --import=tsx/esm -e "
           import('./tests/test-data.js').then(testData => {
             import('./src/index.ts').then(Aggo => {
               const startTime = process.hrtime.bigint();
@@ -169,11 +189,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
       - name: Validate TypeScript source exports
         run: |
-          node --import=tsx/esm -e "
+          pnpm exec node --import=tsx/esm -e "
           import('./src/index.ts').then(src => {
             console.log('Source exports:', Object.keys(src));
             console.log('Validation passed: TypeScript source exports are available');
