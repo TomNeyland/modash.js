@@ -3,36 +3,47 @@
  *
  * Routes simple, high-performance pipelines to zero-allocation engine
  * Falls back to regular aggregation for complex operations
+ *
+ * Phase 9: Now includes columnar IVM engine for vectorized processing
  */
 
 import { ZeroAllocEngine } from './zero-alloc-engine';
+import { ColumnarIvmEngine } from './columnar-ivm-engine';
 import { aggregate as originalAggregate } from './aggregation';
 import type { Collection, Document } from './expressions';
 import type { Pipeline } from '../index';
 import { DEBUG, logPipelineExecution } from './debug';
 
 /**
- * Singleton zero-allocation engine
+ * Singleton engines for different optimization paths
  */
 const zeroAllocEngine = new ZeroAllocEngine();
+const columnarEngine = new ColumnarIvmEngine({
+  batchSize: 1024,
+  enableMicroPath: true,
+});
 
 /**
  * Performance counters
  */
 interface HotPathCounters {
   hotPathHits: number;
+  columnarHits: number;
   fallbacks: number;
   totalOperations: number;
   hotPathThroughput: number;
+  columnarThroughput: number;
   fallbackThroughput: number;
   optimizerRejections: number;
 }
 
 const counters: HotPathCounters = {
   hotPathHits: 0,
+  columnarHits: 0,
   fallbacks: 0,
   totalOperations: 0,
   hotPathThroughput: 0,
+  columnarThroughput: 0,
   fallbackThroughput: 0,
   optimizerRejections: 0,
 };
@@ -510,7 +521,33 @@ function isSimpleExpression(expr: any): boolean {
 }
 
 /**
- * High-performance aggregate function with hot path optimization
+ * Check if pipeline should use columnar processing
+ * Columnar is good for larger datasets and vectorizable operations
+ */
+function shouldUseColumnar(
+  collection: Collection,
+  pipeline: Pipeline
+): boolean {
+  // Use columnar for larger datasets (> 100 rows)
+  if (collection.length <= 100) return false;
+
+  // Check if pipeline contains vectorizable operations
+  const vectorizableOps = ['$match', '$project', '$limit', '$skip'];
+  const hasVectorizableOps = pipeline.some(stage => {
+    const stageType = Object.keys(stage)[0];
+    return vectorizableOps.includes(stageType);
+  });
+
+  return hasVectorizableOps;
+}
+
+/**
+ * High-performance aggregate function with multi-tier optimization
+ *
+ * Phase 9 routing strategy:
+ * 1. Columnar IVM engine for large datasets with vectorizable operations
+ * 2. Zero-alloc engine for medium datasets
+ * 3. Traditional aggregation for complex/unsupported operations
  */
 export function hotPathAggregate<T extends Document = Document>(
   collection: Collection<T>,
@@ -536,9 +573,59 @@ export function hotPathAggregate<T extends Document = Document>(
   const startTime = Date.now();
   let result: Collection<Document>;
 
-  if (canUseHotPath(pipeline)) {
+  // Phase 9: Multi-tier optimization routing
+  if (shouldUseColumnar(collection, pipeline)) {
+    try {
+      // Route to columnar IVM engine for vectorized processing
+      counters.columnarHits++;
+      result = columnarEngine.execute(collection, pipeline);
+
+      const duration = Date.now() - startTime;
+      counters.columnarThroughput =
+        (collection.length / Math.max(duration, 1)) * 1000;
+
+      if (DEBUG) {
+        logPipelineExecution(
+          'COLUMNAR',
+          `✅ Columnar processing completed: ${collection.length} → ${result.length} docs`,
+          {
+            duration,
+            throughput: counters.columnarThroughput,
+            stats: columnarEngine.getStats(),
+          }
+        );
+      }
+    } catch (error) {
+      // Fallback to zero-alloc engine on columnar failure
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.warn(
+        `Columnar engine failed, falling back to zero-alloc: ${errorMessage}`
+      );
+
+      try {
+        counters.hotPathHits++;
+        result = zeroAllocEngine.execute(collection, pipeline);
+
+        const duration = Date.now() - startTime;
+        counters.hotPathThroughput =
+          (collection.length / Math.max(duration, 1)) * 1000;
+      } catch (_secondError) {
+        // Final fallback to traditional aggregation
+        console.warn(
+          `Zero-alloc engine also failed, using traditional aggregation`
+        );
+        counters.fallbacks++;
+        result = originalAggregate(collection, pipeline);
+
+        const duration = Date.now() - startTime;
+        counters.fallbackThroughput =
+          (collection.length / Math.max(duration, 1)) * 1000;
+      }
+    }
+  } else if (canUseHotPath(pipeline)) {
     if (process.env.DEBUG_UNWIND) {
-      console.log('[DEBUG] Using hot path for pipeline:', pipeline);
+      console.log('[DEBUG] Using zero-alloc hot path for pipeline:', pipeline);
     }
     try {
       // Use zero-allocation hot path
