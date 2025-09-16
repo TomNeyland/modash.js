@@ -1,10 +1,13 @@
 /**
  * OpenAI client for converting natural language queries to MongoDB aggregation pipelines
+ * Enhanced with structured outputs for TUI presentation specs
  */
 
 import OpenAI from 'openai';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type { Pipeline } from 'aggo';
 import type { SimplifiedSchema } from './schema-inference.js';
+import { NL2QueryAndUI, type NL2QueryAndUIType } from './schemas.js';
 
 export interface OpenAIOptions {
   /** OpenAI API key */
@@ -22,12 +25,23 @@ export interface PipelineGenerationResult {
   pipeline: Pipeline;
   /** Explanation of the generated pipeline (if requested) */
   explanation?: string;
+  /** TUI presentation specification */
+  presentationSpec?: any;
+  /** Intent description */
+  intent?: string;
   /** Tokens used in the request */
   tokensUsed?: {
     prompt: number;
     completion: number;
     total: number;
   };
+}
+
+export interface TUIGenerationOptions {
+  /** Include TUI presentation spec */
+  includeTUI?: boolean;
+  /** Include explanation of the generated pipeline */
+  includeExplanation?: boolean;
 }
 
 export class OpenAIClient {
@@ -64,7 +78,74 @@ export class OpenAIClient {
     query: string,
     schema: SimplifiedSchema,
     sampleDocuments: any[] = [],
-    options: { includeExplanation?: boolean } = {}
+    options: TUIGenerationOptions = {}
+  ): Promise<PipelineGenerationResult> {
+    // Use structured outputs if TUI is requested
+    if (options.includeTUI) {
+      return this.generateStructuredOutput(query, schema, sampleDocuments, options);
+    }
+
+    // Fallback to legacy generation
+    return this.generateLegacyPipeline(query, schema, sampleDocuments, options);
+  }
+
+  /**
+   * Generates structured output with both pipeline and TUI specification
+   */
+  private async generateStructuredOutput(
+    query: string,
+    schema: SimplifiedSchema,
+    sampleDocuments: any[] = [],
+    options: TUIGenerationOptions = {}
+  ): Promise<PipelineGenerationResult> {
+    const prompt = this.buildStructuredPrompt(query, schema, sampleDocuments, options.includeExplanation);
+
+    try {
+      const response = await this.client.responses.parse({
+        model: this.model,
+        input: [
+          {
+            role: 'system',
+            content: this.getStructuredSystemPrompt(),
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        text: {
+          format: zodTextFormat(NL2QueryAndUI, 'spec'),
+        },
+      });
+
+      const result = response.output_parsed;
+
+      return {
+        pipeline: result.query_plan.pipeline || [],
+        explanation: result.presentation_spec.layout.children.find(c => c.kind === 'json')?.title, // Temporary explanation handling
+        presentationSpec: result.presentation_spec,
+        intent: result.intent,
+        tokensUsed: {
+          prompt: response.usage?.prompt_tokens || 0,
+          completion: response.usage?.completion_tokens || 0,
+          total: response.usage?.total_tokens || 0,
+        },
+      };
+    } catch (error) {
+      // Fallback to legacy if structured output fails
+      console.warn('Structured output failed, falling back to legacy mode:', error);
+      return this.generateLegacyPipeline(query, schema, sampleDocuments, options);
+    }
+  }
+
+  /**
+   * Legacy pipeline generation (original method)
+   */
+  private async generateLegacyPipeline(
+    query: string,
+    schema: SimplifiedSchema,
+    sampleDocuments: any[] = [],
+    options: TUIGenerationOptions = {}
   ): Promise<PipelineGenerationResult> {
     const prompt = this.buildPrompt(
       query,
@@ -113,6 +194,88 @@ export class OpenAIClient {
       }
       throw new Error('Unknown error occurred while generating pipeline');
     }
+  }
+
+  /**
+   * Builds the structured prompt for TUI generation
+   */
+  buildStructuredPrompt(
+    query: string,
+    schema: SimplifiedSchema,
+    sampleDocuments: any[],
+    includeExplanation: boolean = false
+  ): string {
+    const schemaStr = JSON.stringify(schema, null, 2);
+    const samplesStr =
+      sampleDocuments.length > 0
+        ? sampleDocuments.map(doc => JSON.stringify(doc)).join('\n')
+        : 'No sample documents provided';
+
+    return `Convert this natural language query into both a MongoDB aggregation pipeline AND a Terminal UI specification:
+
+QUERY: "${query}"
+
+DATA SCHEMA:
+${schemaStr}
+
+SAMPLE DOCUMENTS:
+${samplesStr}
+
+Your response must be valid JSON matching the NL2QueryAndUI schema with these fields:
+- intent: Brief description of what the query does (e.g., "top_products_by_revenue")
+- query_plan: MongoDB aggregation pipeline specification
+- presentation_spec: Terminal UI layout specification
+
+Guidelines for presentation_spec:
+- Use "table" for relational data (most common)
+- Use "chart.bar" or "chart.line" for visualizations when appropriate
+- Use "metric" for single values or KPIs
+- Set appropriate titles and data bindings
+- Keep layout simple (≤3 panels unless specifically requested)
+- Use JSONPath "$.rows" to bind to pipeline results
+
+Example query result structure after pipeline execution:
+{
+  "rows": [...], // Main query results
+  "meta": {...}, // Metadata like count, execution time
+  "series": {...} // Time series data if applicable
+}
+
+Choose the best widget types based on the data and query intent.`;
+  }
+
+  /**
+   * Gets the structured system prompt for TUI generation
+   */
+  private getStructuredSystemPrompt(): string {
+    return `You are an expert MongoDB aggregation pipeline generator with Terminal UI expertise. 
+
+Your task is to convert natural language queries into:
+1. Valid MongoDB aggregation pipelines
+2. Beautiful Terminal UI presentation specifications
+
+Key guidelines for pipelines:
+- Always return valid MongoDB aggregation syntax
+- Use proper field references with "$fieldName" format
+- Use appropriate operators and accumulators
+- Optimize for performance when possible
+
+Key guidelines for TUI specs:
+- Choose widget types based on data structure and user intent
+- Use "table" for most relational data
+- Use "chart.bar" for categorical comparisons
+- Use "chart.line" for time series or trends  
+- Use "metric" for single KPIs or summary values
+- Set clear titles and proper data bindings
+- Keep layouts simple and readable
+- Use row/column layout as needed
+
+Data binding patterns:
+- "$.rows" - main query results (most common)
+- "$.meta.count" - result count
+- "$.series.*" - time series data
+
+Always return valid JSON matching the NL2QueryAndUI schema structure.`;
   }
 
   /**

@@ -3,6 +3,7 @@
  *
  * Converts natural language queries into MongoDB aggregation pipelines using OpenAI,
  * with automatic schema inference and optimized execution via aggo.
+ * Enhanced with Terminal UI (TUI) capabilities for beautiful data visualization.
  */
 
 import { type Document } from 'aggo';
@@ -32,6 +33,39 @@ export type {
   PipelineGenerationResult,
 } from './openai-client.js';
 export type { Pipeline, Document } from 'aggo';
+
+// Export new TUI types and functions
+export type {
+  QueryPlanType,
+  AggUIType,
+  NL2QueryAndUIType,
+  Widget,
+  WidgetKind,
+  LayoutDirection,
+} from './schemas.js';
+
+export type {
+  AITUIOptions,
+  AITUIResult,
+} from './tui-integration.js';
+
+export {
+  aiTUIQuery,
+  renderAITUI,
+  validateTUIConfig,
+  getAvailableThemes,
+  createDefaultPresentationSpec,
+} from './tui-integration.js';
+
+export { SimpleTUIManager } from './simple-tui.js';
+
+export {
+  evaluateJSONPath,
+  formatValue,
+  applyColorRules,
+  getTerminalCapabilities,
+  createFallbackTable,
+} from './tui-utils.js';
 
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */
