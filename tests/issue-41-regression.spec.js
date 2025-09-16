@@ -1,6 +1,6 @@
 // Regression tests for Issue #41: localeCompare & Streaming Removal fixes
 import { expect } from 'chai';
-import { createStreamingCollection } from '../src/modash/streaming.js';
+import { createStreamingCollection } from '../src/aggo/streaming.js';
 
 describe('Issue #41 Regression Tests', () => {
   describe('localeCompare Error Prevention', () => {

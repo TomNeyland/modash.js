@@ -5,11 +5,11 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/modash/index.js';
+import Modash from '../src/aggo/index.js';
 import {
   getFallbackCount,
   resetFallbackTracking,
-} from '../src/modash/debug.js';
+} from '../src/aggo/debug.js';
 
 describe('IVM Regression Tests', () => {
   beforeEach(() => {

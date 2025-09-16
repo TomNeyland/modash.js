@@ -1,4 +1,4 @@
-import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler';
+import { ExpressionCompilerImpl } from '../../src/aggo/crossfilter-compiler';
 
 const compiler = new ExpressionCompilerImpl();
 

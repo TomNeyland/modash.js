@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
 
 const testDoc = [
   { _id: 1, tags: ['red', 'blue'], name: 'item1' },

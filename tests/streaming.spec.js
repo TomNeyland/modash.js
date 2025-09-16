@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import {
   StreamingCollection,
   createStreamingCollection,
-} from '../src/modash/streaming.js';
+} from '../src/aggo/streaming.js';
 
 describe('Streaming Collection', () => {
   let streamingCollection;

@@ -7,7 +7,7 @@ import {
   isFieldPath,
   isSystemVariable,
   isNonEmptyArray,
-} from '../src/modash/types.ts';
+} from '../src/aggo/types.ts';
 
 describe('TypeScript Utility Types and Functions', function () {
   describe('isFieldPath', function () {

@@ -1,4 +1,4 @@
-import Modash from '../../src/modash/index';
+import Modash from '../../src/aggo/index';
 
 // Test $toUpper and $toLower
 const data = [

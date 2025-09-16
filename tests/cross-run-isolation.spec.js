@@ -16,7 +16,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       // Reset any global engine state if available
       try {
         const ZeroAllocEngine =
-          require('../src/modash/zero-alloc-engine.js').ZeroAllocEngine;
+          require('../src/aggo/zero-alloc-engine.js').ZeroAllocEngine;
         if (ZeroAllocEngine.resetGlobalState) {
           ZeroAllocEngine.resetGlobalState();
         }

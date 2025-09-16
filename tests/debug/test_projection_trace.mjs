@@ -1,4 +1,4 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
 
 // Minimal test to understand the issue
 const testData = [

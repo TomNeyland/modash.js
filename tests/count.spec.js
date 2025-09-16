@@ -1,4 +1,4 @@
-import { count } from '../src/modash/count';
+import { count } from '../src/aggo/count';
 import { expect } from 'chai';
 
 describe('Modash Count', () => {

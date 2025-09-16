@@ -1,6 +1,6 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
-import { GroupOperator } from '../../src/modash/crossfilter-operators';
-import { ExpressionCompilerImpl } from '../../src/modash/crossfilter-compiler';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
+import { GroupOperator } from '../../src/aggo/crossfilter-operators';
+import { ExpressionCompilerImpl } from '../../src/aggo/crossfilter-compiler';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },

@@ -10,7 +10,7 @@ const mapValues = (obj, mapFn) => {
 import { expect } from 'chai';
 import Modash from '../src/index';
 import testData from './test-data.js';
-import { $project } from '../src/modash/aggregation';
+import { $project } from '../src/aggo/aggregation';
 
 let _db;
 

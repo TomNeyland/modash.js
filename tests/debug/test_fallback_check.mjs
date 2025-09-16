@@ -1,5 +1,5 @@
 import Modash from '../../src/index';
-import { resetFallbackTracking, getFallbackCount } from '../../src/modash/debug';
+import { resetFallbackTracking, getFallbackCount } from '../../src/aggo/debug';
 
 const testData = [
   {

@@ -1,5 +1,5 @@
 // Import streaming types for interface
-import type { StreamingCollection } from './modash/streaming';
+import type { StreamingCollection } from './aggo/streaming';
 
 /**
  * TypeScript type definitions for modash.js
@@ -15,20 +15,20 @@ import type {
   Document as _ImplDocument,
   FieldPath as PublicFieldPath,
   SystemVariable as PublicSystemVariable,
-} from './modash/expressions';
-import type { DeepReadonly } from './modash/types';
+} from './aggo/expressions';
+import type { DeepReadonly } from './aggo/types';
 
 export type PrimitiveValue = _PrimitiveValue;
 export type DocumentValue = _DocumentValue;
 export type Document = DeepReadonly<_ImplDocument>;
 export type Collection<T = Document> = ReadonlyArray<T>;
-export type { FieldPath, SystemVariable } from './modash/expressions';
+export type { FieldPath, SystemVariable } from './aggo/expressions';
 
 export type {
   ComparisonOperators,
   QueryOperators,
   QueryExpression,
-} from './modash/aggregation';
+} from './aggo/aggregation';
 
 // Re-export error classes for better error handling
 export {
@@ -37,7 +37,7 @@ export {
   ExpressionError,
   OperatorError,
   ValidationError,
-} from './modash/errors';
+} from './aggo/errors';
 
 // Re-export advanced type utilities
 export type {
@@ -49,7 +49,7 @@ export type {
   MakeOptional,
   MakeRequired,
   NonEmptyArray,
-} from './modash/types';
+} from './aggo/types';
 
 // Phase 6: Enhanced API types
 export type {
@@ -58,9 +58,9 @@ export type {
   OptimizationInfo,
   BenchmarkResults,
   StreamLoaderOptions,
-} from './modash/api-enhancements';
+} from './aggo/api-enhancements';
 
-import type { QueryExpression } from './modash/aggregation';
+import type { QueryExpression } from './aggo/aggregation';
 
 // Expression type - used in $project, $addFields, etc.
 export type Expression =
@@ -349,7 +349,7 @@ export interface ModashStatic {
    */
   explain(
     pipeline: Pipeline
-  ): import('./modash/api-enhancements').PipelineExplanation;
+  ): import('./aggo/api-enhancements').PipelineExplanation;
 
   /**
    * Phase 6: Benchmarks a pipeline with performance metrics
@@ -362,7 +362,7 @@ export interface ModashStatic {
     collection: Collection<T>,
     pipeline: Pipeline,
     options?: { iterations?: number; warmupRuns?: number }
-  ): Promise<import('./modash/api-enhancements').BenchmarkResults>;
+  ): Promise<import('./aggo/api-enhancements').BenchmarkResults>;
 
   /**
    * Phase 6: Creates an async iterable from JSONL stream
@@ -372,7 +372,7 @@ export interface ModashStatic {
    */
   fromJSONL(
     stream: NodeJS.ReadableStream,
-    options?: import('./modash/api-enhancements').StreamLoaderOptions
+    options?: import('./aggo/api-enhancements').StreamLoaderOptions
   ): AsyncIterable<Document>;
 
   // Stage operators (can be used standalone)
@@ -438,13 +438,13 @@ export {
   explain,
   benchmark,
   fromJSONL,
-} from './modash/index';
+} from './aggo/index';
 
 // Re-export streaming capabilities
 export {
   StreamingCollection,
   createStreamingCollection,
-} from './modash/streaming';
+} from './aggo/streaming';
 
 // Re-export streaming types
 export type {
@@ -452,7 +452,7 @@ export type {
   AggregationState,
   EventTransform,
   EventConsumerConfig,
-} from './modash/streaming';
+} from './aggo/streaming';
 
 // Phase 3.5: Export text and regex search capabilities
 export {
@@ -461,7 +461,7 @@ export {
   resetTextSearchStats,
   configureTextSearch,
   clearTextSearchIndex,
-} from './modash/text-search';
+} from './aggo/text-search';
 
 export {
   enhancedRegexMatch,
@@ -470,7 +470,7 @@ export {
   analyzeRegexPattern,
   configureRegexSearch,
   clearRegexSearchIndex,
-} from './modash/regex-search';
+} from './aggo/regex-search';
 
 export {
   BloomFilter,
@@ -479,14 +479,14 @@ export {
   extractTokens,
   extractTrigrams,
   extractLiteralsFromRegex,
-} from './modash/bloom-filter';
+} from './aggo/bloom-filter';
 
 // Phase 3.5: Export enhanced search types
-export type { TextSearchStats, TextSearchConfig } from './modash/text-search';
+export type { TextSearchStats, TextSearchConfig } from './aggo/text-search';
 
 export type {
   RegexSearchStats,
   RegexSearchConfig,
-} from './modash/regex-search';
+} from './aggo/regex-search';
 
-export type { BloomFilterStats } from './modash/bloom-filter';
+export type { BloomFilterStats } from './aggo/bloom-filter';

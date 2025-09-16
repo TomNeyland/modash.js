@@ -1,5 +1,5 @@
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
-import { resetFallbackTracking, getFallbackCount } from '../../src/modash/debug';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
+import { resetFallbackTracking, getFallbackCount } from '../../src/aggo/debug';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },

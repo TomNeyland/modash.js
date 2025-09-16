@@ -52,3 +52,7 @@ fixtures/large/
 fixtures/*-1m.jsonl
 fixtures/*-100k.jsonl
 fixtures/*-10m.jsonl
+
+# Act testing
+.env.act
+.secrets

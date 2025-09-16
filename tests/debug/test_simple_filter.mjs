@@ -1,4 +1,4 @@
-import Modash from '../../src/modash/index';
+import Modash from '../../src/aggo/index';
 import { generateTestData } from '../../benchmarks/setup';
 
 // Generate 10k test data (same as CI test)

@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import Modash from '../src/index';
-import { createStreamingCollection } from '../src/modash/streaming';
+import { createStreamingCollection } from '../src/aggo/streaming';
 import testData from './test-data.js';
 
 describe('Streaming vs Non-Streaming Equivalence Tests', () => {

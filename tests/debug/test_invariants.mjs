@@ -3,7 +3,7 @@
  * Regression tests to lock in projection/materialization invariants
  */
 
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
 
 const testData = [
   { _id: 1, name: 'Alice', dept: 'eng', salary: 100000, active: true },

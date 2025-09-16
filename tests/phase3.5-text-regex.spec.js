@@ -13,7 +13,7 @@ import {
   resetTextSearchStats,
   configureTextSearch,
   clearTextSearchIndex,
-} from '../src/modash/text-search';
+} from '../src/aggo/text-search';
 import {
   enhancedRegexMatch,
   getRegexSearchStats,
@@ -21,13 +21,13 @@ import {
   analyzeRegexPattern,
   configureRegexSearch,
   clearRegexSearchIndex,
-} from '../src/modash/regex-search';
+} from '../src/aggo/regex-search';
 import {
   BloomFilter,
   extractTokens,
   extractTrigrams,
   extractLiteralsFromRegex,
-} from '../src/modash/bloom-filter';
+} from '../src/aggo/bloom-filter';
 
 describe('Phase 3.5: Text & Regex Prefiltering', () => {
   // Test data

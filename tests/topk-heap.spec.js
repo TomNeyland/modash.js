@@ -3,7 +3,7 @@
  */
 
 import { expect } from 'chai';
-import { TopKHeap } from '../src/modash/topk-heap.ts';
+import { TopKHeap } from '../src/aggo/topk-heap.ts';
 
 describe('TopK Heap Implementation', function () {
   describe('Constructor', function () {

@@ -3,8 +3,8 @@
  * IVM benchmark tests to verify no fallbacks
  */
 
-import { createCrossfilterEngine } from '../../src/modash/crossfilter-engine';
-import { getFallbackCount, resetFallbackTracking } from '../../src/modash/debug';
+import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
+import { getFallbackCount, resetFallbackTracking } from '../../src/aggo/debug';
 
 // Generate test data
 const generateData = (size) => {

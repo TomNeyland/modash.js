@@ -2,7 +2,7 @@
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
 import Modash, { type Pipeline } from './index';
-import type { Document } from './modash/expressions';
+import type { Document } from './aggo/expressions';
 
 interface CLIOptions {
   file?: string;
