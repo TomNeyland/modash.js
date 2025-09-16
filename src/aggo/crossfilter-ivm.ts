@@ -8,7 +8,7 @@
  */
 
 import type { Collection, Document, DocumentValue } from './expressions';
-import type { Pipeline } from '../index';
+import type { Pipeline, AccumulatorExpression, Expression } from '../index';
 
 /**
  * Stable row identifier for tracking documents across operations
@@ -100,7 +100,7 @@ export interface RefCountedMultiSet<T> {
  */
 export interface OrderStatNode<T> {
   key: T;
-  value: any;
+  value: DocumentValue;
   rowId: RowId;
   size: number; // Size of subtree
   // exactOptionalPropertyTypes: allow explicit undefined assignments
@@ -116,7 +116,7 @@ export interface OrderStatTree<T> {
   root?: OrderStatNode<T>;
   size: number;
 
-  insert(key: T, value: any, rowId: RowId): void;
+  insert(key: T, value: DocumentValue, rowId: RowId): void;
   remove(key: T, rowId: RowId): boolean;
   kth(k: number): OrderStatNode<T> | undefined; // 0-indexed
   rank(key: T, rowId: RowId): number; // 0-indexed position
@@ -152,8 +152,16 @@ export interface GroupState {
   // First/Last with ordering support
   firstLast: Map<string, OrderStatTree<DocumentValue>>;
 
-  addDocument(rowId: RowId, doc: Document, accumulators: any): void;
-  removeDocument(rowId: RowId, doc: Document, accumulators: any): boolean;
+  addDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): void;
+  removeDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): boolean;
   materializeResult(): Document;
 }
 

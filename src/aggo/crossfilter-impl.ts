@@ -13,6 +13,7 @@ import type {
   GroupState,
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
+import type { AccumulatorExpression, Expression } from '../index';
 
 /**
  * Implementation of RefCountedMultiSet with efficient min/max operations
@@ -616,7 +617,11 @@ export class GroupStateImpl implements GroupState {
     this.groupKey = groupKey;
   }
 
-  addDocument(rowId: RowId, doc: Document, accumulators: any): void {
+  addDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): void {
     if (this.contributingDocs.has(rowId)) return; // Already added
 
     this.contributingDocs.add(rowId);
@@ -627,7 +632,11 @@ export class GroupStateImpl implements GroupState {
     }
   }
 
-  removeDocument(rowId: RowId, doc: Document, accumulators: any): boolean {
+  removeDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): boolean {
     if (!this.contributingDocs.has(rowId)) return false;
 
     this.contributingDocs.delete(rowId);
