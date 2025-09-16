@@ -1,6 +1,6 @@
 {
   "name": "aggo-ai",
-  "version": "0.8.1",
+  "version": "1.0.0",
   "description": "AI plugin for aggo.js - Natural language to MongoDB pipeline conversion using OpenAI",
   "type": "module",
   "main": "dist/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "aggo-rxjs",
-  "version": "0.8.1",
+  "version": "1.0.0",
   "description": "RxJS integration for aggo.js - Observable-based aggregation pipelines",
   "type": "module",
   "main": "dist/index.js",
@@ -28,7 +28,7 @@
   "license": "MIT",
   "peerDependencies": {
     "rxjs": "^7.0.0",
-    "aggo": ">=0.8.1"
+    "aggo": ">=1.0.0"
   },
   "devDependencies": {
     "rxjs": "^7.8.1",

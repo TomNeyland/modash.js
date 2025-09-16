@@ -1,4 +1,4 @@
-# aggo-rxjs
+# aggo
 
 ## 1.0.0
 
@@ -16,20 +16,3 @@
   - Documentation and configuration cleanups to match the new structure.
 
   If you pin exact versions, update to ^1.0.0 for all packages.
-
-### Patch Changes
-
-- Updated dependencies [10fd54c]
-  - aggo@1.0.0
-
-## 0.1.2
-
-### Patch Changes
-
-- 2cc28d8: Fix package.json to remove workspace protocol references for npm compatibility
-
-## 0.1.1
-
-### Patch Changes
-
-- 66255e9: Initial release preparation for aggo workspace packages
