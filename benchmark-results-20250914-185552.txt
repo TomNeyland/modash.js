@@ -1,4 +1,4 @@
-Modash Benchmark Results - Sun Sep 14 18:55:52 EDT 2025
+Aggo Benchmark Results - Sun Sep 14 18:55:52 EDT 2025
 ===================================
 
 Total Revenue: 58ms (1 lines)

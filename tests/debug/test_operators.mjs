@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 
 // Test $toUpper and $toLower
 const data = [
@@ -8,7 +8,7 @@ const data = [
 ];
 
 console.log('\n📋 Testing $toUpper:');
-const upperResult = Modash.aggregate(data, [
+const upperResult = Aggo.aggregate(data, [
   {
     $project: {
       displayName: { $toUpper: '$name' },
@@ -20,7 +20,7 @@ const upperResult = Modash.aggregate(data, [
 console.log('Result:', upperResult);
 
 console.log('\n📋 Testing $toLower:');
-const lowerResult = Modash.aggregate(data, [
+const lowerResult = Aggo.aggregate(data, [
   {
     $project: {
       displayName: { $toLower: '$name' },

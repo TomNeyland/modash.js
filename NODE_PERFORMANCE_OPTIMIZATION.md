@@ -1,6 +1,6 @@
-# Node.js Performance Optimization for modash.js
+# Node.js Performance Optimization for aggo.js
 
-This document outlines Node.js-specific performance optimizations for modash.js, leveraging server-side capabilities for maximum performance in backend environments.
+This document outlines Node.js-specific performance optimizations for aggo.js, leveraging server-side capabilities for maximum performance in backend environments.
 
 ## Executive Summary
 
@@ -24,12 +24,12 @@ This document outlines Node.js-specific performance optimizations for modash.js,
 **Implementation Strategy:**
 
 ```javascript
-// modash-worker-pool.js
+// aggo-worker-pool.js
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 import { cpus } from 'os';
-import Modash from './src/modash/index.js';
+import Aggo from './src/aggo/index.js';
 
-class ModashWorkerPool {
+class AggoWorkerPool {
   constructor(poolSize = cpus().length) {
     this.workers = [];
     this.availableWorkers = [];
@@ -111,7 +111,7 @@ if (workerData?.isWorker) {
 
       switch (type) {
         case 'aggregate':
-          result = Modash.aggregate(collection, pipeline);
+          result = Aggo.aggregate(collection, pipeline);
           break;
         case 'bulk-aggregate':
           result = await handleBulkAggregation(collection, pipeline, options);
@@ -148,7 +148,7 @@ if (workerData?.isWorker) {
 **Implementation Strategy:**
 
 ```cpp
-// modash-native.cpp - Native addon using N-API
+// aggo-native.cpp - Native addon using N-API
 #include <node_api.h>
 #include <vector>
 #include <unordered_map>
@@ -199,21 +199,21 @@ NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
 ```
 
 ```javascript
-// modash-native-bindings.js
+// aggo-native-bindings.js
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 let nativeModule = null;
 
 try {
-  nativeModule = require('./build/Release/modash-native');
+  nativeModule = require('./build/Release/aggo-native');
 } catch (error) {
   console.warn(
     'Native module not available, falling back to JavaScript implementation'
   );
 }
 
-export class ModashNative {
+export class AggoNative {
   static isAvailable() {
     return nativeModule !== null;
   }
@@ -229,7 +229,7 @@ export class ModashNative {
   // Vectorized mathematical operations
   static fastMath(operation, values) {
     if (!nativeModule) {
-      return ModashNative.fallbackMath(operation, values);
+      return AggoNative.fallbackMath(operation, values);
     }
 
     return nativeModule.fastMath(operation, values);
@@ -252,7 +252,7 @@ export class ModashNative {
 import { Readable, Transform, Writable } from 'stream';
 import { pipeline } from 'stream/promises';
 
-class ModashStream {
+class AggoStream {
   // Transform stream for aggregation pipelines
   static createAggregationStream(pipelineStages, options = {}) {
     const { batchSize = 1000, highWaterMark = 16 } = options;
@@ -284,7 +284,7 @@ class ModashStream {
 
       processBatch(batch, stages, callback) {
         try {
-          const result = Modash.aggregate(batch, stages);
+          const result = Aggo.aggregate(batch, stages);
           result.forEach(doc => this.push(doc));
           callback();
         } catch (error) {
@@ -329,7 +329,7 @@ class ModashStream {
 async function processLargeDataset(inputStream, outputStream, pipeline) {
   await pipeline(
     inputStream,
-    ModashStream.createAggregationStream(pipeline, { batchSize: 5000 }),
+    AggoStream.createAggregationStream(pipeline, { batchSize: 5000 }),
     outputStream
   );
 }
@@ -351,7 +351,7 @@ import { createRequire } from 'module';
 import fs from 'fs/promises';
 const require = createRequire(import.meta.url);
 
-class ModashMappedFile {
+class AggoMappedFile {
   constructor(filePath) {
     this.filePath = filePath;
     this.mapping = null;
@@ -433,7 +433,7 @@ class ModashMappedFile {
 import cluster from 'cluster';
 import { cpus } from 'os';
 
-class ModashCluster {
+class AggoCluster {
   constructor() {
     this.workers = new Map();
     this.requestId = 0;
@@ -442,7 +442,7 @@ class ModashCluster {
 
   async initialize(workerCount = cpus().length) {
     if (cluster.isPrimary) {
-      console.log(`Starting Modash cluster with ${workerCount} workers`);
+      console.log(`Starting Aggo cluster with ${workerCount} workers`);
 
       for (let i = 0; i < workerCount; i++) {
         this.createWorker();
@@ -544,7 +544,7 @@ class ModashCluster {
 **Implementation Strategy:**
 
 ```javascript
-class ModashV8Optimizations {
+class AggoV8Optimizations {
   // Optimize object shapes for V8's hidden classes
   static createOptimizedDocument(data) {
     // Always initialize properties in the same order
@@ -622,12 +622,12 @@ class ModashV8Optimizations {
 ```javascript
 import { PerformanceObserver, performance } from 'perf_hooks';
 
-class ModashNodeMetrics {
+class AggoNodeMetrics {
   constructor() {
     this.observer = new PerformanceObserver(list => {
       const entries = list.getEntries();
       entries.forEach(entry => {
-        if (entry.name.startsWith('modash-')) {
+        if (entry.name.startsWith('aggo-')) {
           this.recordMetric(entry);
         }
       });
@@ -637,7 +637,7 @@ class ModashNodeMetrics {
   }
 
   measureOperation(name, fn) {
-    const marker = `modash-${name}`;
+    const marker = `aggo-${name}`;
     performance.mark(`${marker}-start`);
 
     const result = fn();
@@ -655,15 +655,15 @@ class ModashNodeMetrics {
 ```javascript
 import { AsyncLocalStorage } from 'async_hooks';
 
-const modashContext = new AsyncLocalStorage();
+const aggoContext = new AsyncLocalStorage();
 
-class ModashContextManager {
+class AggoContextManager {
   static run(context, fn) {
-    return modashContext.run(context, fn);
+    return aggoContext.run(context, fn);
   }
 
   static getContext() {
-    return modashContext.getStore();
+    return aggoContext.getStore();
   }
 
   static trackAggregation(pipeline, collection) {
@@ -674,8 +674,8 @@ class ModashContextManager {
       startTime: process.hrtime.bigint(),
     };
 
-    return ModashContextManager.run(context, () => {
-      return Modash.aggregate(collection, pipeline);
+    return AggoContextManager.run(context, () => {
+      return Aggo.aggregate(collection, pipeline);
     });
   }
 }
@@ -686,9 +686,9 @@ class ModashContextManager {
 ```javascript
 import { writeHeapSnapshot, getHeapSnapshot } from 'v8';
 
-class ModashDiagnostics {
+class AggoDiagnostics {
   static async capturePerformanceSnapshot() {
-    const filename = `modash-heap-${Date.now()}.heapsnapshot`;
+    const filename = `aggo-heap-${Date.now()}.heapsnapshot`;
     writeHeapSnapshot(filename);
 
     return {
@@ -730,7 +730,7 @@ class ModashDiagnostics {
 ```javascript
 import { LRUCache } from 'lru-cache';
 
-class ModashCache {
+class AggoCache {
   constructor(options = {}) {
     this.cache = new LRUCache({
       max: options.maxItems || 1000,
@@ -764,10 +764,10 @@ class ModashCache {
 ```javascript
 import Redis from 'ioredis';
 
-class ModashRedisCache {
+class AggoRedisCache {
   constructor(redisUrl) {
     this.redis = new Redis(redisUrl);
-    this.keyPrefix = 'modash:';
+    this.keyPrefix = 'aggo:';
     this.defaultTTL = 3600; // 1 hour
   }
 
@@ -805,7 +805,7 @@ class ModashRedisCache {
 ### Monitoring Implementation
 
 ```javascript
-class ModashNodeMonitoring {
+class AggoNodeMonitoring {
   constructor() {
     this.metrics = {
       operations: 0,

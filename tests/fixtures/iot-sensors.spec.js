@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../../src/index.js';
+import Aggo from '../../src/index.js';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -34,7 +34,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     it('should identify sensors with low battery', () => {
       let result;
       const perf = measurePerformance('Low Battery Sensors Query', () => {
-        result = Modash.aggregate(readings, [
+        result = Aggo.aggregate(readings, [
           { $match: { 'metadata.batteryLevel': { $lt: 20 } } },
           {
             $group: {
@@ -57,7 +57,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should detect signal strength issues', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         {
           $group: {
             _id: '$deviceId',
@@ -82,7 +82,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
 
   describe('Environmental Analysis', () => {
     it('should calculate average conditions by location', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         { $match: { sensorType: { $in: ['temperature', 'humidity', 'co2'] } } },
         {
           $group: {
@@ -124,7 +124,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should identify temperature anomalies', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         { $match: { sensorType: 'temperature' } },
         {
           $group: {
@@ -198,7 +198,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
 
   describe('Alert System', () => {
     it('should prioritize critical alerts', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         { $match: { status: 'critical' } },
         {
           $group: {
@@ -242,7 +242,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should analyze alert patterns over time', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         { $match: { anomaly: true } },
         {
           $addFields: {
@@ -280,7 +280,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
 
   describe('Device Performance', () => {
     it('should calculate device reliability metrics', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         {
           $group: {
             _id: '$deviceId',
@@ -329,7 +329,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should identify devices needing calibration', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         {
           $addFields: {
             daysSinceCalibration: {
@@ -374,7 +374,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
       const totalReadings = readings.length;
 
       const byDevice =
-        Modash.aggregate(readings, [
+        Aggo.aggregate(readings, [
           {
             $group: {
               _id: '$deviceId',
@@ -390,7 +390,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
         ])[0]?.total || 0;
 
       const byType =
-        Modash.aggregate(readings, [
+        Aggo.aggregate(readings, [
           {
             $group: {
               _id: '$sensorType',
@@ -413,13 +413,13 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
       const directAnomalies = readings.filter(r => r.anomaly).length;
 
       const aggregatedAnomalies =
-        Modash.aggregate(readings, [
+        Aggo.aggregate(readings, [
           { $match: { anomaly: true } },
           { $count: 'total' },
         ])[0]?.total || 0;
 
       const summedAnomalies =
-        Modash.aggregate(readings, [
+        Aggo.aggregate(readings, [
           {
             $group: {
               _id: null,
@@ -443,7 +443,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
           tempReadings.length;
 
         const aggregatedAvg =
-          Modash.aggregate(readings, [
+          Aggo.aggregate(readings, [
             { $match: { sensorType: 'temperature' } },
             {
               $group: {
@@ -460,7 +460,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     it('should satisfy distributive property for status counts', () => {
       const buildings = [...new Set(readings.map(r => r.location.building))];
 
-      const totalStatuses = Modash.aggregate(readings, [
+      const totalStatuses = Aggo.aggregate(readings, [
         {
           $group: {
             _id: '$status',
@@ -470,7 +470,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
       ]);
 
       const buildingStatuses = buildings.flatMap(building =>
-        Modash.aggregate(readings, [
+        Aggo.aggregate(readings, [
           { $match: { 'location.building': building } },
           {
             $group: {
@@ -494,7 +494,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
 
   describe('Complex Analytics', () => {
     it('should calculate environmental comfort index', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         {
           $group: {
             _id: {
@@ -608,7 +608,7 @@ describe('IoT Sensors - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should predict maintenance requirements', () => {
-      const result = Modash.aggregate(readings, [
+      const result = Aggo.aggregate(readings, [
         {
           $group: {
             _id: '$deviceId',

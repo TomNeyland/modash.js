@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash, { createStreamingCollection } from '../src/index';
+import Aggo, { createStreamingCollection } from '../src/index';
 
 describe('Transparent Streaming Integration', () => {
   const sampleData = [
@@ -15,7 +15,7 @@ describe('Transparent Streaming Integration', () => {
   ];
 
   it('should work transparently with regular arrays', () => {
-    const result = Modash.aggregate(sampleData, pipeline);
+    const result = Aggo.aggregate(sampleData, pipeline);
 
     expect(result).to.have.lengthOf(2);
     expect(result[0].name).to.equal('Alice');
@@ -24,7 +24,7 @@ describe('Transparent Streaming Integration', () => {
 
   it('should work transparently with streaming collections', () => {
     const streamingCollection = createStreamingCollection(sampleData);
-    const result = Modash.aggregate(streamingCollection, pipeline);
+    const result = Aggo.aggregate(streamingCollection, pipeline);
 
     expect(result).to.have.lengthOf(2);
     expect(result[0].name).to.equal('Alice');
@@ -34,10 +34,10 @@ describe('Transparent Streaming Integration', () => {
   });
 
   it('should produce identical results for both approaches', () => {
-    const arrayResult = Modash.aggregate(sampleData, pipeline);
+    const arrayResult = Aggo.aggregate(sampleData, pipeline);
 
     const streamingCollection = createStreamingCollection(sampleData);
-    const streamingResult = Modash.aggregate(streamingCollection, pipeline);
+    const streamingResult = Aggo.aggregate(streamingCollection, pipeline);
 
     expect(streamingResult).to.deep.equal(arrayResult);
 
@@ -46,7 +46,7 @@ describe('Transparent Streaming Integration', () => {
 
   it('should maintain backward compatibility - existing code should work unchanged', () => {
     // This is exactly how existing users would call it
-    const result = Modash.aggregate(sampleData, [
+    const result = Aggo.aggregate(sampleData, [
       { $group: { _id: '$dept', count: { $sum: 1 } } },
     ]);
 
@@ -64,7 +64,7 @@ describe('Transparent Streaming Integration', () => {
     const streamingCollection = createStreamingCollection(sampleData);
 
     // Same API, but now gets streaming benefits
-    const initialResult = Modash.aggregate(streamingCollection, pipeline);
+    const initialResult = Aggo.aggregate(streamingCollection, pipeline);
     expect(initialResult).to.have.lengthOf(2);
 
     // Add new data - this triggers streaming updates
@@ -76,7 +76,7 @@ describe('Transparent Streaming Integration', () => {
     });
 
     // Same aggregate call now returns updated results
-    const updatedResult = Modash.aggregate(streamingCollection, pipeline);
+    const updatedResult = Aggo.aggregate(streamingCollection, pipeline);
     expect(updatedResult).to.have.lengthOf(3);
     expect(updatedResult.map(r => r.name)).to.include('David');
 

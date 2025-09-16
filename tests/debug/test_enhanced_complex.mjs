@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const testData = [
   {
@@ -41,7 +41,7 @@ const pipeline = [
   },
 ];
 
-const result = Modash.aggregate(testData, pipeline);
+const result = Aggo.aggregate(testData, pipeline);
 
 console.log('\nResult count:', result.length);
 console.log('Results:');

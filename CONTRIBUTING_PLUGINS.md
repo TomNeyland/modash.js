@@ -1,14 +1,14 @@
-# 🧩 Contributing Plugins to Modash.js
+# 🧩 Contributing Plugins to Aggo.js
 
-Modash.js has a **zero-dependency core**. Anything beyond core operators, hot-path optimizations, and IVM streaming must live in **optional plugin packages**.
+Aggo.js has a **zero-dependency core**. Anything beyond core operators, hot-path optimizations, and IVM streaming must live in **optional plugin packages**.
 This keeps the core small, fast, and portable — while still enabling an ecosystem of extensions.
 
 ---
 
 ## 📦 Plugin Philosophy
 
-- **Core stays zero-deps**: no external libraries inside `modash`.
-- **Plugins are opt-in**: published under `@modash/<name>`.
+- **Core stays zero-deps**: no external libraries inside `aggo`.
+- **Plugins are opt-in**: published under `@aggo/<name>`.
 - **Each plugin is its own package** in `packages/<name>`.
 - **No runtime coupling**: core doesn’t import plugin code. Plugins import and extend core.
 
@@ -32,7 +32,7 @@ packages/
 
 ### `package.json` guidelines
 
-- `"name": "@modash/sql"` (scoped under `@modash/`)
+- `"name": "@aggo/sql"` (scoped under `@aggo/`)
 - `"dependencies"`: minimal, only what your plugin actually needs
 - `"peerDependencies"`: use when you want the host app to bring its own (e.g. `rxjs`)
 - `"optionalDependencies"`: for truly optional extras
@@ -47,7 +47,7 @@ All plugins should export a **clear entrypoint** with:
 ```ts
 // Example: packages/sql/src/index.ts
 
-/** Compile a SQL string into a Modash pipeline */
+/** Compile a SQL string into a Aggo pipeline */
 export function compileSql(query: string): Pipeline {
   /* ... */
 }
@@ -70,7 +70,7 @@ export function explainSql(query: string): ExplainReport {
 Guidelines:
 
 - Prefer **pure functions** that take input and return results.
-- Use `modash.aggregate()` internally — don’t fork core behavior.
+- Use `aggo.aggregate()` internally — don’t fork core behavior.
 - Expose **`.explain`** and **`.validate`** helpers when possible.
 
 ---
@@ -82,7 +82,7 @@ Plugins may ship their own CLI entrypoint:
 ```json
 // package.json
 "bin": {
-  "modash-sql": "./dist/cli.js"
+  "aggo-sql": "./dist/cli.js"
 }
 ```
 
@@ -95,7 +95,7 @@ Conventions:
 Example:
 
 ```bash
-cat data.jsonl | npx modash-sql "select count(*) from stdin"
+cat data.jsonl | npx aggo-sql "select count(*) from stdin"
 ```
 
 ---
@@ -122,7 +122,7 @@ Each plugin should ship a `README.md` with:
 - **Install instructions**:
 
   ```bash
-  npm install @modash/sql
+  npm install @aggo/sql
   ```
 
 - Optional badges (CI status, npm version, etc.)
@@ -155,10 +155,10 @@ Core maintainers will review for:
 
 ## 🌱 Examples of Plugin Ideas
 
-- `@modash/sql`: SQL → pipeline transpiler
-- `@modash/rxjs`: Reactive wrappers exposing `.toObservable()` and `.fromObservable()`
-- `@modash/duckdb`: Connector for DuckDB WASM backend
-- `@modash/geo`: Extra geo operators, with optional turf.js dependency
+- `@aggo/sql`: SQL → pipeline transpiler
+- `@aggo/rxjs`: Reactive wrappers exposing `.toObservable()` and `.fromObservable()`
+- `@aggo/duckdb`: Connector for DuckDB WASM backend
+- `@aggo/geo`: Extra geo operators, with optional turf.js dependency
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import Modash, { createStreamingCollection } from '../src/index.ts';
+import Aggo, { createStreamingCollection } from '../src/index.ts';
 
 const base = [
   { _id: 1, a: 1, b: [1, 2], g: 'X' },
@@ -29,7 +29,7 @@ const sortJSON = (arr) => [...arr].sort((a,b) => JSON.stringify(a).localeCompare
 
 let failures = 0;
 for (const c of cases) {
-  const arrResult = Modash.aggregate(base, c.p);
+  const arrResult = Aggo.aggregate(base, c.p);
   const sc = createStreamingCollection(base);
   const streamResult = sc.aggregate(c.p);
   sc.destroy();

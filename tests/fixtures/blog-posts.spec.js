@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../../src/index.js';
+import Aggo from '../../src/index.js';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -31,7 +31,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
     it('should find most viewed posts', () => {
       let result;
       const perf = measurePerformance('Most Viewed Posts Query', () => {
-        result = Modash.aggregate(posts, [
+        result = Aggo.aggregate(posts, [
           { $match: { status: 'published' } },
           { $sort: { views: -1 } },
           { $limit: 10 },
@@ -58,7 +58,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should calculate engagement metrics', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           {
             $addFields: {
               commentCount: { $size: '$comments' },
@@ -94,7 +94,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
 
     describe('Author Analytics', () => {
       it('should identify top authors by productivity', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           {
             $group: {
               _id: '$authorId',
@@ -125,7 +125,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should analyze author posting patterns', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           {
             $addFields: {
               dayOfWeek: { $dayOfWeek: '$publishedDate' },
@@ -170,7 +170,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
 
     describe('Tag & Category Analysis', () => {
       it('should find trending tags', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           { $match: { status: 'published' } },
           { $unwind: '$tags' },
           {
@@ -208,7 +208,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should analyze tag co-occurrence', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           { $match: { status: 'published' } },
           { $limit: 50 }, // Limit for performance
           { $unwind: '$tags' },
@@ -263,7 +263,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       it('should find most discussed posts', () => {
         let result;
         const perf = measurePerformance('Most Discussed Posts Query', () => {
-          result = Modash.aggregate(posts, [
+          result = Aggo.aggregate(posts, [
             {
               $addFields: {
                 commentCount: { $size: '$comments' },
@@ -307,7 +307,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should analyze comment sentiment over time', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           { $unwind: '$comments' },
           {
             $addFields: {
@@ -339,7 +339,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
 
     describe('SEO & Performance', () => {
       it('should analyze SEO performance correlation', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           { $match: { status: 'published' } },
           {
             $group: {
@@ -379,7 +379,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should identify optimal post length', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           {
             $addFields: {
               lengthCategory: {
@@ -426,7 +426,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
     describe('Metamorphic Properties', () => {
       it('should maintain invariant: total views across categories equals sum', () => {
         const totalViews =
-          Modash.aggregate(posts, [
+          Aggo.aggregate(posts, [
             {
               $group: {
                 _id: null,
@@ -436,7 +436,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
           ])[0]?.total || 0;
 
         const categoryViews =
-          Modash.aggregate(posts, [
+          Aggo.aggregate(posts, [
             {
               $group: {
                 _id: '$category',
@@ -461,7 +461,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
         );
 
         const aggregatedCount =
-          Modash.aggregate(posts, [
+          Aggo.aggregate(posts, [
             { $unwind: '$comments' },
             { $count: 'totalComments' },
           ])[0]?.totalComments || 0;
@@ -470,7 +470,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should maintain tag frequency consistency', () => {
-        const tagFrequency1 = Modash.aggregate(posts, [
+        const tagFrequency1 = Aggo.aggregate(posts, [
           { $unwind: '$tags' },
           {
             $group: {
@@ -480,7 +480,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
           },
         ]);
 
-        const tagFrequency2 = Modash.aggregate(posts, [
+        const tagFrequency2 = Aggo.aggregate(posts, [
           {
             $project: {
               tags: 1,
@@ -506,7 +506,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       it('should satisfy distributive property for engagement calculations', () => {
         const categories = [...new Set(posts.map(p => p.category))];
 
-        const totalEngagement = Modash.aggregate(posts, [
+        const totalEngagement = Aggo.aggregate(posts, [
           {
             $group: {
               _id: null,
@@ -518,7 +518,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
 
         const categoryEngagements = categories.map(
           category =>
-            Modash.aggregate(posts, [
+            Aggo.aggregate(posts, [
               { $match: { category } },
               {
                 $group: {
@@ -546,7 +546,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
 
     describe('Complex Content Queries', () => {
       it('should identify content gaps and opportunities', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           { $unwind: '$tags' },
           {
             $group: {
@@ -588,7 +588,7 @@ describe('Blog Posts - Query Patterns & Metamorphic Testing', () => {
       });
 
       it('should calculate content velocity and momentum', () => {
-        const result = Modash.aggregate(posts, [
+        const result = Aggo.aggregate(posts, [
           {
             $addFields: {
               ageInDays: {

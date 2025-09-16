@@ -88,22 +88,22 @@ interface IVMContext {
 
 ### Files Modified So Far
 
-1. **`/src/modash/crossfilter-operators.ts`**
+1. **`/src/aggo/crossfilter-operators.ts`**
    - Added `AddFieldsOperator` class (lines 1204-1348) with merge semantics
    - Modified `ProjectOperator.snapshot()` to check for previous stage active IDs (lines 559-567)
    - Modified `MatchOperator.snapshot()` to store active IDs (lines 87-94)
    - Modified `SortOperator.snapshot()` to handle grouped results (lines 384-419)
    - Fixed `UnwindOperator` duplicate processing issue
 
-2. **`/src/modash/crossfilter-engine.ts`**
+2. **`/src/aggo/crossfilter-engine.ts`**
    - Changed `$addFields` to use `AddFieldsOperator` instead of `ProjectOperator` (lines 106-111)
    - Removed duplicate processing in `snapshotPipeline` (lines 449-451)
    - Added debug logging throughout
 
-3. **`/src/modash/crossfilter-compiler.ts`**
+3. **`/src/aggo/crossfilter-compiler.ts`**
    - Fixed projection pruning to not remove fields before `$limit`/`$skip` (lines 1608-1611)
 
-4. **`/src/modash/debug.ts`**
+4. **`/src/aggo/debug.ts`**
    - Added `wrapOperatorSnapshot` for fallback detection (lines 92-144)
    - Added fallback tracking functions
 
@@ -145,7 +145,7 @@ interface IVMContext {
 
 **Change snapshot() to return RowId[] instead of Document[]**
 
-- Update IVMOperator interface in `/src/modash/crossfilter-ivm.ts`
+- Update IVMOperator interface in `/src/aggo/crossfilter-ivm.ts`
 - Change return type from `Collection<Document>` to `RowId[]`
 - Update all operator implementations
 
@@ -153,7 +153,7 @@ interface IVMContext {
 
 #### 1. Make engine own upstreamActiveIds flow
 
-**File**: `/src/modash/crossfilter-engine.ts`
+**File**: `/src/aggo/crossfilter-engine.ts`
 
 - Modify `snapshotPipeline()` method:
   - Initialize `activeIds: RowId[] = Array.from(store.liveSet)`
@@ -164,7 +164,7 @@ interface IVMContext {
 
 #### 2. Fix all operators to use upstreamActiveIds
 
-**File**: `/src/modash/crossfilter-operators.ts`
+**File**: `/src/aggo/crossfilter-operators.ts`
 
 Each operator needs updating:
 

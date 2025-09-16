@@ -4,7 +4,7 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/index.ts';
+import Aggo from '../src/index.ts';
 
 describe('Additional Operator Coverage Tests', function () {
   describe('Set Operators', function () {
@@ -17,7 +17,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             equals12: { $setEquals: ['$arr1', '$arr2'] },
@@ -38,7 +38,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             intersection: { $setIntersection: ['$arr1', '$arr2'] },
@@ -57,7 +57,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             union: { $setUnion: ['$arr1', '$arr2'] },
@@ -76,7 +76,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             difference: { $setDifference: ['$arr1', '$arr2'] },
@@ -96,7 +96,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             subset1: { $setIsSubset: ['$arr1', '$arr2'] },
@@ -120,7 +120,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             any1: { $anyElementTrue: '$boolArray1' },
@@ -144,7 +144,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             all1: { $allElementsTrue: '$boolArray1' },
@@ -164,7 +164,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $cmp operator', function () {
       const data = [{ a: 5, b: 3, c: 5, d: 7 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             cmp1: { $cmp: ['$a', '$b'] }, // 5 vs 3 = 1
@@ -182,7 +182,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test comparison operators ($eq, $gt, $gte, $lt, $lte, $ne)', function () {
       const data = [{ a: 5, b: 3, c: 5 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             eq: { $eq: ['$a', '$c'] },
@@ -208,7 +208,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $add operator with numbers', function () {
       const data = [{ a: 5, b: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             sum: { $add: ['$a', '$b', 2] },
@@ -222,7 +222,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $subtract operator', function () {
       const data = [{ a: 10, b: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             diff: { $subtract: ['$a', '$b'] },
@@ -236,7 +236,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $multiply operator', function () {
       const data = [{ a: 5, b: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             product: { $multiply: ['$a', '$b', 2] },
@@ -250,7 +250,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $divide operator', function () {
       const data = [{ a: 15, b: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             quotient: { $divide: ['$a', '$b'] },
@@ -264,7 +264,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $mod operator', function () {
       const data = [{ a: 17, b: 5 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             remainder: { $mod: ['$a', '$b'] },
@@ -280,7 +280,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $abs operator', function () {
       const data = [{ negative: -5, positive: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             absNeg: { $abs: '$negative' },
@@ -296,7 +296,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $ceil operator', function () {
       const data = [{ value: 3.2 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             ceiling: { $ceil: '$value' },
@@ -310,7 +310,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $floor operator', function () {
       const data = [{ value: 3.8 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             floor: { $floor: '$value' },
@@ -324,7 +324,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $round operator', function () {
       const data = [{ value1: 3.2, value2: 3.8 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             round1: { $round: '$value1' },
@@ -340,7 +340,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $sqrt operator', function () {
       const data = [{ value: 16 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             squareRoot: { $sqrt: '$value' },
@@ -354,7 +354,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $pow operator', function () {
       const data = [{ base: 2, exp: 3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             power: { $pow: ['$base', '$exp'] },
@@ -378,7 +378,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             and1: { $and: ['$a', '$c'] },
@@ -404,7 +404,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             or1: { $or: ['$a', '$b'] },
@@ -429,7 +429,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             not1: { $not: ['$a'] },
@@ -451,7 +451,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $concat operator', function () {
       const data = [{ first: 'Hello', second: 'World' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             greeting: { $concat: ['$first', ' ', '$second', '!'] },
@@ -465,7 +465,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $toLower and $toUpper operators', function () {
       const data = [{ text: 'Hello World' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             lower: { $toLower: '$text' },
@@ -481,7 +481,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $substr operator', function () {
       const data = [{ text: 'Hello World' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             substring: { $substr: ['$text', 0, 5] },
@@ -495,7 +495,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $strLen operator', function () {
       const data = [{ text: 'Hello World' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             length: { $strLen: '$text' },
@@ -509,7 +509,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $split operator', function () {
       const data = [{ text: 'Hello,World,Test' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             parts: { $split: ['$text', ','] },
@@ -523,7 +523,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test trim operators', function () {
       const data = [{ text: '  Hello World  ' }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             trimmed: { $trim: '$text' },
@@ -543,7 +543,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $size operator', function () {
       const data = [{ arr1: [1, 2, 3], arr2: [] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             size1: { $size: '$arr1' },
@@ -559,7 +559,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $arrayElemAt operator', function () {
       const data = [{ arr: ['a', 'b', 'c', 'd'] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             first: { $arrayElemAt: ['$arr', 0] },
@@ -577,7 +577,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $concatArrays operator', function () {
       const data = [{ arr1: [1, 2], arr2: [3, 4], arr3: [5] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             combined: { $concatArrays: ['$arr1', '$arr2', '$arr3'] },
@@ -591,7 +591,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $slice operator', function () {
       const data = [{ arr: [1, 2, 3, 4, 5] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             slice1: { $slice: ['$arr', 2] },
@@ -607,7 +607,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $reverseArray operator', function () {
       const data = [{ arr: [1, 2, 3, 4, 5] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             reversed: { $reverseArray: '$arr' },
@@ -621,7 +621,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $in operator for array membership', function () {
       const data = [{ item: 'b', arr: ['a', 'b', 'c'] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             found: { $in: ['$item', '$arr'] },
@@ -637,7 +637,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $indexOfArray operator', function () {
       const data = [{ arr: ['a', 'b', 'c', 'b'] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             index1: { $indexOfArray: ['$arr', 'b'] },
@@ -663,7 +663,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             numType: { $type: '$num' },
@@ -691,7 +691,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             numIsNumber: { $isNumber: '$num' },
@@ -714,7 +714,7 @@ describe('Additional Operator Coverage Tests', function () {
       const testDate = new Date('2023-07-15T14:30:25.123Z');
       const data = [{ date: testDate }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             year: { $year: '$date' },
@@ -749,7 +749,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             result: { $coalesce: ['$first', '$second', '$third', '$fourth'] },
@@ -771,7 +771,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             merged: { $mergeObjects: ['$obj1', '$obj2', '$obj3'] },
@@ -787,7 +787,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $trunc operator', function () {
       const data = [{ value1: 3.7, value2: -2.3 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             trunc1: { $trunc: '$value1' },
@@ -810,7 +810,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             strNum: { $toString: '$num' },
@@ -832,7 +832,7 @@ describe('Additional Operator Coverage Tests', function () {
     it('should test $cond operator', function () {
       const data = [{ age: 18, score: 85 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             adult: {
@@ -867,7 +867,7 @@ describe('Additional Operator Coverage Tests', function () {
         },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $project: {
             displayName: { $ifNull: ['$nickname', '$name'] },

@@ -1,5 +1,5 @@
 /**
- * Streaming/Incremental Update Support for Modash
+ * Streaming/Incremental Update Support for Aggo
  *
  * Provides live views of aggregation results that update dynamically
  * as new data is added through .add() or .addBulk() operations.
@@ -73,7 +73,7 @@ export interface AggregationState {
 
 /**
  * StreamingCollection provides incremental update capabilities
- * for modash aggregation pipelines using crossfilter-inspired IVM.
+ * for aggo aggregation pipelines using crossfilter-inspired IVM.
  */
 export class StreamingCollection<
   T extends Document = Document,

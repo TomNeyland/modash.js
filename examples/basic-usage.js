@@ -1,4 +1,4 @@
-import Modash from '../src/modash/index.js';
+import Aggo from '../src/aggo/index.js';
 
 // Sample e-commerce data
 const orders = [
@@ -44,11 +44,11 @@ const orders = [
   },
 ];
 
-console.log('🚀 Modern Modash.js Examples\n');
+console.log('🚀 Modern Aggo.js Examples\n');
 
 // Example 1: Basic aggregation - Calculate daily revenue
 console.log('📊 Daily Revenue Analysis:');
-const dailyRevenue = Modash.aggregate(orders, [
+const dailyRevenue = Aggo.aggregate(orders, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
@@ -68,7 +68,7 @@ console.log(JSON.stringify(dailyRevenue, null, 2));
 
 console.log('\n💰 Customer Spending Analysis:');
 // Example 2: Customer analysis
-const customerStats = Modash.aggregate(orders, [
+const customerStats = Aggo.aggregate(orders, [
   {
     $group: {
       _id: '$customerId',
@@ -84,7 +84,7 @@ console.log(JSON.stringify(customerStats, null, 2));
 
 console.log('\n🏷️ Category Performance:');
 // Example 3: Category analysis with filtering
-const categoryPerformance = Modash.aggregate(orders, [
+const categoryPerformance = Aggo.aggregate(orders, [
   { $match: { price: { $gte: 50 } } }, // Only items over $50
   {
     $group: {
@@ -108,7 +108,7 @@ console.log(JSON.stringify(categoryPerformance, null, 2));
 
 console.log('\n🔍 Complex Pipeline - High Value Customer Items:');
 // Example 4: Complex multi-stage pipeline
-const highValueItems = Modash.aggregate(orders, [
+const highValueItems = Aggo.aggregate(orders, [
   // Stage 1: Filter expensive items
   { $match: { price: { $gte: 100 } } },
 
@@ -133,4 +133,4 @@ const highValueItems = Modash.aggregate(orders, [
 console.log(JSON.stringify(highValueItems, null, 2));
 
 console.log('\n✅ All examples completed successfully!');
-console.log('🎉 Modern Modash.js is working perfectly with ES2022+ features!');
+console.log('🎉 Modern Aggo.js is working perfectly with ES2022+ features!');

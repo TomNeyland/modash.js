@@ -2,7 +2,7 @@
 import type { StreamingCollection } from './aggo/streaming';
 
 /**
- * TypeScript type definitions for modash.js
+ * TypeScript type definitions for aggo.js
  * Modern MongoDB-inspired aggregation library for TypeScript
  */
 
@@ -32,7 +32,7 @@ export type {
 
 // Re-export error classes for better error handling
 export {
-  ModashError,
+  AggoError,
   AggregationError,
   ExpressionError,
   OperatorError,
@@ -293,8 +293,8 @@ export type PipelineStage = (
 // Pipeline type
 export type Pipeline = PipelineStage[];
 
-// Main Modash interface
-export interface ModashStatic {
+// Main Aggo interface
+export interface AggoStatic {
   /**
    * Performs aggregation operation using the aggregation pipeline.
    * Now supports both regular arrays and streaming collections transparently.
@@ -418,7 +418,7 @@ export interface ModashStatic {
   ): Collection<T>;
 }
 
-// Re-export the main implementations from modash module
+// Re-export the main implementations from aggo module
 export {
   aggregate,
   count,

@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash, { createStreamingCollection } from '../src/index';
+import Aggo, { createStreamingCollection } from '../src/index';
 
 describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
   const base = [
@@ -40,7 +40,7 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
 
   for (const c of cases) {
     it(`parity: ${c.name}`, () => {
-      const arrResult = Modash.aggregate(base, c.p);
+      const arrResult = Aggo.aggregate(base, c.p);
       const sc = createStreamingCollection(base);
       const streamResult = sc.aggregate(c.p);
       // Sort for parity where order is not guaranteed
@@ -86,7 +86,7 @@ describe('Parity: Array vs Streaming (Hot Path + IVM)', () => {
 
     for (let t = 0; t < 10; t++) {
       const p = makePipeline();
-      const arrResult = Modash.aggregate(randBase, p);
+      const arrResult = Aggo.aggregate(randBase, p);
       const sc = createStreamingCollection(randBase);
       const streamResult = sc.aggregate(p);
       sc.destroy();

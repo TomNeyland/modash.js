@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const data = Array.from({ length: 50 }, (_, i) => ({
   _id: i,
@@ -14,7 +14,7 @@ console.log('Sample data:', data.slice(0, 3));
 console.log('Total docs:', data.length);
 
 // Test groupAndAggregate
-const groupResult = Modash.aggregate(data, [
+const groupResult = Aggo.aggregate(data, [
   {
     $group: {
       _id: '$category',

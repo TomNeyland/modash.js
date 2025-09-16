@@ -106,7 +106,7 @@ importers:
 
   packages/rxjs:
     dependencies:
-      modash:
+      aggo:
         specifier: workspace:*
         version: link:../..
     devDependencies:

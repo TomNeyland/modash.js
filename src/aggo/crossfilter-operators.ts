@@ -190,7 +190,7 @@ export class GroupOperator implements IVMOperator {
 
   private serializeGroupKey(key: any): string {
     // Ensure we always have a stable string key for Map indexing
-    return key === undefined ? '__modash_undefined__' : JSON.stringify(key);
+    return key === undefined ? '__aggo_undefined__' : JSON.stringify(key);
   }
 
   onAdd(

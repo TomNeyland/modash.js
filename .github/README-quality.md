@@ -1,6 +1,6 @@
 # Quality Tooling Documentation
 
-This document describes the comprehensive quality tooling setup for modash.js.
+This document describes the comprehensive quality tooling setup for aggo.js.
 
 ## Overview
 
@@ -193,4 +193,4 @@ The quality tooling integrates with modern IDEs:
 - Local reproduction via `npm run quality`
 - Review GitHub check annotations for specific issues
 
-This quality tooling ensures modash.js maintains production-ready code standards while providing excellent developer experience.
+This quality tooling ensures aggo.js maintains production-ready code standards while providing excellent developer experience.

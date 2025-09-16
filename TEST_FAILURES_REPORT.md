@@ -3,7 +3,7 @@
 This report documents failures from running each Mocha spec individually with a 60s per-test timeout and `--exit`. Each spec was executed as:
 
 - Command: `./node_modules/.bin/mocha --import=tsx/esm --exit --timeout 60000 <file>`
-- Logs: one file per spec under `.modash-test-logs/`
+- Logs: one file per spec under `.aggo-test-logs/`
 
 ## Overview
 
@@ -20,7 +20,7 @@ Failed specs:
 - `tests/streaming.spec.js`
 - `tests/transparent-streaming.spec.js`
 
-Detailed logs are available in `.modash-test-logs/<spec>.log`.
+Detailed logs are available in `.aggo-test-logs/<spec>.log`.
 
 ## Failures By Type
 
@@ -30,7 +30,7 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
   - Case: `$group` distinct items ordering
   - Symptom: Expected group IDs order differs (e.g., expected `abc, jkl, xyz` vs actual `xyz, jkl, abc`).
   - Hypothesis: Non-deterministic group output ordering; lack of stable sort in `$group` results. Consider explicit `$sort` in pipelines or enforcing deterministic ordering when comparing results.
-  - Log excerpt: see `.modash-test-logs/aggregation.spec.js.log` (lines around tests at 167, 194).
+  - Log excerpt: see `.aggo-test-logs/aggregation.spec.js.log` (lines around tests at 167, 194).
 
 - `tests/aggregation.spec.js`
   - Case: Pivot books grouped by authors
@@ -41,7 +41,7 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
   - Case: `$group` equivalence (streaming vs non-streaming)
   - Symptom: Differences in grouped outputs and aggregates (missing/extra category groups in streaming path).
   - Hypothesis: Streaming aggregator state handling diverges from non-streaming baseline; possible issues with how group keys are created/normalized or with accumulator updates during streaming updates.
-  - Log: `.modash-test-logs/streaming-comparison.spec.js.log` (around line 367 in test file).
+  - Log: `.aggo-test-logs/streaming-comparison.spec.js.log` (around line 367 in test file).
 
 - `tests/streaming-comparison.spec.js`
   - Case: Live update correctness
@@ -52,7 +52,7 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
   - Case: Mixed add/remove operations – aggregate values
   - Symptom: `avgScore` mismatch (expected 85, got 100); count mismatch in complex scenario (expected 2, got 1).
   - Hypothesis: Aggregator decrement logic on removal is incorrect (e.g., count/total not updated symmetrically), or group membership not updated after removals.
-  - Log: `.modash-test-logs/streaming-removal.spec.js.log` (around lines 320 and 378 in test file).
+  - Log: `.aggo-test-logs/streaming-removal.spec.js.log` (around lines 320 and 378 in test file).
 
 - `tests/streaming.spec.js`
   - Case: Event source restart
@@ -70,7 +70,7 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
   - Case: Streaming performance – high-throughput delta operations
   - Symptom: `Error: Timeout of 60000ms exceeded.`
   - Hypothesis: Backpressure or batching pathway does not flush/settle within 60s; async test awaits a condition that never completes due to missed notifications or stalled worker/IVM update loop.
-  - Log: `.modash-test-logs/phase3-optimization.spec.js.log`.
+  - Log: `.aggo-test-logs/phase3-optimization.spec.js.log`.
 
 - `tests/streaming.spec.js`
   - Case: Memory management – rapid event bursts
@@ -96,7 +96,7 @@ Detailed logs are available in `.modash-test-logs/<spec>.log`.
 
 ## Artifacts
 
-- Logs: `.modash-test-logs/*.log`
-- Quick summary: `.modash-test-logs/summary.txt`
+- Logs: `.aggo-test-logs/*.log`
+- Quick summary: `.aggo-test-logs/summary.txt`
 
 No code changes were made; this report only documents observed failures and likely root causes based on log analysis.

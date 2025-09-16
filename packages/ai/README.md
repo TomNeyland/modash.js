@@ -1,20 +1,20 @@
-# @modash/plugin-ai
+# @aggo/plugin-ai
 
-🤖 AI-powered natural language to MongoDB pipeline conversion for modash.js
+🤖 AI-powered natural language to MongoDB pipeline conversion for aggo.js
 
-Convert natural language queries into MongoDB aggregation pipelines using OpenAI, with automatic schema inference and optimized execution via modash.
+Convert natural language queries into MongoDB aggregation pipelines using OpenAI, with automatic schema inference and optimized execution via aggo.
 
 ## Installation
 
 ```bash
-npm install @modash/plugin-ai
+npm install @aggo/plugin-ai
 ```
 
 **Requirements:**
 
 - Node.js 18+
 - OpenAI API key
-- `modash` as a peer dependency
+- `aggo` as a peer dependency
 
 ## Quick Start
 
@@ -28,25 +28,25 @@ export OPENAI_API_KEY="your-openai-api-key"
 
 ```bash
 # Basic natural language query
-cat sales.jsonl | npx modash-ai "total revenue by product category"
+cat sales.jsonl | npx aggo-ai "total revenue by product category"
 
 # Show inferred schema
-cat data.jsonl | npx modash-ai --schema-only
+cat data.jsonl | npx aggo-ai --schema-only
 
 # Generate pipeline without executing
-npx modash-ai "average rating by genre" --file movies.jsonl --show-pipeline
+npx aggo-ai "average rating by genre" --file movies.jsonl --show-pipeline
 
 # Use specific OpenAI model
-cat logs.jsonl | npx modash-ai "error count by service" --model gpt-4
+cat logs.jsonl | npx aggo-ai "error count by service" --model gpt-4
 
 # Get detailed explanation
-npx modash-ai "top 10 customers by order value" --file orders.jsonl --explain
+npx aggo-ai "top 10 customers by order value" --file orders.jsonl --explain
 ```
 
 ### Programmatic Usage
 
 ```typescript
-import { aiQuery, getSchema, generatePipeline } from '@modash/plugin-ai';
+import { aiQuery, getSchema, generatePipeline } from '@aggo/plugin-ai';
 
 const data = [
   { name: 'Alice', age: 30, department: 'Engineering', salary: 95000 },
@@ -86,7 +86,7 @@ console.log(pipeline.pipeline);
 ## CLI Options
 
 ```
-Usage: modash-ai [query] [options]
+Usage: aggo-ai [query] [options]
 
 Options:
   -f, --file <path>         Read data from file instead of stdin

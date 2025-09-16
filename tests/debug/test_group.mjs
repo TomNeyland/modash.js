@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const data = [
   { category: 'electronics', price: 100, quantity: 2 },
@@ -7,7 +7,7 @@ const data = [
   { category: 'furniture', price: 400, quantity: 2 },
 ];
 
-const result = Modash.aggregate(data, [
+const result = Aggo.aggregate(data, [
   {
     $group: {
       _id: '$category',

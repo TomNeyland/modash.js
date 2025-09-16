@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
 
 // Test data
@@ -39,5 +39,5 @@ console.log('Result:', result);
 
 // Test with regular aggregate too
 console.log('\n📋 Using regular aggregate:');
-const regularResult = Modash.aggregate(testData, pipeline);
+const regularResult = Aggo.aggregate(testData, pipeline);
 console.log('Regular result:', regularResult);

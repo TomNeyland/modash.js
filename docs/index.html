@@ -43,9 +43,9 @@
 
 
     <section>
-        <article><h1>modash.js</h1>
-<p><a href="https://github.com/TomNeyland/modash.js"><img src="http://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="License"></a>
-<a href="https://github.com/TomNeyland/modash.js"><img src="https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat" alt="Tag"></a></p>
+        <article><h1>aggo.js</h1>
+<p><a href="https://github.com/TomNeyland/aggo.js"><img src="http://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="License"></a>
+<a href="https://github.com/TomNeyland/aggo.js"><img src="https://img.shields.io/github/tag/TomNeyland/aggo.js.svg?style=flat" alt="Tag"></a></p>
 <p><strong>TypeScript-native MongoDB aggregation library for modern JavaScript</strong></p>
 <p>A clean, elegant API for processing JavaScript arrays using MongoDB aggregation pipeline syntax and operators. Built TypeScript-first with full type safety, zero build steps, and modern ES2022+ features.</p>
 <h2>✨ Features</h2>
@@ -58,7 +58,7 @@
 <li><strong>Event-Driven Architecture</strong>: Real-time notifications when data changes with automatic result updates</li>
 <li><strong>🚀 Phase 6: CLI &amp; Ecosystem</strong>: Command-line tool, RxJS integration, enhanced developer experience</li>
 <li><strong>🛠️ Developer Experience</strong>: <code>explain()</code> for pipeline analysis, <code>benchmark()</code> for performance, user-friendly error messages</li>
-<li><strong>📦 Modular Architecture</strong>: pnpm workspaces, optional packages (@modash/rxjs), zero-dependency core</li>
+<li><strong>📦 Modular Architecture</strong>: pnpm workspaces, optional packages (@aggo/rxjs), zero-dependency core</li>
 <li><strong>TypeScript-Native</strong>: Direct TypeScript execution with zero build steps - no compilation needed</li>
 <li><strong>Complete Type Safety</strong>: Full TypeScript definitions with generics and IntelliSense support</li>
 <li><strong>Modern ES2022+</strong>: Native modules, latest JavaScript features, works directly with tsx/esm</li>
@@ -66,7 +66,7 @@
 <li><strong>Production Ready</strong>: 100+ comprehensive tests, battle-tested implementations</li>
 </ul>
 <h2>🚀 Installation</h2>
-<pre class="prettyprint source lang-bash"><code>npm install modash
+<pre class="prettyprint source lang-bash"><code>npm install aggo
 </code></pre>
 <blockquote>
 <p>This package ships compiled ESM in <code>dist/</code> for runtime, and TypeScript sources are used for editor IntelliSense. No runtime TS loader required.</p>
@@ -74,16 +74,16 @@
 <h2>🛠️ CLI Tool (Phase 6)</h2>
 <p>Process JSON data from the command line with the full power of MongoDB aggregation:</p>
 <pre class="prettyprint source lang-bash"><code># Install globally for CLI usage
-npm install -g modash
+npm install -g aggo
 
 # Process data from stdin
-cat data.jsonl | modash '[{&quot;$match&quot;: {&quot;score&quot;: {&quot;$gte&quot;: 80}}}]'
+cat data.jsonl | aggo '[{&quot;$match&quot;: {&quot;score&quot;: {&quot;$gte&quot;: 80}}}]'
 
 # Process data from file with analysis
-modash '[{&quot;$group&quot;: {&quot;_id&quot;: &quot;$category&quot;, &quot;avg&quot;: {&quot;$avg&quot;: &quot;$value&quot;}}}]' --file data.jsonl --explain --stats
+aggo '[{&quot;$group&quot;: {&quot;_id&quot;: &quot;$category&quot;, &quot;avg&quot;: {&quot;$avg&quot;: &quot;$value&quot;}}}]' --file data.jsonl --explain --stats
 
 # Pretty print output
-echo '{&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 30}' | modash '[{&quot;$project&quot;: {&quot;name&quot;: 1}}]' --pretty
+echo '{&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 30}' | aggo '[{&quot;$project&quot;: {&quot;name&quot;: 1}}]' --pretty
 </code></pre>
 <h3>CLI Options</h3>
 <ul>
@@ -96,7 +96,7 @@ echo '{&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 30}' | modash '[{&q
 </ul>
 <h3>CLI Examples</h3>
 <pre class="prettyprint source lang-bash"><code># E-commerce analytics
-cat sales.jsonl | modash '[
+cat sales.jsonl | aggo '[
   {&quot;$match&quot;: {&quot;date&quot;: {&quot;$gte&quot;: &quot;2023-01-01&quot;}}},
   {&quot;$group&quot;: {&quot;_id&quot;: &quot;$product&quot;, &quot;revenue&quot;: {&quot;$sum&quot;: {&quot;$multiply&quot;: [&quot;$price&quot;, &quot;$quantity&quot;]}}}},
   {&quot;$sort&quot;: {&quot;revenue&quot;: -1}},
@@ -104,17 +104,17 @@ cat sales.jsonl | modash '[
 ]' --stats
 
 # Log analysis with explanation
-modash '[{&quot;$match&quot;: {&quot;level&quot;: &quot;error&quot;}}, {&quot;$project&quot;: {&quot;timestamp&quot;: 1, &quot;message&quot;: 1}}]' \
+aggo '[{&quot;$match&quot;: {&quot;level&quot;: &quot;error&quot;}}, {&quot;$project&quot;: {&quot;timestamp&quot;: 1, &quot;message&quot;: 1}}]' \
   --file app.log.jsonl --explain --pretty
 </code></pre>
-<h2>📦 RxJS Integration (@modash/rxjs)</h2>
+<h2>📦 RxJS Integration (@aggo/rxjs)</h2>
 <p>For reactive applications, install the optional RxJS adapter:</p>
-<pre class="prettyprint source lang-bash"><code>npm install modash @modash/rxjs rxjs
+<pre class="prettyprint source lang-bash"><code>npm install aggo @aggo/rxjs rxjs
 </code></pre>
 <pre class="prettyprint source lang-typescript"><code>import { from } from 'rxjs';
-import { aggregate, streamingAggregate } from '@modash/rxjs';
+import { aggregate, streamingAggregate } from '@aggo/rxjs';
 
-// Transform Observable streams through modash pipelines
+// Transform Observable streams through aggo pipelines
 const events$ = from(eventStream);
 const analytics$ = aggregate(events$, [
   { $match: { type: 'user_action' } },
@@ -128,7 +128,7 @@ const metrics$ = streamingAggregate(sensorData$, [
 </code></pre>
 <h2>📖 Usage</h2>
 <h3>Quick Start (TypeScript)</h3>
-<pre class="prettyprint source lang-typescript"><code>import Modash, { type Collection, type Document } from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import Aggo, { type Collection, type Document } from 'aggo';
 
 interface Sale extends Document {
   item: string;
@@ -144,7 +144,7 @@ const sales: Collection&lt;Sale> = [
 ];
 
 // TypeScript provides full type safety and intellisense
-const revenueByDate = Modash.aggregate(sales, [
+const revenueByDate = Aggo.aggregate(sales, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
@@ -167,7 +167,7 @@ console.log(revenueByDate);
 // ]
 </code></pre>
 <h3>JavaScript Usage</h3>
-<pre class="prettyprint source lang-javascript"><code>import Modash from 'modash';
+<pre class="prettyprint source lang-javascript"><code>import Aggo from 'aggo';
 
 const sales = [
   { item: 'laptop', price: 1000, quantity: 2, date: new Date('2023-01-15') },
@@ -176,7 +176,7 @@ const sales = [
 ];
 
 // Works seamlessly with plain JavaScript too
-const revenueByDate = Modash.aggregate(sales, [
+const revenueByDate = Aggo.aggregate(sales, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
@@ -195,7 +195,7 @@ const revenueByDate = Modash.aggregate(sales, [
 <h2>🔬 Enhanced Developer Experience (Phase 6)</h2>
 <h3>Pipeline Analysis with <code>explain()</code></h3>
 <p>Understand your aggregation pipelines with detailed analysis:</p>
-<pre class="prettyprint source lang-typescript"><code>import { explain } from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import { explain } from 'aggo';
 
 const analysis = explain([
   { $match: { status: 'active' } },
@@ -210,7 +210,7 @@ console.log('Optimizations:', analysis.optimizations);
 </code></pre>
 <h3>Performance Benchmarking with <code>benchmark()</code></h3>
 <p>Measure and optimize your pipeline performance:</p>
-<pre class="prettyprint source lang-typescript"><code>import { benchmark } from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import { benchmark } from 'aggo';
 
 const metrics = await benchmark(
   largeDataset,
@@ -229,7 +229,7 @@ console.log(`Execution time: ${metrics.duration.total}ms`);
 </code></pre>
 <h3>Stream Processing with <code>fromJSONL()</code></h3>
 <p>Process large JSONL files efficiently:</p>
-<pre class="prettyprint source lang-typescript"><code>import { fromJSONL } from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import { fromJSONL } from 'aggo';
 import { createReadStream } from 'fs';
 
 const stream = createReadStream('large-dataset.jsonl');
@@ -239,18 +239,18 @@ for await (const doc of fromJSONL(stream, { batchSize: 1000 })) {
   documents.push(doc);
 }
 
-const results = Modash.aggregate(documents, pipeline);
+const results = Aggo.aggregate(documents, pipeline);
 </code></pre>
 <h3>User-Friendly Error Messages</h3>
 <p>Get helpful hints when things go wrong:</p>
-<pre class="prettyprint source lang-bash"><code>$ modash '[{&quot;$match&quot;: {&quot;complex_regex&quot;: {&quot;$regex&quot;: &quot;(?=.*complex)(?=.*pattern)&quot;}}}]'
+<pre class="prettyprint source lang-bash"><code>$ aggo '[{&quot;$match&quot;: {&quot;complex_regex&quot;: {&quot;$regex&quot;: &quot;(?=.*complex)(?=.*pattern)&quot;}}}]'
 ❌ Error: Regex processing failed
 💡 Hint: Regex too complex → fell back to standard mode
 </code></pre>
 <h2>🔄 Streaming/Incremental Updates</h2>
 <p><strong>NEW!</strong> Stream live data changes with automatic aggregation updates:</p>
 <h3>Real-Time Analytics</h3>
-<pre class="prettyprint source lang-typescript"><code>import { createStreamingCollection } from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import { createStreamingCollection } from 'aggo';
 
 interface Order extends Document {
   customerId: number;
@@ -331,7 +331,7 @@ liveOrders.addBulk([
 <h3>🔌 EventEmitter Integration</h3>
 <p><strong>Connect to any EventEmitter as a data source with automatic streaming updates:</strong></p>
 <pre class="prettyprint source lang-typescript"><code>import { EventEmitter } from 'events';
-import { createStreamingCollection } from 'modash';
+import { createStreamingCollection } from 'aggo';
 
 interface PaymentEvent {
   orderId: string;
@@ -487,7 +487,7 @@ const removed = inventory.removeFirst(2); // Remove oldest items
 <h3>🛒 E-commerce Analytics</h3>
 <p><strong>Top-Selling Products with Inventory Management:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Analyze product performance and identify low stock items
-const productAnalysis = Modash.aggregate(orders, [
+const productAnalysis = Aggo.aggregate(orders, [
   {
     $lookup: {
       from: products,
@@ -534,7 +534,7 @@ const productAnalysis = Modash.aggregate(orders, [
 </code></pre>
 <p><strong>Customer Segmentation &amp; Purchase Behavior:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Advanced customer analytics with tier-based insights
-const customerInsights = Modash.aggregate(orders, [
+const customerInsights = Aggo.aggregate(orders, [
   {
     $lookup: {
       from: customers,
@@ -594,7 +594,7 @@ const customerInsights = Modash.aggregate(orders, [
 <h3>📝 Content Management &amp; Analytics</h3>
 <p><strong>High-Performance Content Discovery:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Find top-performing blog posts with engagement scoring
-const topContent = Modash.aggregate(blogPosts, [
+const topContent = Aggo.aggregate(blogPosts, [
   {
     $lookup: {
       from: authors,
@@ -655,7 +655,7 @@ const topContent = Modash.aggregate(blogPosts, [
 <h3>👥 HR &amp; People Analytics</h3>
 <p><strong>Department Performance &amp; Salary Analysis:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Comprehensive HR analytics with performance metrics
-const hrAnalytics = Modash.aggregate(employees, [
+const hrAnalytics = Aggo.aggregate(employees, [
   {
     $addFields: {
       avgPerformance: { $avg: '$performance' },
@@ -707,7 +707,7 @@ const hrAnalytics = Modash.aggregate(employees, [
 <h3>💰 Financial Transaction Analysis</h3>
 <p><strong>Account Activity &amp; Risk Assessment:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Comprehensive financial transaction analysis
-const accountSummary = Modash.aggregate(transactions, [
+const accountSummary = Aggo.aggregate(transactions, [
   {
     $addFields: {
       month: { $month: '$date' },
@@ -771,7 +771,7 @@ const accountSummary = Modash.aggregate(transactions, [
 <h3>🌡️ IoT Environmental Monitoring</h3>
 <p><strong>Sensor Data Analysis with Alert System:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Environmental monitoring with automated alerts
-const environmentalAnalysis = Modash.aggregate(sensorReadings, [
+const environmentalAnalysis = Aggo.aggregate(sensorReadings, [
   {
     $addFields: {
       tempAlert: {
@@ -838,7 +838,7 @@ const environmentalAnalysis = Modash.aggregate(sensorReadings, [
 <h3>📱 Social Media Trend Analysis</h3>
 <p><strong>Viral Content &amp; Hashtag Analytics:</strong></p>
 <pre class="prettyprint source lang-javascript"><code>// Advanced social media analytics with virality scoring
-const trendingContent = Modash.aggregate(socialPosts, [
+const trendingContent = Aggo.aggregate(socialPosts, [
   {
     $lookup: {
       from: users,
@@ -996,8 +996,8 @@ const trendingContent = Modash.aggregate(socialPosts, [
 <li><strong><code>$addToSet</code></strong> - Collect unique values</li>
 </ul>
 <h2>🏷️ TypeScript Support</h2>
-<p>Modash.js is built TypeScript-first with zero compilation steps needed. It provides comprehensive type definitions for exceptional developer experience:</p>
-<pre class="prettyprint source lang-typescript"><code>import Modash, { type Collection, type Pipeline, type Document } from 'modash';
+<p>Aggo.js is built TypeScript-first with zero compilation steps needed. It provides comprehensive type definitions for exceptional developer experience:</p>
+<pre class="prettyprint source lang-typescript"><code>import Aggo, { type Collection, type Pipeline, type Document } from 'aggo';
 
 // Define your document types with full type safety
 interface Customer extends Document {
@@ -1078,16 +1078,16 @@ const pipeline: Pipeline = [
 ];
 
 // Fully typed results with IntelliSense support
-const result = Modash.aggregate(customers, pipeline);
+const result = Aggo.aggregate(customers, pipeline);
 // TypeScript infers: Collection&lt;{name: string, email: string, orderCount: number, isVip: boolean, ...}>
 
 // Type-safe individual stage operations
-const activeCustomers = Modash.$match(customers, {
+const activeCustomers = Aggo.$match(customers, {
   age: { $gte: 18 },
   'orders.status': { $in: ['pending', 'shipped'] },
 });
 
-const customerSummary = Modash.$group(activeCustomers, {
+const customerSummary = Aggo.$group(activeCustomers, {
   _id: '$address.country',
   totalCustomers: { $sum: 1 },
   avgAge: { $avg: '$age' },
@@ -1100,7 +1100,7 @@ function typedAggregate&lt;TInput extends Document, TOutput extends Document>(
   collection: Collection&lt;TInput>,
   pipeline: Pipeline
 ): Collection&lt;TOutput> {
-  return Modash.aggregate(collection, pipeline);
+  return Aggo.aggregate(collection, pipeline);
 }
 
 // Custom document interfaces with nested objects
@@ -1122,7 +1122,7 @@ interface ProductSale extends Document {
 }
 
 // Complex aggregation with full type safety
-const salesAnalysis = Modash.aggregate(sales, [
+const salesAnalysis = Aggo.aggregate(sales, [
   {
     $match: {
       'product.category': { $in: ['electronics', 'computers'] },
@@ -1187,7 +1187,7 @@ const salesAnalysis = Modash.aggregate(sales, [
 ];
 
 // Complex array analysis
-const tagAnalysis = Modash.aggregate(blogPosts, [
+const tagAnalysis = Aggo.aggregate(blogPosts, [
   // Filter featured posts only
   { $match: { 'metadata.featured': true } },
 
@@ -1256,7 +1256,7 @@ const tagAnalysis = Modash.aggregate(blogPosts, [
 </code></pre>
 <h3>Data Joins and Relationships</h3>
 <pre class="prettyprint source lang-javascript"><code>// Users and their posts with enhanced lookup
-const userPostStats = Modash.aggregate(users, [
+const userPostStats = Aggo.aggregate(users, [
   // Join with posts
   {
     $lookup: {
@@ -1397,7 +1397,7 @@ npm run build
 <h3>Test Commands Explained</h3>
 <ul>
 <li><strong><code>npm test</code></strong> (~3s): Complete test suite (all unit tests + performance benchmarks) - primary command for development</li>
-<li><strong><code>npm run test:fast</code></strong>: Only fast core tests (count, modash, docs, operators, regression tests) - for quick iterations</li>
+<li><strong><code>npm run test:fast</code></strong>: Only fast core tests (count, aggo, docs, operators, regression tests) - for quick iterations</li>
 <li><strong><code>npm run test:streaming</code></strong>: Streaming collection tests (may have some failing tests)</li>
 <li><strong><code>npm run test:slow</code></strong>: Slower tests like aggregation and enhanced operators</li>
 <li><strong><code>npm run test:all</code></strong>: Alias for complete test suite (same as <code>npm test</code>)</li>
@@ -1420,20 +1420,20 @@ npm run build
 <li><strong>ES Modules</strong>: Now uses native ES modules instead of CommonJS</li>
 <li><strong>Modern API</strong>: No more need to mixin with lodash</li>
 <li><strong>Node.js</strong>: Requires Node.js 18+</li>
-<li><strong>Import Style</strong>: Use <code>import Modash from 'modash'</code> instead of <code>_.mixin(Modash)</code></li>
+<li><strong>Import Style</strong>: Use <code>import Aggo from 'aggo'</code> instead of <code>_.mixin(Aggo)</code></li>
 </ul>
 <h3>Before (v0.7.x)</h3>
 <pre class="prettyprint source lang-javascript"><code>const _ = require('lodash');
-const Modash = require('modash');
-_.mixin(Modash);
+const Aggo = require('aggo');
+_.mixin(Aggo);
 
 const result = _(data).aggregate([...]).value();
 </code></pre>
 <h3>After (v0.8.0+ - TypeScript Native)</h3>
-<pre class="prettyprint source lang-typescript"><code>import Modash from 'modash';
+<pre class="prettyprint source lang-typescript"><code>import Aggo from 'aggo';
 
 // Direct TypeScript execution - no build step needed
-const result = Modash.aggregate(data, [...]);
+const result = Aggo.aggregate(data, [...]);
 </code></pre>
 <h2>📄 License</h2>
 <p>MIT © <a href="https://github.com/TomNeyland">Tom Neyland</a></p>

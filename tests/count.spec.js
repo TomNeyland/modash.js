@@ -1,7 +1,7 @@
 import { count } from '../src/aggo/count';
 import { expect } from 'chai';
 
-describe('Modash Count', () => {
+describe('Aggo Count', () => {
   it('should report the correct size', () => {
     expect(count([1])).to.equal(1);
     expect(count([1, 2])).to.equal(2);

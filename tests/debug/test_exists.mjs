@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const testData = [
   { _id: 1, name: 'Alice', tags: ['a', 'b'] },
@@ -9,7 +9,7 @@ const testData = [
 
 console.log('Test data:', JSON.stringify(testData, null, 2));
 
-const result = Modash.aggregate(testData, [
+const result = Aggo.aggregate(testData, [
   { $match: { tags: { $exists: true } } }
 ]);
 

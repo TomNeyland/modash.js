@@ -1,15 +1,15 @@
 /**
- * @modash/rxjs - RxJS integration for modash.js
+ * @aggo/rxjs - RxJS integration for aggo.js
  * 
  * Provides Observable-based aggregation pipelines for reactive programming
  * with Angular, React with RxJS, and other frontend frameworks.
  */
 
 import { Observable, map, scan, distinctUntilChanged } from 'rxjs';
-import type { Document, Pipeline, Collection } from 'modash';
+import type { Document, Pipeline, Collection } from 'aggo';
 
 // Re-export types for convenience
-export type { Document, Pipeline, Collection } from 'modash';
+export type { Document, Pipeline, Collection } from 'aggo';
 
 /**
  * Configuration options for reactive aggregation
@@ -41,17 +41,17 @@ export interface ReactiveAggregationOptions {
 }
 
 /**
- * Transforms an Observable stream of documents through a modash aggregation pipeline
+ * Transforms an Observable stream of documents through a aggo aggregation pipeline
  * 
  * @param source$ - Observable stream of documents or document arrays
- * @param pipeline - Modash aggregation pipeline
+ * @param pipeline - Aggo aggregation pipeline
  * @param options - Configuration options
  * @returns Observable of aggregated results
  * 
  * @example
  * ```typescript
  * import { from } from 'rxjs';
- * import { aggregate } from '@modash/rxjs';
+ * import { aggregate } from '@aggo/rxjs';
  * 
  * const documents$ = from([
  *   { name: 'Alice', age: 30, city: 'Seattle' },
@@ -83,10 +83,10 @@ export function aggregate<T extends Document = Document>(
       if (incremental) {
         // Add new documents to accumulator and process incrementally
         accumulatedDocs = [...accumulatedDocs, ...docs];
-        return processWithModash(accumulatedDocs, pipeline);
+        return processWithAggo(accumulatedDocs, pipeline);
       } else {
         // Process only the current batch
-        return processWithModash(docs, pipeline);
+        return processWithAggo(docs, pipeline);
       }
     })
   );
@@ -106,14 +106,14 @@ export function aggregate<T extends Document = Document>(
  * Creates a streaming aggregation Observable that accumulates documents over time
  * 
  * @param source$ - Observable stream of individual documents
- * @param pipeline - Modash aggregation pipeline
+ * @param pipeline - Aggo aggregation pipeline
  * @param options - Configuration options
  * @returns Observable of accumulated aggregation results
  * 
  * @example
  * ```typescript
  * import { interval, map } from 'rxjs';
- * import { streamingAggregate } from '@modash/rxjs';
+ * import { streamingAggregate } from '@aggo/rxjs';
  * 
  * const documentStream$ = interval(1000).pipe(
  *   map(i => ({ id: i, value: Math.random() * 100 }))
@@ -142,7 +142,7 @@ export function streamingAggregate<T extends Document = Document>(
       }
       return newAcc;
     }, []),
-    map((docs: T[]) => processWithModash(docs, pipeline)),
+    map((docs: T[]) => processWithAggo(docs, pipeline)),
     distinctUntilChanged((prev, curr) => 
       JSON.stringify(prev) === JSON.stringify(curr)
     )
@@ -150,18 +150,18 @@ export function streamingAggregate<T extends Document = Document>(
 }
 
 /**
- * Transforms an Observable of collections through a modash pipeline
+ * Transforms an Observable of collections through a aggo pipeline
  * Useful for batch processing scenarios where you receive arrays of documents
  * 
  * @param collections$ - Observable stream of document collections  
- * @param pipeline - Modash aggregation pipeline
+ * @param pipeline - Aggo aggregation pipeline
  * @param options - Configuration options
  * @returns Observable of processed collections
  * 
  * @example
  * ```typescript
  * import { of } from 'rxjs';
- * import { aggregateCollections } from '@modash/rxjs';
+ * import { aggregateCollections } from '@aggo/rxjs';
  * 
  * const batches$ = of(
  *   [{ category: 'A', value: 10 }, { category: 'B', value: 20 }],
@@ -181,7 +181,7 @@ export function aggregateCollections<T extends Document = Document>(
   const { distinctOnly = true } = options;
   
   const processed$ = collections$.pipe(
-    map((collection: Collection<T>) => processWithModash(collection, pipeline))
+    map((collection: Collection<T>) => processWithAggo(collection, pipeline))
   );
   
   if (distinctOnly) {
@@ -200,13 +200,13 @@ export function aggregateCollections<T extends Document = Document>(
  * Useful for reactive dashboards and real-time analytics
  * 
  * @param source$ - Observable of document collections
- * @param pipeline - Modash aggregation pipeline  
+ * @param pipeline - Aggo aggregation pipeline  
  * @returns Observable of aggregation results with change detection
  * 
  * @example
  * ```typescript
  * import { BehaviorSubject } from 'rxjs';
- * import { reactiveAggregation } from '@modash/rxjs';
+ * import { reactiveAggregation } from '@aggo/rxjs';
  * 
  * const dataSubject = new BehaviorSubject([
  *   { product: 'laptop', sales: 100 },
@@ -231,7 +231,7 @@ export function reactiveAggregation<T extends Document = Document>(
   pipeline: Pipeline
 ): Observable<Collection<T>> {
   return source$.pipe(
-    map((collection: Collection<T>) => processWithModash(collection, pipeline)),
+    map((collection: Collection<T>) => processWithAggo(collection, pipeline)),
     distinctUntilChanged((prev, curr) => 
       JSON.stringify(prev) === JSON.stringify(curr)
     )
@@ -239,35 +239,35 @@ export function reactiveAggregation<T extends Document = Document>(
 }
 
 /**
- * Helper function to process documents with modash
- * This function dynamically imports modash to avoid bundling it as a hard dependency
+ * Helper function to process documents with aggo
+ * This function dynamically imports aggo to avoid bundling it as a hard dependency
  */
-function processWithModash<T extends Document = Document>(
+function processWithAggo<T extends Document = Document>(
   collection: Collection<T>, 
   pipeline: Pipeline
 ): Collection<T> {
   try {
-    // Dynamic import to avoid bundling modash when not needed
-    // In real usage, this would be: import('modash').then(...)
-    // For now, we'll assume modash is available in the environment
-    if (typeof globalThis !== 'undefined' && (globalThis as any).Modash) {
-      return (globalThis as any).Modash.aggregate(collection, pipeline);
+    // Dynamic import to avoid bundling aggo when not needed
+    // In real usage, this would be: import('aggo').then(...)
+    // For now, we'll assume aggo is available in the environment
+    if (typeof globalThis !== 'undefined' && (globalThis as any).Aggo) {
+      return (globalThis as any).Aggo.aggregate(collection, pipeline);
     }
     
-    // Fallback error if modash is not available
-    throw new Error('Modash is not available. Make sure to install modash as a peer dependency.');
+    // Fallback error if aggo is not available
+    throw new Error('Aggo is not available. Make sure to install aggo as a peer dependency.');
   } catch (error) {
     throw new Error(`Failed to process aggregation pipeline: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Utility function to check if modash is properly installed and accessible
- * @returns boolean indicating if modash is available
+ * Utility function to check if aggo is properly installed and accessible
+ * @returns boolean indicating if aggo is available
  */
-export function isModashAvailable(): boolean {
+export function isAggoAvailable(): boolean {
   try {
-    return typeof globalThis !== 'undefined' && (globalThis as any).Modash !== undefined;
+    return typeof globalThis !== 'undefined' && (globalThis as any).Aggo !== undefined;
   } catch {
     return false;
   }

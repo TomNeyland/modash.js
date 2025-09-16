@@ -10,7 +10,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import Modash from '../src/modash/index.ts';
+import Aggo from '../src/aggo/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES } from './setup.js';
 import { runMicroBenchmarks } from './micro-benchmarks.js';
 
@@ -106,7 +106,7 @@ function measureWithGC(name, operation, iterations = 5) {
  */
 async function measureDeltaLatency() {
   const baseData = generateTestData(1000);
-  const streamingCollection = Modash.createStreamingCollection(baseData);
+  const streamingCollection = Aggo.createStreamingCollection(baseData);
   
   const pipeline = [
     { $match: { active: true } },
@@ -126,7 +126,7 @@ async function measureDeltaLatency() {
       
       const start = process.hrtime.bigint();
       streamingCollection.addBulk(deltaData);
-      Modash.aggregate(streamingCollection, pipeline);
+      Aggo.aggregate(streamingCollection, pipeline);
       const end = process.hrtime.bigint();
       
       latencies.push(Number(end - start) / 1_000_000); // Convert to ms
@@ -230,7 +230,7 @@ async function runCIPerformanceBudgets() {
 
   for (const test of coreTests) {
     const result = measureWithGC(test.name, () => {
-      return Modash.aggregate(testData, test.pipeline);
+      return Aggo.aggregate(testData, test.pipeline);
     });
 
     results[test.name] = result;

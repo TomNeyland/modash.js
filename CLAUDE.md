@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**modash.js** is a TypeScript-native MongoDB aggregation library that brings MongoDB pipeline syntax to JavaScript arrays. It provides zero-compilation TypeScript execution, comprehensive type safety, and high-performance data processing.
+**aggo.js** is a TypeScript-native MongoDB aggregation library that brings MongoDB pipeline syntax to JavaScript arrays. It provides zero-compilation TypeScript execution, comprehensive type safety, and high-performance data processing.
 
 ## ⚠️ CRITICAL: Zero Build System - TypeScript Native
 
-**modash.js runs TypeScript DIRECTLY with NO build step required.**
+**aggo.js runs TypeScript DIRECTLY with NO build step required.**
 
 - Do NOT try to compile TypeScript - it runs natively with `tsx`
 - Do NOT look for build artifacts or compiled JavaScript files
 - Use `npx tsx` to run TypeScript files directly
-- Import from source: `import Modash from './src/index.ts'` for local development
+- Import from source: `import Aggo from './src/index.ts'` for local development
 
 ## Essential Development Commands
 
@@ -50,16 +50,16 @@ npm test                  # MANDATORY: Includes critical performance tracking - 
 ### Main Entry Points
 
 - `src/index.ts` - Main exports and TypeScript type definitions
-- `src/modash/index.ts` - Core Modash implementation with hot path optimization
+- `src/aggo/index.ts` - Core Aggo implementation with hot path optimization
 - `src/cli.ts` - CLI tool implementation
 
 ### Core Implementation
 
-- `src/modash/aggregation.ts` - Pipeline stage implementations ($match, $project, $group, etc.)
-- `src/modash/operators.ts` - Expression operators ($add, $concat, $multiply, etc.)
-- `src/modash/expressions.ts` - Expression evaluation engine
-- `src/modash/hot-path-aggregation.ts` - Performance-optimized aggregation engine
-- `src/modash/streaming.ts` - Streaming/incremental data processing
+- `src/aggo/aggregation.ts` - Pipeline stage implementations ($match, $project, $group, etc.)
+- `src/aggo/operators.ts` - Expression operators ($add, $concat, $multiply, etc.)
+- `src/aggo/expressions.ts` - Expression evaluation engine
+- `src/aggo/hot-path-aggregation.ts` - Performance-optimized aggregation engine
+- `src/aggo/streaming.ts` - Streaming/incremental data processing
 
 ### Key Features
 
@@ -125,9 +125,9 @@ npm test                  # MANDATORY: Includes critical performance tracking - 
 ### Basic Aggregation Usage
 
 ```typescript
-import Modash from './src/index.ts';
+import Aggo from './src/index.ts';
 
-const result = Modash.aggregate(data, [
+const result = Aggo.aggregate(data, [
   { $match: { score: { $gte: 80 } } },
   { $project: { name: 1, age: 1 } },
   { $sort: { age: -1 } },
@@ -137,7 +137,7 @@ const result = Modash.aggregate(data, [
 ### Streaming Collections
 
 ```typescript
-const streaming = Modash.createStreamingCollection(initialData);
+const streaming = Aggo.createStreamingCollection(initialData);
 streaming.stream(pipeline); // Real-time aggregation
 streaming.addBulk(newData); // Incremental updates
 ```

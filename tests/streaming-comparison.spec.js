@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import { createStreamingCollection } from '../src/aggo/streaming';
 import testData from './test-data.js';
 
@@ -10,7 +10,7 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
     pipeline,
     description = ''
   ) => {
-    const nonStreamingResult = Modash.aggregate(collection, pipeline);
+    const nonStreamingResult = Aggo.aggregate(collection, pipeline);
 
     // Test with streaming collection created from same data
     const streamingCollection = createStreamingCollection(collection);
@@ -340,9 +340,9 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
 
       // Warm and time both approaches (avoid first-run compile/setup cost)
       // Warm array/hot-path
-      Modash.aggregate(largeDataset, complexPipeline);
+      Aggo.aggregate(largeDataset, complexPipeline);
       const startNonStreaming = performance.now();
-      const nonStreamingResult = Modash.aggregate(
+      const nonStreamingResult = Aggo.aggregate(
         largeDataset,
         complexPipeline
       );
@@ -401,7 +401,7 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
       ];
 
       // Get result from complete dataset using traditional aggregation
-      const completeResult = Modash.aggregate(testData.inventory, pipeline);
+      const completeResult = Aggo.aggregate(testData.inventory, pipeline);
 
       // Create streaming collection with initial data
       const streamingCollection = createStreamingCollection(initialData);

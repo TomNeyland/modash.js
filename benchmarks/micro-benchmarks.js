@@ -3,7 +3,7 @@
  * Measures performance of core pipeline stages in isolation
  */
 
-import Modash from '../src/modash/index.ts';
+import Aggo from '../src/aggo/index.ts';
 import { generateTestData } from './setup.js';
 
 const ITERATIONS = 10;
@@ -17,7 +17,7 @@ const OPERATOR_BENCHMARKS = {
   $match: {
     name: '$match',
     setup: (data) => data,
-    operation: (data) => Modash.$match(data, { category: 'electronics', active: true }),
+    operation: (data) => Aggo.$match(data, { category: 'electronics', active: true }),
     expectedFilter: (data) => data.filter(doc => doc.category === 'electronics' && doc.active === true)
   },
 
@@ -25,7 +25,7 @@ const OPERATOR_BENCHMARKS = {
   $project: {
     name: '$project',
     setup: (data) => data,
-    operation: (data) => Modash.$project(data, {
+    operation: (data) => Aggo.$project(data, {
       item: 1,
       category: 1,
       revenue: { $multiply: ['$price', '$quantity'] },
@@ -38,7 +38,7 @@ const OPERATOR_BENCHMARKS = {
   '$group-sum': {
     name: '$group (sum)',
     setup: (data) => data,
-    operation: (data) => Modash.$group(data, {
+    operation: (data) => Aggo.$group(data, {
       _id: '$category',
       totalRevenue: { $sum: { $multiply: ['$price', '$quantity'] } },
       count: { $sum: 1 }
@@ -49,7 +49,7 @@ const OPERATOR_BENCHMARKS = {
   '$group-avg': {
     name: '$group (avg)',  
     setup: (data) => data,
-    operation: (data) => Modash.$group(data, {
+    operation: (data) => Aggo.$group(data, {
       _id: '$category',
       avgPrice: { $avg: '$price' },
       avgQuantity: { $avg: '$quantity' }
@@ -60,7 +60,7 @@ const OPERATOR_BENCHMARKS = {
   '$group-minmax': {
     name: '$group (min/max)',
     setup: (data) => data,
-    operation: (data) => Modash.$group(data, {
+    operation: (data) => Aggo.$group(data, {
       _id: '$category',
       minPrice: { $min: '$price' },
       maxPrice: { $max: '$price' }
@@ -72,7 +72,7 @@ const OPERATOR_BENCHMARKS = {
   $sort: {
     name: '$sort',
     setup: (data) => data,
-    operation: (data) => Modash.$sort(data, { price: -1, quantity: 1 }),
+    operation: (data) => Aggo.$sort(data, { price: -1, quantity: 1 }),
     expectedSize: (data) => data.length
   },
 
@@ -81,8 +81,8 @@ const OPERATOR_BENCHMARKS = {
     name: 'topK (sort+limit 100)',
     setup: (data) => data,
     operation: (data) => {
-      const sorted = Modash.$sort(data, { price: -1 });
-      return Modash.$limit(sorted, 100);
+      const sorted = Aggo.$sort(data, { price: -1 });
+      return Aggo.$limit(sorted, 100);
     },
     expectedSize: 100
   },
@@ -91,8 +91,8 @@ const OPERATOR_BENCHMARKS = {
     name: 'topK (sort+limit 1000)', 
     setup: (data) => data,
     operation: (data) => {
-      const sorted = Modash.$sort(data, { price: -1 });
-      return Modash.$limit(sorted, 1000);
+      const sorted = Aggo.$sort(data, { price: -1 });
+      return Aggo.$limit(sorted, 1000);
     },
     expectedSize: 1000
   },
@@ -101,7 +101,7 @@ const OPERATOR_BENCHMARKS = {
   $unwind: {
     name: '$unwind',
     setup: (data) => data,
-    operation: (data) => Modash.$unwind(data, '$tags'),
+    operation: (data) => Aggo.$unwind(data, '$tags'),
     expectedMultiplier: 2.0 // Average tags per document
   }
 };
@@ -284,7 +284,7 @@ export async function runDeltaBenchmarks() {
     
     try {
       // Create streaming collection
-      const streamingCollection = Modash.createStreamingCollection(baseData);
+      const streamingCollection = Aggo.createStreamingCollection(baseData);
       
       // Generate delta data
       const deltaData = generateTestData(batchSize);
@@ -294,7 +294,7 @@ export async function runDeltaBenchmarks() {
         streamingCollection.addBulk(deltaData);
         
         // Run aggregation
-        return Modash.aggregate(streamingCollection, pipeline);
+        return Aggo.aggregate(streamingCollection, pipeline);
       }, 5); // Fewer iterations for streaming tests
 
       console.log(`${name.padEnd(25)} : ${result.avg.toFixed(2)}ms ±${result.stdDev.toFixed(2)}ms`);
@@ -329,7 +329,7 @@ export async function runDeltaBenchmarks() {
  * Main benchmark runner
  */
 export async function runMicroBenchmarks() {
-  console.log('🚀 Running Modash Micro-Benchmarks\n');
+  console.log('🚀 Running Aggo Micro-Benchmarks\n');
   
   const operatorResults = await runOperatorBenchmarks();
   const deltaResults = await runDeltaBenchmarks();

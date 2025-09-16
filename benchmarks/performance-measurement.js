@@ -1,9 +1,9 @@
 /**
- * Enhanced Performance measurement for modash.js
+ * Enhanced Performance measurement for aggo.js
  * Integrated with performance tracking for persistent results and comparisons
  */
 
-import Modash from '../src/modash/index.ts';
+import Aggo from '../src/aggo/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES } from './setup.js';
 import { PerformanceTracker } from './performance-tracker.js';
 
@@ -13,7 +13,7 @@ const TEST_SIZES = [100, 500, 1000, 2500, 5000, 10000];
 export async function runPerformanceMeasurement() {
   const tracker = new PerformanceTracker();
   
-  console.log('🚀 Running modash.js Performance Measurement\n');
+  console.log('🚀 Running aggo.js Performance Measurement\n');
   
   try {
     // Load historical data for comparison
@@ -35,7 +35,7 @@ export async function runPerformanceMeasurement() {
         const result = tracker.benchmark(
           `${pipelineName} (${size})`,
           () => {
-            const output = Modash.aggregate(testData, pipelineStages);
+            const output = Aggo.aggregate(testData, pipelineStages);
             if (!Array.isArray(output)) {
               throw new Error(`Expected array output, got ${typeof output}`);
             }

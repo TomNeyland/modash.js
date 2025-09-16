@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const testData = [
   { _id: 1, name: 'Alice', scores: [85, 90, 88] },
@@ -18,7 +18,7 @@ const pipeline = [
 console.log('Test data:', JSON.stringify(testData, null, 2));
 console.log('\nPipeline:', JSON.stringify(pipeline, null, 2));
 
-const result = Modash.aggregate(testData, pipeline);
+const result = Aggo.aggregate(testData, pipeline);
 
 console.log('\nResult:');
 result.forEach(doc => {

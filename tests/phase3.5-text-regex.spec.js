@@ -6,7 +6,7 @@
 
 import { describe, it } from 'mocha';
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import {
   $text,
   getTextSearchStats,
@@ -205,7 +205,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
 
   describe('Integration with $match operator', () => {
     it('should work with $text in aggregation pipeline', () => {
-      const results = Modash.aggregate(documents, [
+      const results = Aggo.aggregate(documents, [
         { $match: { $text: 'javascript programming' } },
       ]);
 
@@ -214,7 +214,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     });
 
     it('should work with $regex in aggregation pipeline', () => {
-      const results = Modash.aggregate(documents, [
+      const results = Aggo.aggregate(documents, [
         { $match: { title: { $regex: 'JavaScript.*Guide' } } },
       ]);
 
@@ -223,7 +223,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     });
 
     it('should combine $text with other operators', () => {
-      const results = Modash.aggregate(documents, [
+      const results = Aggo.aggregate(documents, [
         {
           $match: {
             $text: 'javascript',
@@ -237,7 +237,7 @@ describe('Phase 3.5: Text & Regex Prefiltering', () => {
     });
 
     it('should handle complex regex patterns', () => {
-      const results = Modash.aggregate(documents, [
+      const results = Aggo.aggregate(documents, [
         {
           $match: {
             content: { $regex: 'modern.*applications|algorithms.*processing' },

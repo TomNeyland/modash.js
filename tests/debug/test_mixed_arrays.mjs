@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 console.log('Testing mixed array sizes...');
 
@@ -14,7 +14,7 @@ const documents = [
 
 console.log('Input documents:', documents.length);
 
-const result = Modash.aggregate(documents, [
+const result = Aggo.aggregate(documents, [
   { $unwind: '$values' }
 ]);
 

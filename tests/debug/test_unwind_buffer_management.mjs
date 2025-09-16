@@ -5,7 +5,7 @@
  * Run with: DEBUG_IVM=1 node test_unwind_buffer_management.mjs
  */
 
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 console.log('🧪 Testing $unwind Buffer Management & Dynamic Growth...\n');
 
@@ -17,7 +17,7 @@ const documents1 = [
 ];
 
 try {
-  const result1 = Modash.aggregate(documents1, [
+  const result1 = Aggo.aggregate(documents1, [
     { $unwind: '$tags' }
   ]);
   
@@ -36,7 +36,7 @@ const documents2 = [
 
 try {
   const start = Date.now();
-  const result2 = Modash.aggregate(documents2, [
+  const result2 = Aggo.aggregate(documents2, [
     { $unwind: '$items' },
     { $group: { _id: null, count: { $sum: 1 } } }
   ]);
@@ -70,7 +70,7 @@ const documents3 = [
 ];
 
 try {
-  const result3 = Modash.aggregate(documents3, [
+  const result3 = Aggo.aggregate(documents3, [
     { $unwind: '$user.profile.hobbies' }
   ]);
   
@@ -91,7 +91,7 @@ const documents4 = [
 ];
 
 try {
-  const result4 = Modash.aggregate(documents4, [
+  const result4 = Aggo.aggregate(documents4, [
     { $unwind: '$items' },
     { $group: { 
       _id: '$category', 
@@ -119,7 +119,7 @@ if (process.env.DEBUG_IVM) {
     const massiveArray = Array.from({ length: 2000 }, (_, i) => `huge${i}`);
     const documents5 = [{ _id: 1, massive: massiveArray }];
     
-    const result5 = Modash.aggregate(documents5, [
+    const result5 = Aggo.aggregate(documents5, [
       { $unwind: '$massive' },
       { $limit: 10 }  // Just take first 10 to avoid too much output
     ]);

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Modash Large Dataset Benchmark Script
+# Aggo Large Dataset Benchmark Script
 # This script runs performance benchmarks on large datasets
 
 set -e
 
-echo "🚀 Modash Large Dataset Benchmark"
+echo "🚀 Aggo Large Dataset Benchmark"
 echo "=================================="
 echo
 
@@ -167,7 +167,7 @@ main() {
     echo
 
     # Initialize results file
-    echo "Modash Benchmark Results - $(date)" > "$RESULTS_FILE"
+    echo "Aggo Benchmark Results - $(date)" > "$RESULTS_FILE"
     echo "===================================" >> "$RESULTS_FILE"
     echo >> "$RESULTS_FILE"
 
