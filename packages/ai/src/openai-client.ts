@@ -1,10 +1,13 @@
 /**
  * OpenAI client for converting natural language queries to MongoDB aggregation pipelines
+ * Now with structured output and automatic UI generation
  */
 
 import OpenAI from 'openai';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type { Pipeline } from 'aggo';
 import type { SimplifiedSchema } from './schema-inference.js';
+import { StructuredOutputSchema, type StructuredOutput } from './ui-schemas.js';
 
 export interface OpenAIOptions {
   /** OpenAI API key */
@@ -22,6 +25,10 @@ export interface PipelineGenerationResult {
   pipeline: Pipeline;
   /** Explanation of the generated pipeline (if requested) */
   explanation?: string;
+  /** UI instructions for terminal presentation */
+  uiInstructions?: StructuredOutput['ui'];
+  /** Reasoning behind UI choices */
+  uiReasoning?: string;
   /** Tokens used in the request */
   tokensUsed?: {
     prompt: number;
@@ -52,61 +59,103 @@ export class OpenAIClient {
   }
 
   /**
-   * Generates a MongoDB aggregation pipeline from natural language
+   * Generates a MongoDB aggregation pipeline from natural language with automatic UI
    *
    * @param query - Natural language query
    * @param schema - Simplified schema of the data
    * @param sampleDocuments - Sample documents for context
    * @param options - Additional options
-   * @returns Generated pipeline and metadata
+   * @returns Generated pipeline and metadata with UI instructions
    */
   async generatePipeline(
     query: string,
     schema: SimplifiedSchema,
     sampleDocuments: any[] = [],
-    options: { includeExplanation?: boolean } = {}
+    options: { includeExplanation?: boolean; generateUI?: boolean } = {}
   ): Promise<PipelineGenerationResult> {
+    // Default to generating UI unless explicitly disabled
+    const shouldGenerateUI = options.generateUI !== false;
+    
     const prompt = this.buildPrompt(
       query,
       schema,
       sampleDocuments,
-      options.includeExplanation
+      options.includeExplanation,
+      shouldGenerateUI
     );
 
     try {
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content: this.getSystemPrompt(),
+      if (shouldGenerateUI) {
+        // Use structured output with Zod schema for UI generation
+        const response = await this.client.responses.parse({
+          model: this.model,
+          input: [
+            {
+              role: 'system',
+              content: this.getSystemPromptWithUI(),
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          text: {
+            format: zodTextFormat(StructuredOutputSchema, 'structured_query_response'),
           },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: this.maxTokens,
-        temperature: this.temperature,
-        response_format: { type: 'json_object' },
-      });
+        });
 
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error('No response from OpenAI');
+        const parsedResponse = response.output_parsed;
+        if (!parsedResponse) {
+          throw new Error('No structured response from OpenAI');
+        }
+
+        return {
+          pipeline: parsedResponse.pipeline,
+          explanation: parsedResponse.explanation,
+          uiInstructions: parsedResponse.ui,
+          uiReasoning: parsedResponse.reasoning,
+          tokensUsed: {
+            prompt: response.usage?.prompt_tokens || 0,
+            completion: response.usage?.completion_tokens || 0,
+            total: response.usage?.total_tokens || 0,
+          },
+        };
+      } else {
+        // Fallback to original JSON response format
+        const completion = await this.client.chat.completions.create({
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: this.getSystemPrompt(),
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: this.maxTokens,
+          temperature: this.temperature,
+          response_format: { type: 'json_object' },
+        });
+
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error('No response from OpenAI');
+        }
+
+        const result = this.parseResponse(response);
+
+        return {
+          pipeline: result.pipeline,
+          explanation: result.explanation,
+          tokensUsed: {
+            prompt: completion.usage?.prompt_tokens || 0,
+            completion: completion.usage?.completion_tokens || 0,
+            total: completion.usage?.total_tokens || 0,
+          },
+        };
       }
-
-      const result = this.parseResponse(response);
-
-      return {
-        pipeline: result.pipeline,
-        explanation: result.explanation,
-        tokensUsed: {
-          prompt: completion.usage?.prompt_tokens || 0,
-          completion: completion.usage?.completion_tokens || 0,
-          total: completion.usage?.total_tokens || 0,
-        },
-      };
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to generate pipeline: ${error.message}`);
@@ -122,7 +171,8 @@ export class OpenAIClient {
     query: string,
     schema: SimplifiedSchema,
     sampleDocuments: any[],
-    includeExplanation: boolean = false
+    includeExplanation: boolean = false,
+    generateUI: boolean = true
   ): string {
     const schemaStr = JSON.stringify(schema, null, 2);
     const samplesStr =
@@ -130,7 +180,34 @@ export class OpenAIClient {
         ? sampleDocuments.map(doc => JSON.stringify(doc)).join('\n')
         : 'No sample documents provided';
 
-    return `Convert this natural language query into a MongoDB aggregation pipeline:
+    if (generateUI) {
+      return `Convert this natural language query into a MongoDB aggregation pipeline AND design the perfect terminal UI for displaying the results:
+
+QUERY: "${query}"
+
+DATA SCHEMA:
+${schemaStr}
+
+SAMPLE DOCUMENTS:
+${samplesStr}
+
+Your response must include:
+1. A MongoDB aggregation pipeline that answers the query
+2. Terminal UI instructions that present the data beautifully
+
+Consider the data structure and query type to choose the best visualization:
+- Use "table" layout for structured comparisons and detailed data
+- Use "cards" layout for highlighting individual records or profiles  
+- Use "list" layout for simple ordered results
+- Use "grid" layout for compact overviews of many items
+- Use "chart" layout for numerical trends or comparisons
+
+Choose colors, formatting, and styling that enhance readability and highlight important insights.
+${includeExplanation ? 'Include explanations for both the pipeline logic and UI design choices.' : ''}
+
+Make the UI adaptive to the data - if it's financial data, use currency formatting; if it's about rankings, highlight top performers; if it's time-series, consider showing trends.`;
+    } else {
+      return `Convert this natural language query into a MongoDB aggregation pipeline:
 
 QUERY: "${query}"
 
@@ -156,10 +233,56 @@ Example response format:
   ]
   ${includeExplanation ? ',\n  "explanation": "This pipeline filters for active records and groups by category, summing the amount field."' : ''}
 }`;
+    }
   }
 
   /**
-   * Gets the system prompt for the OpenAI API
+   * Gets the system prompt for the OpenAI API with UI generation capabilities
+   */
+  private getSystemPromptWithUI(): string {
+    return `You are an expert MongoDB aggregation pipeline generator AND terminal UI designer. Your task is to:
+1. Convert natural language queries into valid MongoDB aggregation pipelines
+2. Design beautiful, adaptive terminal UI presentations for the query results
+
+For the MongoDB pipeline:
+- Always return valid aggregation syntax
+- Use proper MongoDB aggregation operators
+- Field references must use "$fieldName" format
+- Group operations should use appropriate accumulators
+- Match operations should use proper query operators
+- Sort operations use 1 for ascending, -1 for descending
+- Be precise with field names from the provided schema
+- Optimize pipeline stages for performance when possible
+
+For the terminal UI design:
+- Choose the layout that best fits the data and query type
+- Use appropriate colors and styling for readability
+- Format data properly (currency, numbers, dates, percentages)
+- Highlight important information with colors and styling
+- Include helpful summaries when aggregating data
+- Consider the user's likely intent and present insights accordingly
+- Make the display visually appealing and informative
+
+Layout guidelines:
+- TABLE: Best for comparing multiple fields across records, detailed data analysis
+- CARDS: Great for highlighting individual items, profiles, or when you want to emphasize each record
+- LIST: Perfect for simple ordered results, rankings, or when space is limited
+- GRID: Ideal for compact overviews of many items, dashboard-style displays
+- CHART: Use for numerical comparisons, trends, or when visualization adds value
+
+Color guidelines:
+- Use cyan/blue for headers and structure
+- Use white for main data values
+- Use yellow for highlights and important metrics
+- Use green for positive values/summaries
+- Use red sparingly for warnings or negative values
+- Maintain good contrast and readability
+
+Always respond with a valid structured output that includes both the pipeline and UI instructions.`;
+  }
+
+  /**
+   * Gets the system prompt for the OpenAI API (legacy format)
    */
   private getSystemPrompt(): string {
     return `You are an expert MongoDB aggregation pipeline generator. Your task is to convert natural language queries into valid MongoDB aggregation pipelines.
