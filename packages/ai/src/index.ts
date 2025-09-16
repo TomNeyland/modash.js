@@ -22,6 +22,21 @@ import {
   type PipelineGenerationResult,
 } from './openai-client.js';
 
+// Re-export UI components
+export { TerminalUIRenderer } from './terminal-ui-renderer.js';
+export type {
+  UIInstructions,
+  StructuredOutput,
+  Color,
+  Layout,
+  Alignment,
+  Format,
+  Column,
+  Summary,
+  Styling,
+  Chart,
+} from './ui-schemas.js';
+
 // Re-export types for convenience
 export type {
   SimplifiedSchema,
@@ -38,6 +53,8 @@ export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   includeExplanation?: boolean;
   /** Number of sample documents to include in LLM context */
   sampleDocuments?: number;
+  /** Generate UI instructions for terminal display */
+  generateUI?: boolean;
 }
 
 export interface AIQueryResult extends PipelineGenerationResult {
@@ -102,7 +119,10 @@ export async function aiQuery(
     query,
     schema,
     samples,
-    { includeExplanation: options.includeExplanation }
+    { 
+      includeExplanation: options.includeExplanation,
+      generateUI: options.generateUI 
+    }
   );
   const pipelineGenerationMs = Date.now() - pipelineStart;
 
@@ -176,7 +196,7 @@ export async function generatePipeline(
   query: string,
   schema: SimplifiedSchema | Document[],
   sampleDocuments: Document[] = [],
-  options: OpenAIOptions = {}
+  options: OpenAIOptions & { generateUI?: boolean } = {}
 ): Promise<PipelineGenerationResult> {
   const actualSchema = Array.isArray(schema) ? inferSchema(schema) : schema;
   const samples = Array.isArray(schema)
@@ -184,7 +204,9 @@ export async function generatePipeline(
     : sampleDocuments;
 
   const client = new OpenAIClient(options);
-  return client.generatePipeline(query, actualSchema, samples);
+  return client.generatePipeline(query, actualSchema, samples, {
+    generateUI: options.generateUI
+  });
 }
 
 /**
@@ -200,11 +222,12 @@ export async function explainQuery(
   query: string,
   schema: SimplifiedSchema | Document[],
   sampleDocuments: Document[] = [],
-  options: OpenAIOptions = {}
+  options: OpenAIOptions & { generateUI?: boolean } = {}
 ): Promise<PipelineGenerationResult> {
   return generatePipeline(query, schema, sampleDocuments, {
     ...options,
     includeExplanation: true,
+    generateUI: options.generateUI,
   } as any);
 }
 
