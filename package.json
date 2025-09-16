@@ -6,7 +6,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/TomNeyland/modash.js"
+    "url": "https://github.com/TomNeyland/aggo.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,7 @@
   "author": "Tom Neyland",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/TomNeyland/modash.js/issues"
+    "url": "https://github.com/TomNeyland/aggo.js/issues"
   },
   "keywords": [
     "mongodb",
@@ -52,12 +52,12 @@
     "precommit:check": "npm run lint && npm run format:check && npm run typecheck && npm run test:fast && npm run test:debug",
     "test:units": "mocha --import=tsx/esm --exit --recursive tests/",
     "test:debug": "for f in tests/debug/*.mjs; do echo \"Running $f...\"; npx tsx \"$f\" || exit 1; done",
-    "test:core": "mocha --import=tsx/esm --exit tests/count.spec.js tests/modash.spec.js tests/documentation-examples.spec.js tests/operators.spec.js tests/new-operators.spec.js tests/issue-41-regression.spec.js tests/ivm-regression.spec.js tests/ivm-context-chaining.spec.js tests/enhanced-operators.spec.js tests/phase3-optimization.spec.js",
+    "test:core": "mocha --import=tsx/esm --exit tests/count.spec.js tests/aggo.spec.js tests/documentation-examples.spec.js tests/operators.spec.js tests/new-operators.spec.js tests/issue-41-regression.spec.js tests/ivm-regression.spec.js tests/ivm-context-chaining.spec.js tests/enhanced-operators.spec.js tests/phase3-optimization.spec.js",
     "test:streaming": "mocha --import=tsx/esm --exit tests/streaming.spec.js tests/streaming-comparison.spec.js tests/streaming-removal.spec.js tests/transparent-streaming.spec.js",
     "test:slow": "npm run test:streaming && mocha --import=tsx/esm --exit tests/aggregation.spec.js tests/enhanced-operators.spec.js tests/new-operators.spec.js tests/phase3-optimization.spec.js",
     "test:all": "npm run test:units && npm run test:debug && npm run test:performance",
     "test:performance": "node --import=tsx/esm benchmarks/performance-measurement.js",
-    "test:watch": "mocha --import=tsx/esm tests/count.spec.js tests/modash.spec.js tests/documentation-examples.spec.js tests/operators.spec.js --watch",
+    "test:watch": "mocha --import=tsx/esm tests/count.spec.js tests/aggo.spec.js tests/documentation-examples.spec.js tests/operators.spec.js --watch",
     "test:coverage": "node scripts/coverage-tsx.mjs && npx c8 report --temp-directory=./coverage --reporter=text --reporter=lcov",
     "test:coverage:c8": "c8 --reporter=lcov --reporter=text mocha --import=tsx/esm --exit --recursive tests/",
     "test:coverage:nyc": "nyc mocha --import=tsx/esm --exit --recursive tests/",
@@ -108,7 +108,7 @@
     "fixtures:large:ensure": "tsx scripts/generate-large-fixtures.ts",
     "fixtures:large:clean": "rm -rf fixtures/large"
   },
-  "homepage": "https://github.com/TomNeyland/modash.js",
+  "homepage": "https://github.com/TomNeyland/aggo.js",
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
     "@faker-js/faker": "^10.0.0",

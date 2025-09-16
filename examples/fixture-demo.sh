@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Modash Fixture Demo Script
+# Aggo Fixture Demo Script
 # This script demonstrates various queries against our generated fixtures
 
-echo "🚀 Modash Fixture Demo"
+echo "🚀 Aggo Fixture Demo"
 echo "======================="
 echo
 
@@ -11,7 +11,7 @@ echo "📦 E-commerce Analytics"
 echo "-----------------------"
 echo "Top 3 product categories by revenue:"
 cat fixtures/ecommerce-orders.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$unwind": "$items"},
     {"$group": {
       "_id": "$items.category",
@@ -27,7 +27,7 @@ echo "📝 Blog Content Insights"
 echo "------------------------"
 echo "Most engaging posts (likes/views ratio):"
 cat fixtures/blog-posts.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$match": {"status": "published", "views": {"$gt": 100}}},
     {"$addFields": {"engagement": {"$divide": ["$likes", "$views"]}}},
     {"$sort": {"engagement": -1}},
@@ -40,7 +40,7 @@ echo "🌡️ IoT Sensor Monitoring"
 echo "------------------------"
 echo "Average readings by sensor type:"
 cat fixtures/iot-sensors.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$group": {
       "_id": "$sensorType",
       "avgValue": {"$avg": "$value"},
@@ -56,7 +56,7 @@ echo "🏢 HR Analytics"
 echo "---------------"
 echo "Salary distribution by department:"
 cat fixtures/hr-employees.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$group": {
       "_id": "$department",
       "avgSalary": {"$avg": "$salary"},
@@ -72,7 +72,7 @@ echo "💰 Financial Transactions"
 echo "-------------------------"
 echo "Transaction volume by type:"
 cat fixtures/financial-transactions.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$group": {
       "_id": "$type",
       "totalAmount": {"$sum": "$amount"},
@@ -87,7 +87,7 @@ echo "📱 Social Media Analytics"
 echo "-------------------------"
 echo "Most active users:"
 cat fixtures/social-posts.jsonl | \
-  npx modash '[
+  npx aggo '[
     {"$group": {
       "_id": "$userId",
       "username": {"$first": "$username"},

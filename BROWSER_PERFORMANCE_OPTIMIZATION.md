@@ -1,6 +1,6 @@
-# Browser Performance Optimization for modash.js
+# Browser Performance Optimization for aggo.js
 
-This document outlines browser-specific performance optimizations for modash.js, focusing on leveraging modern browser APIs and features to achieve maximum performance in client-side environments.
+This document outlines browser-specific performance optimizations for aggo.js, focusing on leveraging modern browser APIs and features to achieve maximum performance in client-side environments.
 
 ## Executive Summary
 
@@ -24,15 +24,15 @@ This document outlines browser-specific performance optimizations for modash.js,
 **Implementation Strategy:**
 
 ```javascript
-// Main thread - modash-worker-interface.js
-class ModashWorkerPool {
+// Main thread - aggo-worker-interface.js
+class AggoWorkerPool {
   constructor(workerCount = navigator.hardwareConcurrency || 4) {
     this.workers = [];
     this.taskQueue = [];
     this.activeJobs = new Map();
 
     for (let i = 0; i < workerCount; i++) {
-      this.workers.push(new Worker('/modash-worker.js', { type: 'module' }));
+      this.workers.push(new Worker('/aggo-worker.js', { type: 'module' }));
     }
   }
 
@@ -46,14 +46,14 @@ class ModashWorkerPool {
   }
 }
 
-// Worker thread - modash-worker.js
-import Modash from './src/modash/index.js';
+// Worker thread - aggo-worker.js
+import Aggo from './src/aggo/index.js';
 
 self.onmessage = async event => {
   const { type, jobId, collection, pipeline } = event.data;
 
   try {
-    const result = Modash.aggregate(collection, pipeline);
+    const result = Aggo.aggregate(collection, pipeline);
     self.postMessage({ jobId, result });
   } catch (error) {
     self.postMessage({ jobId, error: error.message });
@@ -72,8 +72,8 @@ self.onmessage = async event => {
 **Implementation Strategy:**
 
 ```javascript
-class ModashIndexedDB {
-  constructor(dbName = 'modash-cache') {
+class AggoIndexedDB {
+  constructor(dbName = 'aggo-cache') {
     this.dbName = dbName;
     this.version = 1;
     this.db = null;
@@ -156,7 +156,7 @@ class ModashIndexedDB {
 **Implementation Strategy:**
 
 ```javascript
-class ModashSharedMemory {
+class AggoSharedMemory {
   constructor() {
     this.buffers = new Map();
     this.schemas = new Map();
@@ -213,13 +213,13 @@ class ModashSharedMemory {
 
 ```javascript
 // Compile critical operations to WebAssembly
-class ModashWASM {
+class AggoWASM {
   constructor() {
     this.wasmModule = null;
   }
 
   async initialize() {
-    const wasmCode = await fetch('/modash-core.wasm');
+    const wasmCode = await fetch('/aggo-core.wasm');
     this.wasmModule = await WebAssembly.instantiateStreaming(wasmCode, {
       env: {
         memory: new WebAssembly.Memory({ initial: 256 }),
@@ -255,7 +255,7 @@ class ModashWASM {
 **Implementation Strategy:**
 
 ```javascript
-class ModashVisualization {
+class AggoVisualization {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
@@ -264,7 +264,7 @@ class ModashVisualization {
 
   async renderAggregationResults(collection, pipeline, visualConfig) {
     // Combine aggregation with visualization in a single pass
-    const renderWorker = new Worker('/modash-render-worker.js');
+    const renderWorker = new Worker('/aggo-render-worker.js');
 
     if (this.offscreenCanvas) {
       // Render in worker thread for better performance
@@ -279,7 +279,7 @@ class ModashVisualization {
       );
     } else {
       // Fallback to main thread rendering
-      const results = await Modash.aggregate(collection, pipeline);
+      const results = await Aggo.aggregate(collection, pipeline);
       this.renderResults(results, visualConfig);
     }
   }
@@ -298,7 +298,7 @@ class ModashVisualization {
 
 ```javascript
 // service-worker.js
-class ModashCacheStrategy {
+class AggoCacheStrategy {
   constructor() {
     this.queryCache = new Map();
     this.resultCache = new Map();
@@ -324,7 +324,7 @@ class ModashCacheStrategy {
     if (partialResult) {
       // Continue pipeline from where we left off
       const remainingPipeline = pipeline.slice(partialResult.stageIndex);
-      const result = await Modash.aggregate(
+      const result = await Aggo.aggregate(
         partialResult.data,
         remainingPipeline
       );
@@ -353,11 +353,11 @@ class ModashCacheStrategy {
 ### 1. Performance Observer API
 
 ```javascript
-class ModashPerformanceMonitor {
+class AggoPerformanceMonitor {
   constructor() {
     this.observer = new PerformanceObserver(list => {
       for (const entry of list.getEntries()) {
-        if (entry.name.startsWith('modash-')) {
+        if (entry.name.startsWith('aggo-')) {
           this.analyzePerformance(entry);
         }
       }
@@ -379,7 +379,7 @@ class ModashPerformanceMonitor {
 ### 2. Intersection Observer for Lazy Loading
 
 ```javascript
-class ModashLazyAggregation {
+class AggoLazyAggregation {
   constructor() {
     this.observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
@@ -400,9 +400,9 @@ class ModashLazyAggregation {
 ### 3. Broadcast Channel for Cross-Tab Coordination
 
 ```javascript
-class ModashCrossTabSync {
+class AggoCrossTabSync {
   constructor() {
-    this.channel = new BroadcastChannel('modash-cache');
+    this.channel = new BroadcastChannel('aggo-cache');
     this.channel.onmessage = event => {
       this.handleCacheUpdate(event.data);
     };
@@ -424,7 +424,7 @@ class ModashCrossTabSync {
 ### 1. Object Pooling
 
 ```javascript
-class ModashObjectPool {
+class AggoObjectPool {
   constructor() {
     this.documentPool = [];
     this.arrayPool = [];
@@ -447,13 +447,13 @@ class ModashObjectPool {
 ### 2. Streaming Processing
 
 ```javascript
-class ModashStreamProcessor {
+class AggoStreamProcessor {
   async *processLargeCollection(collection, pipeline) {
     const batchSize = 1000;
 
     for (let i = 0; i < collection.length; i += batchSize) {
       const batch = collection.slice(i, i + batchSize);
-      const result = Modash.aggregate(batch, pipeline);
+      const result = Aggo.aggregate(batch, pipeline);
       yield result;
     }
   }
@@ -473,7 +473,7 @@ class ModashStreamProcessor {
 ### Monitoring Implementation
 
 ```javascript
-class ModashMetrics {
+class AggoMetrics {
   constructor() {
     this.metrics = {
       aggregationCount: 0,
@@ -489,7 +489,7 @@ class ModashMetrics {
 
     // Report to analytics
     if (window.gtag) {
-      window.gtag('event', 'modash_aggregation', {
+      window.gtag('event', 'aggo_aggregation', {
         duration: latency,
         category: 'performance',
       });
@@ -525,7 +525,7 @@ class ModashMetrics {
 ### Feature Detection
 
 ```javascript
-class ModashBrowserSupport {
+class AggoBrowserSupport {
   static getAvailableFeatures() {
     return {
       webWorkers: typeof Worker !== 'undefined',

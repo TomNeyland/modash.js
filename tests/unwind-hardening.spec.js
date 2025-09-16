@@ -6,7 +6,7 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/index.js';
+import Aggo from '../src/index.js';
 
 describe('Phase 4.1: $unwind Hardening', function () {
   describe('Buffer Management & Dynamic Growth', function () {
@@ -19,7 +19,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
       ];
       // Total expansion: 5 + 9 + 2 = 16 documents from 3 original
 
-      const result = Modash.aggregate(documents, [{ $unwind: '$tags' }]);
+      const result = Aggo.aggregate(documents, [{ $unwind: '$tags' }]);
 
       expect(result).to.have.lengthOf(16);
 
@@ -55,7 +55,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
       const largeArray = Array.from({ length: 1000 }, (_, i) => `item${i}`);
       const documents = [{ _id: 1, items: largeArray }];
 
-      const result = Modash.aggregate(documents, [{ $unwind: '$items' }]);
+      const result = Aggo.aggregate(documents, [{ $unwind: '$items' }]);
 
       expect(result).to.have.lengthOf(1000);
       expect(result[0].items).to.equal('item0');
@@ -71,7 +71,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         { _id: 5, values: null }, // Null (should be skipped)
       ];
 
-      const result = Modash.aggregate(documents, [{ $unwind: '$values' }]);
+      const result = Aggo.aggregate(documents, [{ $unwind: '$values' }]);
 
       expect(result).to.have.lengthOf(14); // 2 + 4 + 8 = 14 (empty and null skipped)
 
@@ -102,7 +102,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         },
       ];
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         { $unwind: '$user.profile.hobbies' },
       ]);
 
@@ -122,12 +122,12 @@ describe('Phase 4.1: $unwind Hardening', function () {
       ];
 
       // Run the same aggregation twice to ensure stability
-      const result1 = Modash.aggregate(documents, [
+      const result1 = Aggo.aggregate(documents, [
         { $unwind: '$tags' },
         { $project: { _id: 1, tag: '$tags' } },
       ]);
 
-      const result2 = Modash.aggregate(documents, [
+      const result2 = Aggo.aggregate(documents, [
         { $unwind: '$tags' },
         { $project: { _id: 1, tag: '$tags' } },
       ]);
@@ -138,7 +138,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
     it('should handle $unwind with includeArrayIndex option', function () {
       const documents = [{ _id: 1, items: ['apple', 'banana', 'cherry'] }];
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         {
           $unwind: {
             path: '$items',
@@ -173,7 +173,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         { _id: 4 }, // Missing field
       ];
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         {
           $unwind: {
             path: '$tags',
@@ -199,7 +199,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
       const documents = [{ _id: 1, tags: ['original'] }];
 
       // First aggregation with original data
-      const result1 = Modash.aggregate(documents, [{ $unwind: '$tags' }]);
+      const result1 = Aggo.aggregate(documents, [{ $unwind: '$tags' }]);
 
       expect(result1).to.have.lengthOf(1);
       expect(result1[0].tags).to.equal('original');
@@ -207,7 +207,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
       // Simulate array replacement
       documents[0].tags = ['new1', 'new2', 'new3'];
 
-      const result2 = Modash.aggregate(documents, [{ $unwind: '$tags' }]);
+      const result2 = Aggo.aggregate(documents, [{ $unwind: '$tags' }]);
 
       expect(result2).to.have.lengthOf(3);
       expect(result2.map(doc => doc.tags)).to.deep.equal([
@@ -224,7 +224,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         { _id: 3, category: 'B', items: ['w', 'v'] },
       ];
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         { $unwind: '$items' },
         {
           $group: {
@@ -263,7 +263,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
 
       const startTime = Date.now();
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         { $unwind: '$tags' },
         { $group: { _id: null, count: { $sum: 1 } } },
       ]);
@@ -287,7 +287,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
 
       // Run multiple times to test buffer reuse
       for (let i = 0; i < 5; i++) {
-        const result = Modash.aggregate(documents, [{ $unwind: '$items' }]);
+        const result = Aggo.aggregate(documents, [{ $unwind: '$items' }]);
 
         expect(result).to.have.lengthOf(5);
       }
@@ -304,7 +304,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         { _id: 5, tags: [null, undefined, 0, false, ''] }, // Array with falsy values
       ];
 
-      const result = Modash.aggregate(documents, [{ $unwind: '$tags' }]);
+      const result = Aggo.aggregate(documents, [{ $unwind: '$tags' }]);
 
       // Only document 1 (non-array) and document 5 (array with values) should produce results
       expect(result).to.have.lengthOf(6); // 1 from doc 1 + 5 from doc 5
@@ -336,7 +336,7 @@ describe('Phase 4.1: $unwind Hardening', function () {
         },
       ];
 
-      const result = Modash.aggregate(documents, [
+      const result = Aggo.aggregate(documents, [
         { $unwind: '$categories' },
         { $unwind: '$specs.colors' },
         {

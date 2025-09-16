@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import { $project } from '../src/aggo/aggregation';
 
 describe('Phase 7: Advanced Expression & Accumulator Support', () => {

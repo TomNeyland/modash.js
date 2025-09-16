@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 console.log('Testing simple $unwind...');
 
@@ -11,7 +11,7 @@ const documents = [
 
 console.log('Input:', documents);
 
-const result = Modash.aggregate(documents, [
+const result = Aggo.aggregate(documents, [
   { $unwind: '$items' }
 ]);
 
@@ -30,7 +30,7 @@ const edgeDocuments = [
 
 console.log('Edge Input:', edgeDocuments);
 
-const edgeResult = Modash.aggregate(edgeDocuments, [
+const edgeResult = Aggo.aggregate(edgeDocuments, [
   { $unwind: '$tags' }
 ]);
 

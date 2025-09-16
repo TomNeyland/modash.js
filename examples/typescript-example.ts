@@ -1,13 +1,13 @@
 /**
- * TypeScript example demonstrating type-safe usage of modash.js
+ * TypeScript example demonstrating type-safe usage of aggo.js
  */
 
 import type { Document, Collection, Pipeline } from '../src/index.d.ts';
 
 // Import the actual implementation
-// In real usage, this would be: import Modash from 'modash';
+// In real usage, this would be: import Aggo from 'aggo';
 // For this example, we'll simulate the module interface
-declare const Modash: {
+declare const Aggo: {
   aggregate<T extends Document = Document>(
     collection: Collection<T>,
     pipeline: Pipeline
@@ -117,7 +117,7 @@ const pipeline: Pipeline = [
 ];
 
 // Execute aggregation with full type safety
-const result = Modash.aggregate(customers, pipeline);
+const result = Aggo.aggregate(customers, pipeline);
 
 // TypeScript knows the result type and provides IntelliSense
 result.forEach(customer => {
@@ -131,8 +131,8 @@ result.forEach(customer => {
 });
 
 // Individual stage operations are also type-safe
-const matchedCustomers = Modash.$match(customers, { age: { $gte: 30 } });
-const customerNames = Modash.$project(matchedCustomers, {
+const matchedCustomers = Aggo.$match(customers, { age: { $gte: 30 } });
+const customerNames = Aggo.$project(matchedCustomers, {
   name: 1,
   displayName: { $toUpper: '$name' },
   _id: 0,
@@ -144,7 +144,7 @@ const orders: Collection<Order> = [
   { _id: 'ord-2', customerId: 2, items: [], total: 200, date: new Date() },
 ];
 
-const customersWithOrders = Modash.$lookup(customers, {
+const customersWithOrders = Aggo.$lookup(customers, {
   from: orders,
   localField: '_id',
   foreignField: 'customerId',

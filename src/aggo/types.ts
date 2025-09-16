@@ -1,5 +1,5 @@
 /**
- * Advanced TypeScript utility types and branded types for modash
+ * Advanced TypeScript utility types and branded types for aggo
  */
 
 // Branded types for better type safety

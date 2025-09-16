@@ -1,8 +1,8 @@
 /**
- * Benchmark runner for modash.js performance testing
+ * Benchmark runner for aggo.js performance testing
  */
 
-import Modash from '../src/modash/index.ts';
+import Aggo from '../src/aggo/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES, DATA_SIZES } from './setup.js';
 
 /**
@@ -37,7 +37,7 @@ function benchmark(name, fn, iterations = 1) {
 function runBenchmarks() {
   const results = {};
   
-  console.log('🚀 Starting modash.js Performance Benchmarks\n');
+  console.log('🚀 Starting aggo.js Performance Benchmarks\n');
   
   // Test different data sizes
   for (const [sizeName, size] of Object.entries(DATA_SIZES)) {
@@ -53,7 +53,7 @@ function runBenchmarks() {
       
       const result = benchmark(
         `${sizeName}-${pipelineName}`,
-        () => Modash.aggregate(testData, pipeline),
+        () => Aggo.aggregate(testData, pipeline),
         iterations
       );
       
@@ -82,7 +82,7 @@ function analyzeMemoryUsage() {
     const afterGeneration = process.memoryUsage();
     
     // Run a complex pipeline
-    const result = Modash.aggregate(testData, BENCHMARK_PIPELINES.complexPipeline);
+    const result = Aggo.aggregate(testData, BENCHMARK_PIPELINES.complexPipeline);
     const afterPipeline = process.memoryUsage();
     
     console.log(`\n${sizeName} (${size} documents):`);

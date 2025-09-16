@@ -1,9 +1,9 @@
 /**
- * Enhanced Performance Comparison between Original and Optimized modash.js
+ * Enhanced Performance Comparison between Original and Optimized aggo.js
  * This benchmark demonstrates the performance improvements achieved
  */
 
-import Modash from '../src/modash/index.ts';
+import Aggo from '../src/aggo/index.ts';
 import { generateTestData, BENCHMARK_PIPELINES } from './setup.js';
 
 // Test data sizes
@@ -38,7 +38,7 @@ function benchmark(name, fn, iterations = 5) {
 }
 
 function runPerformanceComparison() {
-  console.log('🔥 Enhanced Performance Analysis for modash.js\n');
+  console.log('🔥 Enhanced Performance Analysis for aggo.js\n');
   console.log('Performance improvements with single-pass execution and intelligent optimization\n');
   
   const results = {};
@@ -54,7 +54,7 @@ function runPerformanceComparison() {
     for (const [pipelineName, pipelineStages] of Object.entries(BENCHMARK_PIPELINES)) {
       const result = benchmark(
         `${pipelineName} (${size})`,
-        () => Modash.aggregate(testData, pipelineStages),
+        () => Aggo.aggregate(testData, pipelineStages),
         size > 10000 ? 3 : 5  // Fewer iterations for large datasets
       );
       

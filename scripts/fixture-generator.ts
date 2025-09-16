@@ -665,7 +665,7 @@ const program = new Command();
 
 program
   .name('fixture-generator')
-  .description('Generate test data fixtures for modash.js')
+  .description('Generate test data fixtures for aggo.js')
   .version('1.0.0');
 
 program

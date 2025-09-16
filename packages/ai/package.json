@@ -1,12 +1,12 @@
 {
-  "name": "@modash/plugin-ai",
+  "name": "@aggo/plugin-ai",
   "version": "0.1.0",
-  "description": "AI plugin for modash.js - Natural language to MongoDB pipeline conversion using OpenAI",
+  "description": "AI plugin for aggo.js - Natural language to MongoDB pipeline conversion using OpenAI",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "bin": {
-    "modash-ai": "./src/cli.ts"
+    "aggo-ai": "./src/cli.ts"
   },
   "exports": {
     ".": {
@@ -19,7 +19,7 @@
     "test:watch": "mocha --import=tsx/esm tests/*.test.js --watch"
   },
   "keywords": [
-    "modash",
+    "aggo",
     "ai",
     "openai",
     "natural-language",

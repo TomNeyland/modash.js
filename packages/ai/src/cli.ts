@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * AI CLI for modash - Natural language query interface
+ * AI CLI for aggo - Natural language query interface
  *
  * Usage:
- *   cat data.jsonl | modash ai "average score by category"
- *   modash ai "sum total where status is active" --file data.jsonl
+ *   cat data.jsonl | aggo ai "average score by category"
+ *   aggo ai "sum total where status is active" --file data.jsonl
  */
 
 import { createReadStream } from 'fs';
@@ -18,7 +18,7 @@ import {
   formatSchema,
 } from './index.js';
 import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
-import type { Document } from 'modash';
+import type { Document } from 'aggo';
 
 interface CLIOptions {
   file?: string;
@@ -34,8 +34,8 @@ interface CLIOptions {
 const program = new Command();
 
 program
-  .name('modash-ai')
-  .description('AI-powered natural language queries for JSON data using modash')
+  .name('aggo-ai')
+  .description('AI-powered natural language queries for JSON data using aggo')
   .version('0.1.0')
   .argument('[query]', 'Natural language query')
   .option('-f, --file <path>', 'Read data from file instead of stdin')
@@ -71,19 +71,19 @@ program.addHelpText(
   `
 Examples:
   # Basic natural language query
-  cat sales.jsonl | modash ai "total revenue by product category"
+  cat sales.jsonl | aggo ai "total revenue by product category"
   
   # Show inferred schema
-  cat data.jsonl | modash ai --schema-only
+  cat data.jsonl | aggo ai --schema-only
   
   # Generate pipeline without executing
-  modash ai "average rating by genre" --file movies.jsonl --show-pipeline
+  aggo ai "average rating by genre" --file movies.jsonl --show-pipeline
   
   # Use specific OpenAI model
-  cat logs.jsonl | modash ai "error count by service" --model gpt-4
+  cat logs.jsonl | aggo ai "error count by service" --model gpt-4
   
   # Get detailed explanation
-  modash ai "top 10 customers by order value" --file orders.jsonl --explain
+  aggo ai "top 10 customers by order value" --file orders.jsonl --explain
 
 Environment Variables:
   OPENAI_API_KEY    OpenAI API key for pipeline generation (required)
@@ -295,8 +295,8 @@ async function executeAIQueryWithSpinners(
   const executionResult = await withSpinner(
     async () => {
       // Dynamic import to avoid circular dependency
-      const Modash = await import('modash');
-      return Modash.default.aggregate(documents, generationResult.pipeline);
+      const Aggo = await import('aggo');
+      return Aggo.default.aggregate(documents, generationResult.pipeline);
     },
     SPINNER_PHASES.EXECUTION,
     { successMessage: '✅ Query executed successfully' }
@@ -329,7 +329,7 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
         '❌ Error: No input data. Use --file or pipe data via stdin.'
       );
       console.error(
-        'Example: cat data.jsonl | modash ai "sum revenue by category"'
+        'Example: cat data.jsonl | aggo ai "sum revenue by category"'
       );
       process.exit(1);
     }

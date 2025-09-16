@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index.js';
+import Aggo from '../src/index.js';
 
 /**
  * Phase 3 Optimization & Hardening Tests
@@ -47,7 +47,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
   describe('Extended Pipeline Combinations', function () {
     it('should handle $group + $project + $sort pipelines in hot path', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         {
           $group: {
             _id: '$dept',
@@ -106,7 +106,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
         },
       ];
 
-      const result = Modash.aggregate(salesData, [
+      const result = Aggo.aggregate(salesData, [
         {
           $group: {
             _id: { category: '$category', region: '$region' },
@@ -132,7 +132,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
   describe('Vectorized Accumulators', function () {
     it('should handle $addToSet with vectorized processing', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         {
           $group: {
             _id: '$dept',
@@ -152,7 +152,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
     });
 
     it('should handle $push with vectorized processing', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         {
           $group: {
             _id: '$dept',
@@ -174,7 +174,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
   describe('$unwind + $group Optimization', function () {
     it('should optimize $unwind + $group patterns to avoid repeated materialization', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $unwind: '$skills' },
         {
           $group: {
@@ -203,7 +203,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
     });
 
     it('should handle $unwind with intermediate $match and $project', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { salary: { $gte: 80000 } } },
         { $unwind: '$skills' },
         {
@@ -248,7 +248,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
       const startTime = performance.now();
 
-      const result = Modash.aggregate(largeDataset, [
+      const result = Aggo.aggregate(largeDataset, [
         { $match: { value: { $gte: 500 } } },
         { $unwind: '$tags' },
         {
@@ -287,7 +287,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
   describe('Regression Prevention', function () {
     it('should not break existing simple pipelines', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { dept: 'Engineering' } },
         { $project: { name: 1, salary: 1 } },
       ]);
@@ -299,7 +299,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
     });
 
     it('should maintain backward compatibility with existing $group operations', function () {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         {
           $group: {
             _id: null,
@@ -322,7 +322,7 @@ describe('Phase 3 - Hot Path Extensions', function () {
 
 describe('Phase 3 - Streaming Performance Optimization', function () {
   it('should handle high-throughput delta operations', function (done) {
-    const streamingCollection = Modash.createStreamingCollection([]);
+    const streamingCollection = Aggo.createStreamingCollection([]);
 
     // Set up aggregation pipeline
     const pipeline = [

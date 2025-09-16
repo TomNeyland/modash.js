@@ -1,11 +1,11 @@
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import { createStreamingCollection } from '../src/aggo/streaming';
 import testData from './test-data.js';
 import { expect } from 'chai';
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
-  const nonStreamingResult = Modash.aggregate(collection, pipeline);
+  const nonStreamingResult = Aggo.aggregate(collection, pipeline);
 
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
@@ -23,7 +23,7 @@ describe('New Aggregation Operators', () => {
       const pipeline = [{ $match: { qty: { $gte: 250 } } }];
 
       // Test traditional aggregation
-      const result = Modash.aggregate(testData.inventory, pipeline);
+      const result = Aggo.aggregate(testData.inventory, pipeline);
       expect(result).to.have.lengthOf(3);
       expect(result.every(item => item.qty >= 250)).to.be.true;
 
@@ -42,7 +42,7 @@ describe('New Aggregation Operators', () => {
       const pipeline = [{ $match: { item: 'abc1' } }];
 
       // Test traditional aggregation
-      const result = Modash.aggregate(testData.inventory, pipeline);
+      const result = Aggo.aggregate(testData.inventory, pipeline);
       expect(result).to.have.lengthOf(1);
       expect(result[0].item).to.equal('abc1');
 
@@ -60,7 +60,7 @@ describe('New Aggregation Operators', () => {
 
   describe('$limit', () => {
     it('should limit the number of documents', () => {
-      const result = Modash.aggregate(testData.inventory, [{ $limit: 2 }]);
+      const result = Aggo.aggregate(testData.inventory, [{ $limit: 2 }]);
 
       expect(result).to.have.lengthOf(2);
     });
@@ -68,7 +68,7 @@ describe('New Aggregation Operators', () => {
 
   describe('$skip', () => {
     it('should skip the specified number of documents', () => {
-      const result = Modash.aggregate(testData.inventory, [{ $skip: 2 }]);
+      const result = Aggo.aggregate(testData.inventory, [{ $skip: 2 }]);
 
       expect(result).to.have.lengthOf(3); // Original 5 - 2 skipped = 3
     });
@@ -81,7 +81,7 @@ describe('New Aggregation Operators', () => {
         { _id: 2, tags: ['green'], name: 'item2' },
       ];
 
-      const result = Modash.aggregate(testDoc, [{ $unwind: '$tags' }]);
+      const result = Aggo.aggregate(testDoc, [{ $unwind: '$tags' }]);
 
       expect(result).to.have.lengthOf(3);
       expect(result[0].tags).to.equal('red');
@@ -105,7 +105,7 @@ describe('New Aggregation Operators', () => {
       ];
 
       // Test traditional aggregation
-      const result = Modash.aggregate(testData.inventory, pipeline);
+      const result = Aggo.aggregate(testData.inventory, pipeline);
       expect(result).to.have.lengthOf(3);
       expect(result[0]).to.have.property('category');
 
@@ -123,7 +123,7 @@ describe('New Aggregation Operators', () => {
 
   describe('Edge Cases & Error Handling', () => {
     it('should handle empty arrays gracefully', () => {
-      const result = Modash.aggregate(
+      const result = Aggo.aggregate(
         [],
         [
           { $match: { price: { $gt: 100 } } },
@@ -136,10 +136,10 @@ describe('New Aggregation Operators', () => {
     });
 
     it('should handle null/undefined collections gracefully', () => {
-      const result1 = Modash.aggregate(null, [
+      const result1 = Aggo.aggregate(null, [
         { $match: { price: { $gt: 100 } } },
       ]);
-      const result2 = Modash.aggregate(undefined, [{ $sort: { price: -1 } }]);
+      const result2 = Aggo.aggregate(undefined, [{ $sort: { price: -1 } }]);
 
       expect(result1).to.be.an('array');
       expect(result1).to.have.lengthOf(0);
@@ -148,7 +148,7 @@ describe('New Aggregation Operators', () => {
     });
 
     it('should handle non-array inputs gracefully', () => {
-      const result = Modash.aggregate('not-an-array', [
+      const result = Aggo.aggregate('not-an-array', [
         { $match: { price: { $gt: 100 } } },
         { $limit: 5 },
       ]);

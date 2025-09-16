@@ -1,14 +1,14 @@
-# GitHub Copilot Instructions for modash.js
+# GitHub Copilot Instructions for aggo.js
 
 **ALWAYS follow these instructions first and only fallback to additional search and context gathering if the information in these instructions is incomplete or found to be in error.**
 
 ## Project Overview
 
-**modash.js** is a modern TypeScript-native MongoDB aggregation library that brings MongoDB pipeline syntax to JavaScript arrays. It provides comprehensive type safety, modern ES2022+ features, and a rich set of operators for data processing.
+**aggo.js** is a modern TypeScript-native MongoDB aggregation library that brings MongoDB pipeline syntax to JavaScript arrays. It provides comprehensive type safety, modern ES2022+ features, and a rich set of operators for data processing.
 
 ## ⚠️ CRITICAL: Zero Build System - TypeScript Native
 
-**modash.js runs TypeScript DIRECTLY with NO build step required for development.**
+**aggo.js runs TypeScript DIRECTLY with NO build step required for development.**
 
 - Do NOT try to compile TypeScript for development - it runs natively with `tsx`
 - Use `npx tsx` to run TypeScript files directly
@@ -74,12 +74,12 @@
 
 ```bash
 npx tsx -e "
-import Modash from './src/index.ts';
+import Aggo from './src/index.ts';
 const data = [
   { name: 'Alice', age: 30, city: 'Seattle', score: 85 },
   { name: 'Bob', age: 25, city: 'Portland', score: 92 }
 ];
-const result = Modash.aggregate(data, [
+const result = Aggo.aggregate(data, [
   { \$match: { score: { \$gte: 80 } } },
   { \$project: { name: 1, age: 1 } }
 ]);
@@ -91,12 +91,12 @@ console.log('✅ Basic pipeline:', result.length, 'items');
 
 ```bash
 npx tsx -e "
-import Modash from './src/index.ts';
+import Aggo from './src/index.ts';
 const sales = [
   { item: 'laptop', price: 1000, quantity: 2, category: 'electronics' },
   { item: 'mouse', price: 25, quantity: 10, category: 'electronics' }
 ];
-const result = Modash.aggregate(sales, [
+const result = Aggo.aggregate(sales, [
   { \$addFields: { revenue: { \$multiply: ['\$price', '\$quantity'] } } },
   { \$group: { _id: '\$category', totalRevenue: { \$sum: '\$revenue' }, count: { \$sum: 1 } } }
 ]);
@@ -139,8 +139,8 @@ echo '{"name":"Alice","score":85}
 ```
 src/
 ├── index.ts              # Main exports and type definitions
-└── modash/
-    ├── index.ts          # Core Modash implementation
+└── aggo/
+    ├── index.ts          # Core Aggo implementation
     ├── aggregation.ts    # Pipeline stage implementations
     ├── operators.ts      # Expression operators ($add, $concat, etc.)
     ├── accumulators.ts   # Group aggregation operators ($sum, $avg, etc.)
@@ -158,7 +158,7 @@ examples/                 # Usage examples (may have import issues)
 
 ## 🔥 CRITICAL: Performance Tracking System
 
-**modash.js includes a comprehensive performance tracking system that MUST be utilized for ALL changes.**
+**aggo.js includes a comprehensive performance tracking system that MUST be utilized for ALL changes.**
 
 ### Performance Requirements
 
@@ -227,7 +227,7 @@ npm run quality       # MUST pass - Combined quality checks
 - **TypeScript Strict Checking**: `npm run typecheck` currently shows 0 type errors - strict checking passes
 - **Runtime Execution**: TypeScript code runs perfectly with `tsx` for development
 - **Direct Execution**: Use `npx tsx filename.ts` to run TypeScript files directly
-- **Import Style**: `import Modash from './src/index.ts'` for local development
+- **Import Style**: `import Aggo from './src/index.ts'` for local development
 - **Production Build**: `npm run build` creates compiled JS/d.ts files in `dist/` for publishing
 
 ## Core API Patterns
@@ -235,18 +235,18 @@ npm run quality       # MUST pass - Combined quality checks
 ### Main Entry Point
 
 ```typescript
-import Modash from 'modash'; // Production usage
+import Aggo from 'aggo'; // Production usage
 // OR for local development:
-import Modash from './src/index.ts';
+import Aggo from './src/index.ts';
 ```
 
 ### Primary Methods
 
-- `Modash.aggregate(collection, pipeline)` - Main aggregation method
-- `Modash.count(collection)` - Count documents
-- `Modash.$match(collection, query)` - Filter documents
-- `Modash.$project(collection, projection)` - Project fields
-- `Modash.$group(collection, groupSpec)` - Group and aggregate
+- `Aggo.aggregate(collection, pipeline)` - Main aggregation method
+- `Aggo.count(collection)` - Count documents
+- `Aggo.$match(collection, query)` - Filter documents
+- `Aggo.$project(collection, projection)` - Project fields
+- `Aggo.$group(collection, groupSpec)` - Group and aggregate
 
 ### Supported Pipeline Stages
 
@@ -288,7 +288,7 @@ import Modash from './src/index.ts';
 
 ### Adding New Operators
 
-1. Add operator logic to `src/modash/operators.ts`
+1. Add operator logic to `src/aggo/operators.ts`
 2. Update type definitions in `src/index.ts`
 3. Add comprehensive tests in `tests/`
 4. **MANDATORY**: Run full validation suite including performance tests
@@ -296,7 +296,7 @@ import Modash from './src/index.ts';
 
 ### Adding Pipeline Stages
 
-1. Implement in `src/modash/aggregation.ts`
+1. Implement in `src/aggo/aggregation.ts`
 2. Add to pipeline processor
 3. Update type definitions
 4. Add tests and examples
@@ -312,10 +312,10 @@ import Modash from './src/index.ts';
 ## Key Files to Understand
 
 1. **src/index.ts**: Main exports and TypeScript type definitions
-2. **src/modash/index.ts**: Core `aggregate()` implementation
-3. **src/modash/aggregation.ts**: Pipeline stage handlers ($match, $project, $group, etc.)
-4. **src/modash/operators.ts**: Expression operators ($add, $concat, $multiply, etc.)
-5. **src/modash/expressions.ts**: Expression evaluation engine
+2. **src/aggo/index.ts**: Core `aggregate()` implementation
+3. **src/aggo/aggregation.ts**: Pipeline stage handlers ($match, $project, $group, etc.)
+4. **src/aggo/operators.ts**: Expression operators ($add, $concat, $multiply, etc.)
+5. **src/aggo/expressions.ts**: Expression evaluation engine
 6. **benchmarks/performance-measurement.js**: Performance tracking system
 7. **tests/**: Comprehensive test suite with 82+ tests
 
@@ -367,7 +367,7 @@ echo '{"name":"Alice"}' | node --import=tsx/esm src/cli.ts '[{"$project":{"name"
 ### Solutions
 
 - **For TypeScript execution**: Always use `npx tsx` not `node` for development
-- **For imports**: Use `import Modash from './src/index.ts'` for local development
+- **For imports**: Use `import Aggo from './src/index.ts'` for local development
 - **For performance**: Always wait for benchmarks to complete, never cancel
 - **For CLI testing**: Use `node --import=tsx/esm src/cli.ts` for CLI validation
 

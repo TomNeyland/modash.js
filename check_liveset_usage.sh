@@ -5,7 +5,7 @@ echo "🔍 Checking for liveSet usage in snapshot methods..."
 
 # Check for liveSet iteration in snapshot methods
 # We allow it in MatchOperator for first stage initialization
-violations=$(grep -n "for.*liveSet" src/modash/crossfilter-operators.ts | grep -v "// Use upstream active IDs if available")
+violations=$(grep -n "for.*liveSet" src/aggo/crossfilter-operators.ts | grep -v "// Use upstream active IDs if available")
 
 if [ -n "$violations" ]; then
   echo "❌ VIOLATION: Found liveSet iteration in operators:"
@@ -15,7 +15,7 @@ fi
 
 # Check for store.liveSet access in snapshot methods (more general)
 # Allow the fallback pattern in MatchOperator and comments
-snapshot_violations=$(grep -A 20 "snapshot(" src/modash/crossfilter-operators.ts | grep "store\.liveSet" | grep -v "Array.from" | grep -v "//")
+snapshot_violations=$(grep -A 20 "snapshot(" src/aggo/crossfilter-operators.ts | grep "store\.liveSet" | grep -v "Array.from" | grep -v "//")
 
 if [ -n "$snapshot_violations" ]; then
   echo "❌ VIOLATION: Found direct liveSet access in snapshot methods:"

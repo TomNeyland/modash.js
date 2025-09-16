@@ -1,6 +1,6 @@
-# Common Performance Optimization for modash.js
+# Common Performance Optimization for aggo.js
 
-This document outlines platform-agnostic performance optimizations for modash.js that apply to both browser and Node.js environments. These optimizations focus on algorithmic improvements, data structure enhancements, and implementation patterns that provide universal benefits.
+This document outlines platform-agnostic performance optimizations for aggo.js that apply to both browser and Node.js environments. These optimizations focus on algorithmic improvements, data structure enhancements, and implementation patterns that provide universal benefits.
 
 ## Executive Summary
 
@@ -40,7 +40,7 @@ function aggregate(collection, pipeline) {
 **Optimized Implementation:**
 
 ```javascript
-class ModashExecutionEngine {
+class AggoExecutionEngine {
   constructor() {
     this.queryOptimizer = new QueryOptimizer();
     this.indexManager = new IndexManager();
@@ -410,7 +410,7 @@ class QueryOptimizer {
 **Implementation:**
 
 ```javascript
-class ModashCollectionManager {
+class AggoCollectionManager {
   // Column-oriented storage for better memory efficiency
   static createColumnStore(collection, schema) {
     const columns = {};
@@ -574,7 +574,7 @@ class ModashCollectionManager {
 **Implementation:**
 
 ```javascript
-class ModashCacheManager {
+class AggoCacheManager {
   constructor(options = {}) {
     this.resultCache = new Map();
     this.partialResultCache = new Map();
@@ -693,7 +693,7 @@ class ModashCacheManager {
 **Implementation:**
 
 ```javascript
-class ModashNativeOptimizations {
+class AggoNativeOptimizations {
   // Use native Map/Set for better performance
   static optimizeUniqueOperations(array) {
     return Array.from(new Set(array));
@@ -821,14 +821,14 @@ class ModashNativeOptimizations {
 **Implementation:**
 
 ```javascript
-class ModashLazyEvaluation {
+class AggoLazyEvaluation {
   constructor(collection) {
     this.source = collection;
     this.operations = [];
   }
 
   static from(collection) {
-    return new ModashLazyEvaluation(collection);
+    return new AggoLazyEvaluation(collection);
   }
 
   // Lazy operations - build operation chain without execution
@@ -882,7 +882,7 @@ class ModashLazyEvaluation {
 **Implementation:**
 
 ```javascript
-class ModashAdaptiveEngine {
+class AggoAdaptiveEngine {
   constructor() {
     this.performanceHistory = new Map();
     this.strategyThresholds = {
@@ -953,7 +953,7 @@ class ModashAdaptiveEngine {
 **Implementation:**
 
 ```javascript
-class ModashMemoryManager {
+class AggoMemoryManager {
   constructor() {
     this.memoryThreshold = this.getMemoryThreshold();
     this.gcTriggerThreshold = 0.8; // Trigger cleanup at 80% memory usage
@@ -1050,7 +1050,7 @@ class ModashMemoryManager {
 **Implementation:**
 
 ```javascript
-class ModashPerformanceTracker {
+class AggoPerformanceTracker {
   constructor() {
     this.metrics = {
       operations: new Map(),
@@ -1167,7 +1167,7 @@ class ModashPerformanceTracker {
 ### Backward Compatibility Strategy
 
 ```javascript
-class ModashCompatibilityLayer {
+class AggoCompatibilityLayer {
   static enableLegacyMode() {
     // Maintain 100% API compatibility while adding performance improvements
     return {

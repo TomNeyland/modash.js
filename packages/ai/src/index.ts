@@ -1,11 +1,11 @@
 /**
- * @modash/plugin-ai - AI-powered natural language to MongoDB pipeline conversion
+ * @aggo/plugin-ai - AI-powered natural language to MongoDB pipeline conversion
  *
  * Converts natural language queries into MongoDB aggregation pipelines using OpenAI,
- * with automatic schema inference and optimized execution via modash.
+ * with automatic schema inference and optimized execution via aggo.
  */
 
-import { type Document } from 'modash';
+import { type Document } from 'aggo';
 import {
   inferSchema,
   getSampleDocuments,
@@ -31,7 +31,7 @@ export type {
   OpenAIOptions,
   PipelineGenerationResult,
 } from './openai-client.js';
-export type { Pipeline, Document } from 'modash';
+export type { Pipeline, Document } from 'aggo';
 
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */
@@ -66,7 +66,7 @@ export interface AIQueryResult extends PipelineGenerationResult {
  *
  * @example
  * ```typescript
- * import { aiQuery } from '@modash/plugin-ai';
+ * import { aiQuery } from '@aggo/plugin-ai';
  *
  * const data = [
  *   { name: 'Alice', age: 30, department: 'Engineering' },
@@ -109,8 +109,8 @@ export async function aiQuery(
   // Step 4: Execute pipeline
   const executionStart = Date.now();
   // Dynamic import to avoid circular dependency
-  const Modash = await import('modash');
-  const results = Modash.default.aggregate(
+  const Aggo = await import('aggo');
+  const results = Aggo.default.aggregate(
     documents,
     generationResult.pipeline
   );
@@ -141,7 +141,7 @@ export async function aiQuery(
  *
  * @example
  * ```typescript
- * import { getSchema } from '@modash/plugin-ai';
+ * import { getSchema } from '@aggo/plugin-ai';
  *
  * const schema = getSchema(documents);
  * console.log(JSON.stringify(schema, null, 2));
@@ -165,7 +165,7 @@ export function getSchema(
  *
  * @example
  * ```typescript
- * import { generatePipeline, getSchema } from '@modash/plugin-ai';
+ * import { generatePipeline, getSchema } from '@aggo/plugin-ai';
  *
  * const schema = getSchema(documents);
  * const result = await generatePipeline('top 5 users by score', schema);

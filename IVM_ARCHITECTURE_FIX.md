@@ -347,7 +347,7 @@ npm test
 ### Check for Fallbacks
 
 ```typescript
-import { getFallbackCount, resetFallbackTracking } from './src/modash/debug.ts';
+import { getFallbackCount, resetFallbackTracking } from './src/aggo/debug.ts';
 
 resetFallbackTracking();
 const result = engine.execute(pipeline);

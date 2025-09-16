@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 import { resetFallbackTracking, getFallbackCount } from '../../src/aggo/debug';
 
 const testData = [
@@ -40,7 +40,7 @@ const pipeline = [
 ];
 
 resetFallbackTracking();
-const result = Modash.aggregate(testData, pipeline);
+const result = Aggo.aggregate(testData, pipeline);
 
 console.log('Result count:', result.length);
 console.log('Fallback count:', getFallbackCount());

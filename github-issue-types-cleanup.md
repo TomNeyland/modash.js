@@ -16,7 +16,7 @@ Refactor the crossfilter engine/operators to enforce **strict type correctness**
 ## ✅ Work Completed
 
 - **Removed legacy streaming**
-  - Deleted `src/modash/streaming-old.ts`.
+  - Deleted `src/aggo/streaming-old.ts`.
 
 - **RowId model correctness**
   - Introduced `PhysicalRowId = number`, `VirtualRowId = string`, and `RowId = PhysicalRowId | VirtualRowId`.

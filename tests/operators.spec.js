@@ -8,7 +8,7 @@ const mapValues = (obj, mapFn) => {
 };
 
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import testData from './test-data.js';
 import { $project } from '../src/aggo/aggregation';
 
@@ -17,14 +17,14 @@ let _db;
 beforeEach(() => {
   // Create a simple wrapper for test data
   const createCollection = data => ({
-    aggregate: pipeline => Modash.aggregate(data, pipeline),
+    aggregate: pipeline => Aggo.aggregate(data, pipeline),
     value: () => data,
   });
 
   _db = mapValues(testData, data => createCollection(data));
 });
 
-describe('Modash Boolean Operator', () => {
+describe('Aggo Boolean Operator', () => {
   describe('$and', () => {
     it('should apply a boolean AND to its arguments', () => {
       const projection = $project(testData.inventory, {
@@ -66,7 +66,7 @@ describe('Modash Boolean Operator', () => {
   });
 });
 
-describe('Modash Set Operator', () => {
+describe('Aggo Set Operator', () => {
   describe('$setEquals', () => {
     it('should compare sets', () => {
       const projection = $project(testData.experiments, {
@@ -139,7 +139,7 @@ describe('Modash Set Operator', () => {
   });
 });
 
-describe('Modash Comparison Operator', () => {
+describe('Aggo Comparison Operator', () => {
   describe('$cmp', () => {
     it("should return -1, 0, 1 based on mongodb's comparison rules", () => {
       const projection = $project(testData.inventory, {
@@ -225,7 +225,7 @@ describe('Modash Comparison Operator', () => {
   });
 });
 
-describe('Modash Arithmetic Operator', () => {
+describe('Aggo Arithmetic Operator', () => {
   describe('$add', () => {
     it('should add all of its arguments', () => {
       const projection = $project(testData.sales, {
@@ -311,7 +311,7 @@ describe('Modash Arithmetic Operator', () => {
   });
 });
 
-describe('Modash String Operator', () => {
+describe('Aggo String Operator', () => {
   describe('$concat', () => {
     it('should concatenate strings and return the concatenated string.', () => {
       const projection = $project(testData.inventory, {

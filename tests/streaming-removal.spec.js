@@ -6,7 +6,7 @@
 import { describe, it } from 'mocha';
 import { expect } from 'chai';
 import { EventEmitter } from 'events';
-import Modash, { createStreamingCollection } from '../src/index.js';
+import Aggo, { createStreamingCollection } from '../src/index.js';
 
 describe('Streaming Collection - Record Removal', () => {
   describe('Basic Removal Operations', () => {
@@ -520,7 +520,7 @@ describe('Streaming Collection - Record Removal', () => {
       const filteredData = initialData.filter(
         doc => doc.department !== 'Marketing'
       );
-      const nonStreamingResult = Modash.aggregate(filteredData, pipeline);
+      const nonStreamingResult = Aggo.aggregate(filteredData, pipeline);
 
       expect(streamingResult).to.deep.equal(nonStreamingResult);
     });

@@ -1,4 +1,4 @@
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 const data = Array.from({ length: 50 }, (_, i) => ({
   _id: i,
@@ -11,7 +11,7 @@ const data = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 console.log('Testing without $sort:');
-const groupResult1 = Modash.aggregate(data, [
+const groupResult1 = Aggo.aggregate(data, [
   {
     $group: {
       _id: '$category',
@@ -25,7 +25,7 @@ console.log('Result length:', groupResult1.length);
 console.log('Result:', JSON.stringify(groupResult1.slice(0, 3), null, 2));
 
 console.log('\nTesting with $sort:');
-const groupResult2 = Modash.aggregate(data, [
+const groupResult2 = Aggo.aggregate(data, [
   {
     $group: {
       _id: '$category',

@@ -108,7 +108,7 @@ export interface StreamLoaderOptions {
  *
  * @example
  * ```typescript
- * import { explain } from 'modash';
+ * import { explain } from 'aggo';
  *
  * const analysis = explain([
  *   { $match: { status: 'active' } },
@@ -204,7 +204,7 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
  *
  * @example
  * ```typescript
- * import { benchmark } from 'modash';
+ * import { benchmark } from 'aggo';
  *
  * const results = await benchmark(documents, [
  *   { $match: { category: 'electronics' } },
@@ -310,7 +310,7 @@ export async function benchmark<T extends Document = Document>(
  * @example
  * ```typescript
  * import { createReadStream } from 'fs';
- * import { fromJSONL, aggregate } from 'modash';
+ * import { fromJSONL, aggregate } from 'aggo';
  *
  * const stream = createReadStream('data.jsonl');
  * const documents = [];

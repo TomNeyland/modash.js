@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 
 /**
  * Documentation-style tests showcasing real-world scenarios
@@ -397,7 +397,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
   describe('🛒 E-commerce & Sales Analytics', () => {
     it('should analyze top-selling products by revenue with inventory alerts', () => {
       // Combine orders with product details to find top revenue generators
-      const result = Modash.aggregate(fixtures.orders, [
+      const result = Aggo.aggregate(fixtures.orders, [
         {
           $lookup: {
             from: fixtures.products,
@@ -439,7 +439,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
     });
 
     it('should create customer purchase analytics with tier-based insights', () => {
-      const result = Modash.aggregate(fixtures.orders, [
+      const result = Aggo.aggregate(fixtures.orders, [
         {
           $lookup: {
             from: fixtures.customers,
@@ -489,7 +489,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
     });
 
     it('should analyze regional sales patterns with shipping insights', () => {
-      const result = Modash.aggregate(fixtures.orders, [
+      const result = Aggo.aggregate(fixtures.orders, [
         {
           $match: {
             status: { $in: ['shipped', 'delivered'] },
@@ -529,7 +529,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
 
   describe('📝 Content Management & Blog Analytics', () => {
     it('should find top-performing content with engagement metrics', () => {
-      const result = Modash.aggregate(fixtures.blogPosts, [
+      const result = Aggo.aggregate(fixtures.blogPosts, [
         {
           $lookup: {
             from: fixtures.authors,
@@ -579,7 +579,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
     });
 
     it('should analyze content trends by tags and publication timeline', () => {
-      const result = Modash.aggregate(fixtures.blogPosts, [
+      const result = Aggo.aggregate(fixtures.blogPosts, [
         { $unwind: '$tags' },
         {
           $group: {
@@ -621,7 +621,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
 
   describe('👥 HR & Employee Analytics', () => {
     it('should analyze salary distribution and performance by department', () => {
-      const result = Modash.aggregate(fixtures.employees, [
+      const result = Aggo.aggregate(fixtures.employees, [
         {
           $addFields: {
             avgPerformance: { $avg: '$performance' },
@@ -670,7 +670,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
     });
 
     it('should identify skill gaps and training needs across teams', () => {
-      const result = Modash.aggregate(fixtures.employees, [
+      const result = Aggo.aggregate(fixtures.employees, [
         { $unwind: '$skills' },
         {
           $group: {
@@ -710,7 +710,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
 
   describe('💰 Financial Transaction Analysis', () => {
     it('should create comprehensive account activity summary', () => {
-      const result = Modash.aggregate(fixtures.transactions, [
+      const result = Aggo.aggregate(fixtures.transactions, [
         {
           $addFields: {
             month: { $month: '$date' },
@@ -762,7 +762,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
     });
 
     it('should analyze spending patterns by category and detect anomalies', () => {
-      const result = Modash.aggregate(fixtures.transactions, [
+      const result = Aggo.aggregate(fixtures.transactions, [
         {
           $match: {
             type: 'withdrawal',
@@ -809,7 +809,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
 
   describe('🌡️ IoT Sensor Data Analysis', () => {
     it('should monitor environmental conditions with alerts', () => {
-      const result = Modash.aggregate(fixtures.sensorReadings, [
+      const result = Aggo.aggregate(fixtures.sensorReadings, [
         {
           $addFields: {
             hour: { $hour: '$timestamp' },
@@ -885,7 +885,7 @@ describe('📖 Documentation Examples - Real-World Scenarios', () => {
 
   describe('📱 Social Media Analytics', () => {
     it('should analyze user engagement and trending content', () => {
-      const result = Modash.aggregate(fixtures.socialPosts, [
+      const result = Aggo.aggregate(fixtures.socialPosts, [
         {
           $lookup: {
             from: fixtures.users,

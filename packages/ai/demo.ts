@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 /**
- * Demo script for @modash/plugin-ai
+ * Demo script for @aggo/plugin-ai
  * Shows schema inference and pipeline generation (without OpenAI API calls)
  */
 
@@ -66,7 +66,7 @@ const sampleData = [
   },
 ];
 
-console.log('🤖 @modash/plugin-ai Demo');
+console.log('🤖 @aggo/plugin-ai Demo');
 console.log('═'.repeat(50));
 
 console.log('\n📊 Sample Data:');
@@ -103,16 +103,16 @@ console.log('# With OpenAI API key:');
 console.log('export OPENAI_API_KEY="your-key-here"');
 console.log('');
 console.log('# Schema only:');
-console.log('cat employees.jsonl | npx modash-ai --schema-only');
+console.log('cat employees.jsonl | npx aggo-ai --schema-only');
 console.log('');
 console.log('# Natural language query:');
 console.log(
-  'cat employees.jsonl | npx modash-ai "average salary by department"'
+  'cat employees.jsonl | npx aggo-ai "average salary by department"'
 );
 console.log('');
 console.log('# Show generated pipeline:');
 console.log(
-  'npx modash-ai "top 5 by salary" --file employees.jsonl --show-pipeline'
+  'npx aggo-ai "top 5 by salary" --file employees.jsonl --show-pipeline'
 );
 
 console.log('\n✨ Demo completed successfully!');

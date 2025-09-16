@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 
 // Test the exact failing case
 const data = [
@@ -18,7 +18,7 @@ const pipeline = [
 ];
 
 console.log('\n📋 Testing projection pipeline:');
-const result = Modash.aggregate(data, pipeline);
+const result = Aggo.aggregate(data, pipeline);
 console.log('Result:', JSON.stringify(result, null, 2));
 
 // Test without $limit too
@@ -32,5 +32,5 @@ const pipelineNoLimit = [
 ];
 
 console.log('\n📋 Testing projection without limit:');
-const resultNoLimit = Modash.aggregate(data, pipelineNoLimit);
+const resultNoLimit = Aggo.aggregate(data, pipelineNoLimit);
 console.log('Result:', JSON.stringify(resultNoLimit, null, 2));

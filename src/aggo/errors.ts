@@ -1,9 +1,9 @@
 /**
- * Typed error classes for modash operations
+ * Typed error classes for aggo operations
  */
 
-export class ModashError extends Error {
-  public override readonly name: string = 'ModashError';
+export class AggoError extends Error {
+  public override readonly name: string = 'AggoError';
 
   constructor(
     message: string,
@@ -13,7 +13,7 @@ export class ModashError extends Error {
   }
 }
 
-export class AggregationError extends ModashError {
+export class AggregationError extends AggoError {
   public override readonly name: string = 'AggregationError';
 
   constructor(
@@ -25,7 +25,7 @@ export class AggregationError extends ModashError {
   }
 }
 
-export class ExpressionError extends ModashError {
+export class ExpressionError extends AggoError {
   public override readonly name: string = 'ExpressionError';
 
   constructor(
@@ -37,7 +37,7 @@ export class ExpressionError extends ModashError {
   }
 }
 
-export class OperatorError extends ModashError {
+export class OperatorError extends AggoError {
   public override readonly name: string = 'OperatorError';
 
   constructor(
@@ -49,7 +49,7 @@ export class OperatorError extends ModashError {
   }
 }
 
-export class ValidationError extends ModashError {
+export class ValidationError extends AggoError {
   public override readonly name: string = 'ValidationError';
 
   constructor(

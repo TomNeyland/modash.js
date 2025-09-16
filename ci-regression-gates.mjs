@@ -12,7 +12,7 @@
 
 import { execSync } from 'child_process';
 import { performance } from 'perf_hooks';
-import Modash from './src/index.js';
+import Aggo from './src/index.js';
 
 // Performance budget thresholds
 const PERFORMANCE_BUDGETS = {
@@ -64,13 +64,13 @@ function validatePerformanceBudget(name, pipeline, budget) {
   
   // Warmup
   for (let i = 0; i < 3; i++) {
-    Modash.aggregate(data, pipeline);
+    Aggo.aggregate(data, pipeline);
   }
   
   // Measure performance
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
-    const result = Modash.aggregate(data, pipeline);
+    const result = Aggo.aggregate(data, pipeline);
     const duration = performance.now() - start;
     durations.push(duration);
     
@@ -143,7 +143,7 @@ function detectSilentFallbacks() {
     ];
     
     for (const pipeline of testPipelines) {
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
       if (result.length === 0 && pipeline.some(stage => '$match' in stage)) {
         // Empty results from $match are acceptable
         continue;
@@ -214,7 +214,7 @@ function validateOperatorCoverage() {
   for (const [operator, pipeline] of Object.entries(supportedOperators)) {
     totalTests++;
     try {
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
       results[operator] = '✅ PASS';
       passedTests++;
     } catch (error) {
