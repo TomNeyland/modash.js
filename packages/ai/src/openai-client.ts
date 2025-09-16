@@ -4,7 +4,7 @@
  */
 
 import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type { Pipeline } from 'aggo';
 import type { SimplifiedSchema } from './schema-inference.js';
 import { StructuredOutputSchema, type StructuredOutput } from './ui-schemas.js';
@@ -87,9 +87,9 @@ export class OpenAIClient {
     try {
       if (shouldGenerateUI) {
         // Use structured output with Zod schema for UI generation
-        const completion = await this.client.beta.chat.completions.parse({
+        const response = await this.client.responses.parse({
           model: this.model,
-          messages: [
+          input: [
             {
               role: 'system',
               content: this.getSystemPromptWithUI(),
@@ -99,12 +99,12 @@ export class OpenAIClient {
               content: prompt,
             },
           ],
-          max_tokens: this.maxTokens,
-          temperature: this.temperature,
-          response_format: zodResponseFormat(StructuredOutputSchema, 'structured_query_response'),
+          text: {
+            format: zodTextFormat(StructuredOutputSchema, 'structured_query_response'),
+          },
         });
 
-        const parsedResponse = completion.choices[0]?.message?.parsed;
+        const parsedResponse = response.output_parsed;
         if (!parsedResponse) {
           throw new Error('No structured response from OpenAI');
         }
@@ -115,9 +115,9 @@ export class OpenAIClient {
           uiInstructions: parsedResponse.ui,
           uiReasoning: parsedResponse.reasoning,
           tokensUsed: {
-            prompt: completion.usage?.prompt_tokens || 0,
-            completion: completion.usage?.completion_tokens || 0,
-            total: completion.usage?.total_tokens || 0,
+            prompt: response.usage?.prompt_tokens || 0,
+            completion: response.usage?.completion_tokens || 0,
+            total: response.usage?.total_tokens || 0,
           },
         };
       } else {
