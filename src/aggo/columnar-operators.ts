@@ -22,6 +22,8 @@ export interface OperatorHints {
   distinctValues?: number; // Expected distinct values for grouping
   sortedFields?: string[]; // Fields that are known to be sorted
   memoryBudget?: number; // Memory budget in bytes
+  // Callback to record transformed fields for late materialization
+  onTransform?: (rowId: number, field: string, value: DocumentValue) => void;
 }
 
 /**
@@ -363,7 +365,8 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
     for (let i = 0; i < inputSelection.length; i++) {
       const rowId = inputSelection.get(i);
       this.projectRow(batch, rowId, this.outputBatch, i);
-      outputSelection.push(i); // New row IDs in output batch
+      // Preserve original row identity to enable late materialization
+      outputSelection.push(rowId);
     }
 
     const endTime = performance.now();
@@ -406,6 +409,8 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
       }
 
       outputBatch.setValue(outputRowId, field, value);
+      // Record transformation for late materialization fallback
+      this.hints.onTransform?.(inputRowId, field, value);
     }
   }
 
@@ -454,18 +459,24 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
 export class VirtualRowIdManager {
   private virtualToOriginal: Map<number, number> = new Map();
   private virtualToArrayIndex: Map<number, number> = new Map();
+  private virtualToField: Map<number, string> = new Map();
   private nextVirtualId: number = 0x80000000; // Start with high bit set to distinguish from real IDs
 
   /**
    * Generate virtual row IDs for array elements
    */
-  generateVirtualRowIds(originalRowId: number, arrayLength: number): number[] {
+  generateVirtualRowIds(
+    originalRowId: number,
+    arrayLength: number,
+    fieldPath: string
+  ): number[] {
     const virtualIds: number[] = [];
 
     for (let i = 0; i < arrayLength; i++) {
       const virtualId = this.nextVirtualId++;
       this.virtualToOriginal.set(virtualId, originalRowId);
       this.virtualToArrayIndex.set(virtualId, i);
+      this.virtualToField.set(virtualId, fieldPath);
       virtualIds.push(virtualId);
     }
 
@@ -487,6 +498,13 @@ export class VirtualRowIdManager {
   }
 
   /**
+   * Get the unwind field path for this virtual row
+   */
+  getUnwindField(virtualId: number): string | undefined {
+    return this.virtualToField.get(virtualId);
+  }
+
+  /**
    * Check if row ID is virtual
    */
   isVirtualRowId(rowId: number): boolean {
@@ -499,6 +517,7 @@ export class VirtualRowIdManager {
   clear(): void {
     this.virtualToOriginal.clear();
     this.virtualToArrayIndex.clear();
+    this.virtualToField.clear();
     this.nextVirtualId = 0x80000000;
   }
 }
@@ -565,7 +584,8 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
         // Generate virtual row IDs for array elements
         const virtualIds = this.virtualRowManager.generateVirtualRowIds(
           rowId,
-          value.length
+          value.length,
+          this.unwindField
         );
 
         for (const virtualId of virtualIds) {
@@ -597,6 +617,57 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
         processingTimeMs: endTime - startTime,
       },
     };
+  }
+}
+
+/**
+ * Columnar $limit operator - selection-slice with stateful remaining counter
+ */
+export class ColumnarLimitOperator extends BaseColumnarOperator {
+  private remaining: number;
+
+  constructor(private count: number) {
+    super();
+    this.remaining = count;
+  }
+
+  protected initializeOperator(): void {
+    this.remaining = this.count;
+  }
+
+  protected cleanupOperator(): void {
+    // no-op
+  }
+
+  push(batch: ColumnarBatch): OperatorResult {
+    const start = performance.now();
+    const inputSel = batch.getSelection();
+    const outSel = new SelectionVector(Math.min(inputSel.length, this.remaining));
+
+    const take = Math.min(this.remaining, inputSel.length);
+    for (let i = 0; i < take; i++) {
+      outSel.push(inputSel.get(i));
+    }
+    this.remaining -= take;
+
+    const end = performance.now();
+    this.updateStats(inputSel.length, outSel.length, end - start);
+
+    return {
+      outputBatch: batch,
+      selection: outSel,
+      metadata: {
+        rowsProcessed: inputSel.length,
+        rowsOutput: outSel.length,
+        selectivity: inputSel.length ? outSel.length / inputSel.length : 0,
+        processingTimeMs: end - start,
+      },
+    };
+  }
+
+  flush(): OperatorResult | null {
+    // Once remaining reaches 0, subsequent batches produce empty selection
+    return null;
   }
 }
 

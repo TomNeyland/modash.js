@@ -29,11 +29,14 @@ import {
   ColumnarMatchOperator,
   ColumnarProjectOperator,
   ColumnarUnwindOperator,
+  ColumnarLimitOperator,
   VirtualRowIdManager,
   OperatorHints,
 } from './columnar-operators';
 
 import { RobinHoodHashTable } from './robin-hood-hash';
+import { aggregate as standardAggregate } from './aggregation';
+import { get, set } from './util';
 import { Document, DocumentValue, Collection } from './expressions';
 
 /**
@@ -134,12 +137,17 @@ export class RowIdSpace {
     arrayIndex: number,
     virtualRowId: number
   ): Document {
-    // This is a simplified implementation - in practice would need more sophisticated unwinding logic
-    return {
-      ...originalDoc,
-      _virtualRowId: virtualRowId,
-      _arrayIndex: arrayIndex,
-    };
+    // Build a shallow clone and replace the unwound field with its element
+    const clone: any = { ...originalDoc };
+    const fieldPath = this.virtualRowManager.getUnwindField(virtualRowId);
+    if (fieldPath) {
+      const arr = get(clone, fieldPath) as any[] | undefined;
+      const elem = Array.isArray(arr) ? arr[arrayIndex] : undefined;
+      set(clone, fieldPath, elem);
+    }
+    clone._virtualRowId = virtualRowId;
+    clone._arrayIndex = arrayIndex;
+    return clone as Document;
   }
 }
 
@@ -415,14 +423,23 @@ export class ColumnarIvmEngine {
     const batch = this.createColumnarBatch(documents, schema, initialRowIds);
 
     // 3. Compile pipeline into columnar operators
-    const operators = this.compilePipeline(pipeline);
+    const { operators, compiledCount } = this.compilePipeline(pipeline);
     this.setupPipelineExecutor(operators, schema);
 
     // 4. Execute pipeline in batches
     const resultBatch = this.processBatches([batch]);
 
     // 5. Late materialization - convert final row IDs back to documents
-    return this.materializeFinalResults(resultBatch);
+    const intermediate = this.materializeFinalResults(resultBatch);
+
+    // 6. Hybrid fallback: if not all stages were compiled, run the remainder
+    if (compiledCount < pipeline.length) {
+      const remaining = pipeline.slice(compiledCount);
+      // Defer to standard aggregation for the remaining stages
+      return standardAggregate(intermediate as any, remaining as any) as any;
+    }
+
+    return intermediate;
   }
 
   private ingestDocuments(documents: Document[]): number[] {
@@ -520,8 +537,11 @@ export class ColumnarIvmEngine {
     return batch;
   }
 
-  private compilePipeline(pipeline: any[]): ColumnarOperator[] {
+  private compilePipeline(
+    pipeline: any[]
+  ): { operators: ColumnarOperator[]; compiledCount: number } {
     const operators: ColumnarOperator[] = [];
+    let compiledCount = 0;
 
     for (const stage of pipeline) {
       const stageType = Object.keys(stage)[0];
@@ -530,22 +550,31 @@ export class ColumnarIvmEngine {
       switch (stageType) {
         case '$match':
           operators.push(new ColumnarMatchOperator(stageSpec));
+          compiledCount++;
           break;
         case '$project':
           operators.push(new ColumnarProjectOperator(stageSpec));
+          compiledCount++;
           break;
         case '$unwind':
           operators.push(new ColumnarUnwindOperator(stageSpec));
+          compiledCount++;
+          break;
+        case '$limit':
+          operators.push(new ColumnarLimitOperator(stageSpec));
+          compiledCount++;
           break;
         // Add more operators as needed
         default:
           console.warn(
-            `Columnar operator not implemented for ${stageType}, using fallback`
+            `Columnar operator not implemented for ${stageType}, using fallback code=NOT_IMPLEMENTED`
           );
+          // Stop compiling here; the remainder will be handled by fallback
+          return { operators, compiledCount };
       }
     }
 
-    return operators;
+    return { operators, compiledCount };
   }
 
   private setupPipelineExecutor(
@@ -564,6 +593,8 @@ export class ColumnarIvmEngine {
     const hints: OperatorHints = {
       expectedBatchSize: this.defaultBatchSize,
       isStreamingMode: false,
+      onTransform: (rowId, field, value) =>
+        this.materializationContext.setTransformedField(rowId, field, value),
     };
 
     this.pipelineExecutor.init(schema, hints);

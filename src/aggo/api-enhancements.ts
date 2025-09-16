@@ -17,6 +17,13 @@ export interface PipelineExplanation {
   estimatedComplexity: 'O(1)' | 'O(n)' | 'O(n log n)' | 'O(n²)';
   hotPathEligible: boolean;
   ivmEligible: boolean;
+  // Phase 9.5: Physical plan summary (best-effort static mapping)
+  physicalPlan?: Array<{
+    index: number;
+    stage: string;
+    operator: string;
+    reasonCode?: 'NOT_IMPLEMENTED' | 'FEATURE_OFF' | 'UNSUPPORTED_ACCUM' | 'UNSUPPORTED_KEY_TYPE' | 'CAPACITY';
+  }>;
 }
 
 /**
@@ -129,6 +136,8 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
   const ivmEligible = true;
   let estimatedComplexity: PipelineExplanation['estimatedComplexity'] = 'O(n)';
 
+  const physicalPlan: PipelineExplanation['physicalPlan'] = [];
+
   pipeline.forEach((stage, index) => {
     const stageName = Object.keys(stage)[0];
     const stageExplanation = analyzeStage(
@@ -137,6 +146,55 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
       index
     );
     stages.push(stageExplanation);
+
+    // Physical operator mapping (best-effort without running planner)
+    let operator = `Fallback${stageName.substring(1)}`;
+    let reason: PipelineExplanation['physicalPlan'][number]['reasonCode'] | undefined = 'NOT_IMPLEMENTED';
+    switch (stageName) {
+      case '$match':
+        operator = 'ColumnarMatchExec';
+        reason = undefined;
+        break;
+      case '$project':
+        operator = 'ColumnarProjectExec';
+        reason = undefined;
+        break;
+      case '$unwind':
+        // Enabled unless feature flag is off
+        operator = 'ColumnarUnwindExec';
+        if (process.env.AGGO_ENABLE_COLUMNAR_UNWIND === '0') {
+          operator = 'FallbackUnwind';
+          reason = 'FEATURE_OFF';
+        } else {
+          reason = undefined;
+        }
+        break;
+      case '$limit':
+        operator = 'ColumnarLimitExec';
+        reason = undefined;
+        break;
+      case '$group':
+        if (process.env.AGGO_ENABLE_COLUMNAR_GROUP === '1') {
+          operator = 'HashGroupExec';
+          reason = undefined; // assume covered when flag on
+        } else {
+          operator = 'FallbackGroup';
+          reason = 'FEATURE_OFF';
+        }
+        break;
+      case '$sort':
+        operator = 'FallbackSort';
+        // If followed by $limit, planner can rewrite to TopK when available
+        const next = pipeline[index + 1];
+        if (next && '$limit' in next) {
+          operator = 'TopKRewriteCandidate';
+          reason = undefined;
+        }
+        break;
+      default:
+        break;
+    }
+    physicalPlan!.push({ index, stage: stageName, operator, reasonCode: reason });
 
     // Update global flags based on stage analysis
     // Only certain stages break hot path eligibility (like complex operations)
@@ -191,6 +249,7 @@ export function explain(pipeline: Pipeline): PipelineExplanation {
     estimatedComplexity,
     hotPathEligible,
     ivmEligible,
+    physicalPlan,
   };
 }
 

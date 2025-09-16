@@ -524,12 +524,31 @@ function isSimpleExpression(expr: any): boolean {
  * Check if pipeline should use columnar processing
  * Columnar is good for larger datasets and vectorizable operations
  */
+let lastColumnarReason: { code: string; stage?: string } | null = null;
 function shouldUseColumnar(
   collection: Collection,
   pipeline: Pipeline
 ): boolean {
+  lastColumnarReason = null;
   // Use columnar for larger datasets (> 100 rows)
-  if (collection.length <= 100) return false;
+  if (collection.length <= 100) {
+    lastColumnarReason = { code: 'SMALL_DATASET' };
+    return false;
+  }
+
+  // Temporarily exclude patterns not yet implemented/robust in columnar path
+  const hasGroup = pipeline.some(stage => '$group' in stage);
+  const hasUnwind = pipeline.some(stage => '$unwind' in stage);
+  const allowGroup = process.env.AGGO_ENABLE_COLUMNAR_GROUP === '1';
+  const allowUnwind = process.env.AGGO_ENABLE_COLUMNAR_UNWIND !== '0';
+  if (hasGroup && !allowGroup) {
+    lastColumnarReason = { code: 'FEATURE_OFF', stage: '$group' };
+    return false;
+  }
+  if (hasUnwind && !allowUnwind) {
+    lastColumnarReason = { code: 'FEATURE_OFF', stage: '$unwind' };
+    return false;
+  }
 
   // Check if pipeline contains vectorizable operations
   const vectorizableOps = ['$match', '$project', '$limit', '$skip'];
@@ -537,7 +556,9 @@ function shouldUseColumnar(
     const stageType = Object.keys(stage)[0];
     return vectorizableOps.includes(stageType);
   });
-
+  if (!hasVectorizableOps) {
+    lastColumnarReason = { code: 'NOT_IMPLEMENTED' };
+  }
   return hasVectorizableOps;
 }
 
@@ -624,6 +645,15 @@ export function hotPathAggregate<T extends Document = Document>(
       }
     }
   } else if (canUseHotPath(pipeline)) {
+    // Reason-coded optimizer note for columnar miss
+    if (lastColumnarReason) {
+      recordOptimizerRejection(
+        pipeline,
+        `COLUMNAR_${lastColumnarReason.code}`,
+        undefined,
+        lastColumnarReason.stage
+      );
+    }
     if (process.env.DEBUG_UNWIND) {
       console.log('[DEBUG] Using zero-alloc hot path for pipeline:', pipeline);
     }

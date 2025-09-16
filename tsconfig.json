@@ -14,9 +14,6 @@
       "aggo/*": ["./packages/aggo/src/*"]
     }
   },
-  "include": [
-    "src",
-    "packages/aggo/src"
-  ],
+  "include": ["src", "packages/aggo/src"],
   "exclude": ["dist", "node_modules"]
 }
