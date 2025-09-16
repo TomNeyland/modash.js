@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 console.log('Debugging empty array handling...');
 
@@ -14,7 +14,7 @@ documents.forEach(doc => {
   console.log(`  _id: ${doc._id}, values:`, doc.values, `isArray: ${Array.isArray(doc.values)}, length: ${doc.values?.length}`);
 });
 
-const result = Modash.aggregate(documents, [
+const result = Aggo.aggregate(documents, [
   { $unwind: '$values' }
 ]);
 

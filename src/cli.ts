@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
-import Modash, { type Pipeline } from './index';
+import Aggo, { type Pipeline } from './index';
 import type { Document } from './aggo/expressions';
 
 interface CLIOptions {
@@ -78,15 +78,15 @@ function parseArgs(): {
 
 function showHelp() {
   console.log(`
-🚀 Modash CLI - MongoDB-style aggregation for JSON data
+🚀 Aggo CLI - MongoDB-style aggregation for JSON data
 
 Usage:
-  cat data.jsonl | npx modash '[{"$match": {"score": {"$gte": 80}}}]'
-  npx modash '[{"$project": {"name": 1}}]' --file data.jsonl
-  cat data.jsonl | npx modash ai "sum revenue by category"
+  cat data.jsonl | npx aggo '[{"$match": {"score": {"$gte": 80}}}]'
+  npx aggo '[{"$project": {"name": 1}}]' --file data.jsonl
+  cat data.jsonl | npx aggo ai "sum revenue by category"
 
 Commands:
-  ai <query>       Natural language query using AI (requires @modash/plugin-ai)
+  ai <query>       Natural language query using AI (requires aggo-ai)
 
 Options:
   --file <path>    Read data from file instead of stdin
@@ -98,17 +98,17 @@ Options:
 
 Examples:
   # Filter and project from stdin
-  echo '{"name":"Alice","age":30}' | npx modash '[{"$match":{"age":{"$gte":25}}}]'
+  echo '{"name":"Alice","age":30}' | npx aggo '[{"$match":{"age":{"$gte":25}}}]'
   
   # Group and aggregate from file
-  npx modash '[{"$group":{"_id":"$category","total":{"$sum":"$amount"}}}]' --file sales.jsonl
+  npx aggo '[{"$group":{"_id":"$category","total":{"$sum":"$amount"}}}]' --file sales.jsonl
   
   # Complex pipeline with explanation
-  npx modash '[{"$match":{"active":true}},{"$project":{"name":1,"score":1}}]' --explain --stats
+  npx aggo '[{"$match":{"active":true}},{"$project":{"name":1,"score":1}}]' --explain --stats
   
-  # AI-powered natural language query (requires @modash/plugin-ai)
-  cat sales.jsonl | npx modash ai "average order value by product category"
-  npx modash ai "top 10 customers by total spent" --file orders.jsonl
+  # AI-powered natural language query (requires aggo-ai)
+  cat sales.jsonl | npx aggo ai "average order value by product category"
+  npx aggo ai "top 10 customers by total spent" --file orders.jsonl
 
 Pipeline Format:
   JSON array of MongoDB-style aggregation stages:
@@ -212,21 +212,17 @@ async function main() {
     if (subcommand === 'ai') {
       try {
         // Try to dynamically import the AI plugin
-        const pluginName = '@modash/plugin-ai';
+        const pluginName = 'aggo-ai';
         await import(pluginName).catch(() => {
           throw new Error('Plugin not found');
         });
         console.error('🤖 AI plugin not yet integrated with main CLI');
-        console.error(
-          '💡 For now, use: npx @modash/plugin-ai <query> [options]'
-        );
+        console.error('💡 For now, use: npx aggo-ai <query> [options]');
         process.exit(1);
       } catch (_error) {
-        console.error('❌ Error: @modash/plugin-ai is not installed');
-        console.error('💡 Install it with: npm install @modash/plugin-ai');
-        console.error(
-          '💡 Then use: cat data.jsonl | npx modash ai "your query"'
-        );
+        console.error('❌ Error: aggo-ai is not installed');
+        console.error('💡 Install it with: npm install aggo-ai');
+        console.error('💡 Then use: cat data.jsonl | npx aggo ai "your query"');
         process.exit(1);
       }
     }
@@ -246,7 +242,7 @@ async function main() {
           '❌ Error: No input data. Use --file or pipe data via stdin.'
         );
         console.error(
-          'Example: cat data.jsonl | npx modash \'[{"$match": {"active": true}}]\''
+          'Example: cat data.jsonl | npx aggo \'[{"$match": {"active": true}}]\''
         );
         process.exit(1);
       }
@@ -261,7 +257,7 @@ async function main() {
     const startTime = options.stats ? process.hrtime.bigint() : null;
     const startMemory = options.stats ? process.memoryUsage() : null;
 
-    const result = Modash.aggregate(documents as any, pipeline);
+    const result = Aggo.aggregate(documents as any, pipeline);
 
     if (options.stats && startTime && startMemory) {
       const endTime = process.hrtime.bigint();
@@ -318,8 +314,6 @@ async function main() {
 }
 
 // Make this module executable
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}
+main();
 
 export { main as cliMain };

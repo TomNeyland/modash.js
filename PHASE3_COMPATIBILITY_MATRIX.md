@@ -123,10 +123,10 @@
 
 ```javascript
 // Simple filtering - 6.2M docs/sec
-const active = Modash.aggregate(users, [{ $match: { status: 'active' } }]);
+const active = Aggo.aggregate(users, [{ $match: { status: 'active' } }]);
 
 // Grouping with accumulators - 884k docs/sec
-const byDept = Modash.aggregate(employees, [
+const byDept = Aggo.aggregate(employees, [
   {
     $group: {
       _id: '$department',
@@ -141,7 +141,7 @@ const byDept = Modash.aggregate(employees, [
 
 ```javascript
 // Complex pipeline - 922k docs/sec
-const skillAnalysis = Modash.aggregate(employees, [
+const skillAnalysis = Aggo.aggregate(employees, [
   { $match: { active: true } },
   { $unwind: '$skills' }, // Phase 3: Optimized
   {
@@ -169,7 +169,7 @@ const skillAnalysis = Modash.aggregate(employees, [
 #### Streaming with Adaptive Batching
 
 ```javascript
-const streaming = Modash.createStreamingCollection([]);
+const streaming = Aggo.createStreamingCollection([]);
 
 streaming.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }]);
 
@@ -182,13 +182,13 @@ streaming.remove(oldIds); // Adaptive sizing
 
 ```javascript
 // Enhanced text search with Bloom filtering - 5x speedup
-const textResults = Modash.aggregate(documents, [
+const textResults = Aggo.aggregate(documents, [
   { $match: { $text: 'javascript modern programming' } }, // Accelerated
   { $project: { title: 1, content: 1, score: 1 } },
 ]);
 
 // Text search statistics and monitoring
-const stats = Modash.getTextSearchStats();
+const stats = Aggo.getTextSearchStats();
 console.log(`Candidate reduction: ${stats.candidateReductionRate}%`);
 console.log(`False positive rate: ${stats.falsePositiveRate}%`);
 ```
@@ -197,7 +197,7 @@ console.log(`False positive rate: ${stats.falsePositiveRate}%`);
 
 ```javascript
 // Enhanced regex with trigram prefiltering - 3x speedup
-const regexResults = Modash.aggregate(logs, [
+const regexResults = Aggo.aggregate(logs, [
   {
     $match: {
       message: { $regex: 'ERROR.*database.*connection' }, // Accelerated
@@ -208,7 +208,7 @@ const regexResults = Modash.aggregate(logs, [
 ]);
 
 // Regex pattern analysis
-const analysis = Modash.analyzeRegexPattern('ERROR.*database.*connection');
+const analysis = Aggo.analyzeRegexPattern('ERROR.*database.*connection');
 console.log(`Suitable for Bloom: ${analysis.suitableForBloom}`);
 console.log(`Detected literals: ${analysis.literals.join(', ')}`);
 ```
@@ -219,7 +219,7 @@ console.log(`Detected literals: ${analysis.literals.join(', ')}`);
 // Enable debug logging for prefiltering insights
 process.env.DEBUG_IVM = 'true';
 
-Modash.aggregate(largeDataset, [
+Aggo.aggregate(largeDataset, [
   { $match: { $text: 'machine learning algorithms' } },
 ]);
 
@@ -230,7 +230,7 @@ Modash.aggregate(largeDataset, [
 // 🔍 $text: Found 89 matches, estimated speedup: 6.2x
 
 // Get comprehensive performance summary
-Modash.logPerformanceSummary();
+Aggo.logPerformanceSummary();
 ```
 
 ### 🚀 Future Roadmap

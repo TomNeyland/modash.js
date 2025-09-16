@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import Modash from '../../src/index';
+import Aggo from '../../src/index';
 
 console.log('Testing with forced standard aggregation path...');
 
@@ -10,7 +10,7 @@ const documents = [
 ];
 
 // Force standard aggregation by using a complex pipeline that can't be optimized
-const result = Modash.aggregate(documents, [
+const result = Aggo.aggregate(documents, [
   { $unwind: '$values' },
   { $project: { _id: 1, values: 1 } }  // This should prevent hot path optimization
 ]);

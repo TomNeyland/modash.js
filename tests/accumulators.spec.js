@@ -4,7 +4,7 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/index.ts';
+import Aggo from '../src/index.ts';
 
 describe('Accumulator Function Coverage Tests', function () {
   const sampleData = [
@@ -16,7 +16,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$sum Accumulator', function () {
     it('should sum numeric field values', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: null,
@@ -31,7 +31,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should count documents when using $sum: 1', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -48,7 +48,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should handle expressions in $sum', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: null,
@@ -69,7 +69,7 @@ describe('Accumulator Function Coverage Tests', function () {
         {}, // missing value
       ];
 
-      const result = Modash.aggregate(dataWithNulls, [
+      const result = Aggo.aggregate(dataWithNulls, [
         {
           $group: {
             _id: null,
@@ -84,7 +84,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$avg Accumulator', function () {
     it('should calculate average of numeric field values', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: null,
@@ -99,7 +99,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should calculate average by category', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -116,7 +116,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should handle empty collections', function () {
-      const result = Modash.aggregate(
+      const result = Aggo.aggregate(
         [],
         [
           {
@@ -134,7 +134,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$first Accumulator', function () {
     it('should return first value in each group', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -154,7 +154,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should handle expressions in $first', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -173,7 +173,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$last Accumulator', function () {
     it('should return last value in each group', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -195,7 +195,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$min Accumulator', function () {
     it('should find minimum value in each group', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -217,7 +217,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$max Accumulator', function () {
     it('should find maximum value in each group', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -239,7 +239,7 @@ describe('Accumulator Function Coverage Tests', function () {
 
   describe('$push Accumulator', function () {
     it('should collect values into arrays', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -259,7 +259,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should handle expressions in $push', function () {
-      const result = Modash.aggregate(sampleData, [
+      const result = Aggo.aggregate(sampleData, [
         {
           $group: {
             _id: '$category',
@@ -287,7 +287,7 @@ describe('Accumulator Function Coverage Tests', function () {
         { category: 'B', tag: 'green' }, // duplicate
       ];
 
-      const result = Modash.aggregate(dataWithDuplicates, [
+      const result = Aggo.aggregate(dataWithDuplicates, [
         {
           $group: {
             _id: '$category',
@@ -314,7 +314,7 @@ describe('Accumulator Function Coverage Tests', function () {
     ];
 
     it('should calculate $stdDevPop (population standard deviation)', function () {
-      const result = Modash.aggregate(numericData, [
+      const result = Aggo.aggregate(numericData, [
         {
           $group: {
             _id: '$group',
@@ -334,7 +334,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should calculate $stdDevSamp (sample standard deviation)', function () {
-      const result = Modash.aggregate(numericData, [
+      const result = Aggo.aggregate(numericData, [
         {
           $group: {
             _id: '$group',
@@ -354,7 +354,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should calculate $variancePop (population variance)', function () {
-      const result = Modash.aggregate(numericData, [
+      const result = Aggo.aggregate(numericData, [
         {
           $group: {
             _id: '$group',
@@ -374,7 +374,7 @@ describe('Accumulator Function Coverage Tests', function () {
     });
 
     it('should calculate $varianceSamp (sample variance)', function () {
-      const result = Modash.aggregate(numericData, [
+      const result = Aggo.aggregate(numericData, [
         {
           $group: {
             _id: '$group',
@@ -403,7 +403,7 @@ describe('Accumulator Function Coverage Tests', function () {
         { value: 20 },
       ];
 
-      const result = Modash.aggregate(dataWithNulls, [
+      const result = Aggo.aggregate(dataWithNulls, [
         {
           $group: {
             _id: null,
@@ -425,7 +425,7 @@ describe('Accumulator Function Coverage Tests', function () {
     it('should handle single document groups', function () {
       const singleDoc = [{ name: 'Solo', value: 42 }];
 
-      const result = Modash.aggregate(singleDoc, [
+      const result = Aggo.aggregate(singleDoc, [
         {
           $group: {
             _id: null,

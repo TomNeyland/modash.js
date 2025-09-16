@@ -1,4 +1,4 @@
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import { createStreamingCollection } from '../src/aggo/streaming';
 import testData from './test-data.js';
 import { expect } from 'chai';
@@ -16,7 +16,7 @@ let db;
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
-  const nonStreamingResult = Modash.aggregate(collection, pipeline);
+  const nonStreamingResult = Aggo.aggregate(collection, pipeline);
 
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
@@ -31,7 +31,7 @@ const compareStreamingResults = (collection, pipeline, description = '') => {
 beforeEach(() => {
   // Modern approach: create a simple wrapper instead of using _.mixin
   const createCollection = data => ({
-    aggregate: pipeline => Modash.aggregate(data, pipeline),
+    aggregate: pipeline => Aggo.aggregate(data, pipeline),
     value: () => data,
     first: () => data[0],
   });
@@ -39,7 +39,7 @@ beforeEach(() => {
   db = mapValues(testData, data => createCollection(data));
 });
 
-describe('Modash Aggregation', () => {
+describe('Aggo Aggregation', () => {
   describe('$group', () => {
     const groupingConfig = {
       _id: {

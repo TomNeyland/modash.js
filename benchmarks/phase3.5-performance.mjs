@@ -4,18 +4,18 @@
  * Benchmarks for Text & Regex Prefiltering performance improvements
  */
 
-import Modash from '../src/index.ts';
+import Aggo from '../src/index.ts';
 import { 
   $text, 
   resetTextSearchStats, 
   getTextSearchStats,
   configureTextSearch 
-} from '../src/modash/text-search.ts';
+} from '../src/aggo/text-search.ts';
 import { 
   enhancedRegexMatch, 
   resetRegexSearchStats, 
   getRegexSearchStats 
-} from '../src/modash/regex-search.ts';
+} from '../src/aggo/regex-search.ts';
 
 // Generate test data
 function generateTestData(size) {
@@ -190,7 +190,7 @@ async function benchmarkIntegratedPipelines() {
     
     for (let i = 0; i < iterations; i++) {
       const startTime = process.hrtime.bigint();
-      const results = Modash.aggregate(data, pipeline);
+      const results = Aggo.aggregate(data, pipeline);
       const endTime = process.hrtime.bigint();
       
       const time = Number(endTime - startTime) / 1e6;

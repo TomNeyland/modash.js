@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 import { getHotPathStats, resetHotPathStats } from '../../src/aggo/hot-path-aggregation';
 
 // Generate test data
@@ -21,7 +21,7 @@ await resetHotPathStats();
 // Test 1: Simple filter (should use hot path)
 console.log('Test 1: Simple filter');
 const start1 = Date.now();
-const result1 = Modash.aggregate(testData, [
+const result1 = Aggo.aggregate(testData, [
   { $match: { category: 'electronics', active: true } }
 ]);
 const time1 = Date.now() - start1;
@@ -31,7 +31,7 @@ console.log(`Throughput: ${(testData.length / time1 * 1000).toFixed(0)} docs/sec
 // Test 2: Simple sort + limit (should use hot path with Top-K)
 console.log('\nTest 2: Sort + limit (Top-K)');
 const start2 = Date.now();
-const result2 = Modash.aggregate(testData, [
+const result2 = Aggo.aggregate(testData, [
   { $sort: { price: -1 } },
   { $limit: 100 }
 ]);
@@ -42,7 +42,7 @@ console.log(`Throughput: ${(testData.length / time2 * 1000).toFixed(0)} docs/sec
 // Test 3: Complex pipeline (should fallback)
 console.log('\nTest 3: Complex pipeline (fallback expected)');
 const start3 = Date.now();
-const result3 = Modash.aggregate(testData, [
+const result3 = Aggo.aggregate(testData, [
   { $match: { active: true } },
   { $project: { 
     category: 1, 

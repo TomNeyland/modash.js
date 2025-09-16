@@ -1,6 +1,6 @@
-# Performance Optimization Strategies for modash.js
+# Performance Optimization Strategies for aggo.js
 
-This document outlines performance optimization strategies for modash.js, a MongoDB-inspired aggregation library for JavaScript. All optimizations preserve the existing API while delivering measurable performance improvements.
+This document outlines performance optimization strategies for aggo.js, a MongoDB-inspired aggregation library for JavaScript. All optimizations preserve the existing API while delivering measurable performance improvements.
 
 ## Implemented Optimizations (Tested & Validated)
 
@@ -32,8 +32,8 @@ For datasets > 50,000 documents, implement client-side caching:
 
 ```javascript
 // Cache aggregation results for repeated queries
-class ModashCache {
-  constructor(dbName = 'modash-cache') {
+class AggoCache {
+  constructor(dbName = 'aggo-cache') {
     this.dbName = dbName;
   }
 
@@ -69,11 +69,11 @@ For CPU-intensive operations in the browser:
 
 ```javascript
 // offload-worker.js
-import Modash from 'modash';
+import Aggo from 'aggo';
 
 self.onmessage = function(e) {
   const { data, pipeline } = e.data;
-  const result = Modash.aggregate(data, pipeline);
+  const result = Aggo.aggregate(data, pipeline);
   self.postMessage(result);
 };
 
@@ -98,7 +98,7 @@ For memory-efficient processing of large collections:
 ```javascript
 import { Transform } from 'stream';
 
-class ModashStream extends Transform {
+class AggoStream extends Transform {
   constructor(pipeline) {
     super({ objectMode: true });
     this.pipeline = pipeline;
@@ -107,7 +107,7 @@ class ModashStream extends Transform {
   _transform(chunk, encoding, callback) {
     try {
       // Process chunks of documents through pipeline
-      const result = Modash.aggregate([chunk], this.pipeline);
+      const result = Aggo.aggregate([chunk], this.pipeline);
       callback(null, result[0]);
     } catch (err) {
       callback(err);
@@ -123,7 +123,7 @@ For parallel processing in Node.js:
 
 ```javascript
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
-import Modash from 'modash';
+import Aggo from 'aggo';
 
 if (isMainThread) {
   function parallelAggregate(data, pipeline, numWorkers = 4) {
@@ -145,7 +145,7 @@ if (isMainThread) {
 } else {
   // Worker thread
   const { chunk, pipeline } = workerData;
-  const result = Modash.aggregate(chunk, pipeline);
+  const result = Aggo.aggregate(chunk, pipeline);
   parentPort.postMessage(result);
 }
 ```
@@ -192,7 +192,7 @@ if (cache.has(cacheKey)) {
   return cache.get(cacheKey);
 }
 
-const result = Modash.aggregate(data, pipeline);
+const result = Aggo.aggregate(data, pipeline);
 cache.set(cacheKey, result);
 return result;
 ```
@@ -201,7 +201,7 @@ return result;
 
 ### Benchmark Script
 ```javascript
-import Modash from 'modash';
+import Aggo from 'aggo';
 
 function benchmark(name, operation, iterations = 1000) {
   console.time(name);
@@ -217,7 +217,7 @@ const pipeline = [
   { $group: { _id: '$department', count: { $sum: 1 } } }
 ];
 
-benchmark('Aggregation', () => Modash.aggregate(data, pipeline));
+benchmark('Aggregation', () => Aggo.aggregate(data, pipeline));
 ```
 
 ## Limits and Considerations

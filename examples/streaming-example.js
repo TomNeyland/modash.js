@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import Modash, { createStreamingCollection } from '../src/modash/index.ts';
+import Aggo, { createStreamingCollection } from '../src/aggo/index.ts';
 
-console.log('🔄 Modash.js Enhanced Streaming/Event Consumer Example\n');
+console.log('🔄 Aggo.js Enhanced Streaming/Event Consumer Example\n');
 
 // Sample e-commerce orders for streaming
 const initialOrders = [

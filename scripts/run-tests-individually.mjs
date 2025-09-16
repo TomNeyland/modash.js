@@ -4,7 +4,7 @@ import { readdirSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 const TEST_DIR = 'tests';
-const LOG_DIR = '.modash-test-logs';
+const LOG_DIR = '.aggo-test-logs';
 const TIMEOUT_MS = 60_000; // 1 minute wall clock
 const mochaBin = join('.', 'node_modules', '.bin', 'mocha');
 

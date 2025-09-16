@@ -7,7 +7,7 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/index.js';
+import Aggo from '../src/index.js';
 
 describe('Cross-Run State Leakage Prevention', function () {
   beforeEach(function () {
@@ -35,7 +35,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       ];
 
       // First run: $group pipeline that produces grouped results
-      const groupResults = Modash.aggregate(documents, [
+      const groupResults = Aggo.aggregate(documents, [
         { $group: { _id: '$category', count: { $sum: 1 } } },
       ]);
 
@@ -50,9 +50,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       );
 
       // Second run: $unwind pipeline that should NOT return grouped results
-      const unwindResults = Modash.aggregate(documents, [
-        { $unwind: '$items' },
-      ]);
+      const unwindResults = Aggo.aggregate(documents, [{ $unwind: '$items' }]);
 
       // Critical test: unwind should return 4 documents (2+1+1), not grouped results
       expect(unwindResults).to.have.lengthOf(4);
@@ -84,13 +82,13 @@ describe('Cross-Run State Leakage Prevention', function () {
 
       // Run each pipeline multiple times in alternating pattern
       for (let iteration = 0; iteration < 3; iteration++) {
-        const resultA1 = Modash.aggregate(documents, pipelineA);
-        const resultB1 = Modash.aggregate(documents, pipelineB);
-        const resultC1 = Modash.aggregate(documents, pipelineC);
+        const resultA1 = Aggo.aggregate(documents, pipelineA);
+        const resultB1 = Aggo.aggregate(documents, pipelineB);
+        const resultC1 = Aggo.aggregate(documents, pipelineC);
 
-        const resultA2 = Modash.aggregate(documents, pipelineA);
-        const resultB2 = Modash.aggregate(documents, pipelineB);
-        const resultC2 = Modash.aggregate(documents, pipelineC);
+        const resultA2 = Aggo.aggregate(documents, pipelineA);
+        const resultB2 = Aggo.aggregate(documents, pipelineB);
+        const resultC2 = Aggo.aggregate(documents, pipelineC);
 
         // Results should be identical across iterations
         expect(resultA1).to.deep.equal(
@@ -119,7 +117,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       const documentsSet2 = [{ _id: 2, categories: ['sports'] }];
 
       // Run $unwind on first dataset
-      const result1 = Modash.aggregate(documentsSet1, [
+      const result1 = Aggo.aggregate(documentsSet1, [
         { $unwind: '$categories' },
       ]);
 
@@ -127,7 +125,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       expect(result1.map(d => d.categories)).to.deep.equal(['tech', 'news']);
 
       // Run $unwind on second dataset - should not see first dataset's virtual rows
-      const result2 = Modash.aggregate(documentsSet2, [
+      const result2 = Aggo.aggregate(documentsSet2, [
         { $unwind: '$categories' },
       ]);
 
@@ -149,13 +147,13 @@ describe('Cross-Run State Leakage Prevention', function () {
       // Alternate between small and large datasets to test buffer reuse
       for (let i = 0; i < 3; i++) {
         // Large expansion
-        const largeResult = Modash.aggregate(largeDataset, [
+        const largeResult = Aggo.aggregate(largeDataset, [
           { $unwind: '$tags' },
         ]);
         expect(largeResult).to.have.lengthOf(300);
 
         // Small dataset - should not be contaminated by large buffers
-        const smallResult = Modash.aggregate(smallDataset, [
+        const smallResult = Aggo.aggregate(smallDataset, [
           { $unwind: '$tags' },
         ]);
         expect(smallResult).to.have.lengthOf(1);
@@ -178,9 +176,9 @@ describe('Cross-Run State Leakage Prevention', function () {
       ];
 
       // Run pipeline multiple times
-      const result1 = Modash.aggregate(documents, pipeline);
-      const result2 = Modash.aggregate(documents, pipeline);
-      const result3 = Modash.aggregate(documents, pipeline);
+      const result1 = Aggo.aggregate(documents, pipeline);
+      const result2 = Aggo.aggregate(documents, pipeline);
+      const result3 = Aggo.aggregate(documents, pipeline);
 
       // All results should be identical
       expect(result1).to.deep.equal(result2);
@@ -201,20 +199,20 @@ describe('Cross-Run State Leakage Prevention', function () {
       ];
 
       // Pipeline with $group that stores state in context
-      const groupResult = Modash.aggregate(documents, [
+      const groupResult = Aggo.aggregate(documents, [
         { $group: { _id: '$category', total: { $sum: 1 } } },
       ]);
       expect(groupResult).to.have.lengthOf(2);
 
       // Pipeline with $project that stores projection spec
-      const projectResult = Modash.aggregate(documents, [
+      const projectResult = Aggo.aggregate(documents, [
         { $project: { _id: 1, category: 1 } },
       ]);
       expect(projectResult).to.have.lengthOf(2);
       expect(projectResult[0]).to.not.have.property('items');
 
       // Pipeline with $unwind that should not be affected by previous state
-      const unwindResult = Modash.aggregate(documents, [{ $unwind: '$items' }]);
+      const unwindResult = Aggo.aggregate(documents, [{ $unwind: '$items' }]);
       expect(unwindResult).to.have.lengthOf(3); // 2 + 1 unwound items
 
       // Verify unwind result structure
@@ -244,7 +242,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       };
 
       try {
-        Modash.aggregate(documents, [{ $match: { value: 'test' } }]);
+        Aggo.aggregate(documents, [{ $match: { value: 'test' } }]);
 
         // Check for expected log patterns
         const runIdLogs = logs.filter(

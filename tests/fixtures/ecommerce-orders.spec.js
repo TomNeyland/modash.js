@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../../src/index.js';
+import Aggo from '../../src/index.js';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -43,7 +43,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     it('should calculate total revenue across all orders', () => {
       let result;
       const perf = measurePerformance('Total Revenue Aggregation', () => {
-        result = Modash.aggregate(orders, [
+        result = Aggo.aggregate(orders, [
           {
             $group: {
               _id: null,
@@ -63,7 +63,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should group orders by status', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $group: {
             _id: '$status',
@@ -90,7 +90,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   describe('Time-based Analytics', () => {
     it('should analyze orders by month', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $addFields: {
             orderMonth: { $month: '$orderDate' },
@@ -119,7 +119,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should find peak ordering hours', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $addFields: {
             orderHour: { $hour: '$orderDate' },
@@ -147,7 +147,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     it('should identify top customers by order value', () => {
       let result;
       const perf = measurePerformance('Top Customers Query', () => {
-        result = Modash.aggregate(orders, [
+        result = Aggo.aggregate(orders, [
           {
             $group: {
               _id: '$customerId',
@@ -169,7 +169,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should join orders with customer data', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         { $limit: 5 },
         {
           $lookup: {
@@ -203,7 +203,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   describe('Product Analysis', () => {
     it('should find most popular product categories', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         { $unwind: '$items' },
         {
           $group: {
@@ -231,7 +231,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should calculate basket analysis metrics', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $addFields: {
             basketSize: { $size: '$items' },
@@ -259,7 +259,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   describe('Shipping & Fulfillment', () => {
     it('should analyze shipping priorities and costs', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $group: {
             _id: '$priority',
@@ -284,7 +284,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should identify geographic distribution', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $group: {
             _id: {
@@ -308,7 +308,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   describe('Metamorphic Properties', () => {
     it('should maintain invariant: sum of grouped revenues equals total revenue', () => {
-      const totalRevenue = Modash.aggregate(orders, [
+      const totalRevenue = Aggo.aggregate(orders, [
         {
           $group: {
             _id: null,
@@ -317,7 +317,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         },
       ])[0].total;
 
-      const groupedByStatus = Modash.aggregate(orders, [
+      const groupedByStatus = Aggo.aggregate(orders, [
         {
           $group: {
             _id: '$status',
@@ -343,11 +343,11 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     it('should preserve order count across transformations', () => {
       const originalCount = orders.length;
 
-      const afterFilter = Modash.aggregate(orders, [
+      const afterFilter = Aggo.aggregate(orders, [
         { $match: { totalAmount: { $gte: 0 } } },
       ]).length;
 
-      const afterUnwindRegroup = Modash.aggregate(orders, [
+      const afterUnwindRegroup = Aggo.aggregate(orders, [
         { $unwind: '$items' },
         {
           $group: {
@@ -365,7 +365,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       const threshold = 100;
 
       // Filter then group
-      const filterFirst = Modash.aggregate(orders, [
+      const filterFirst = Aggo.aggregate(orders, [
         { $match: { totalAmount: { $gte: threshold } } },
         {
           $group: {
@@ -376,7 +376,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       ]);
 
       // Group then filter
-      const groupFirst = Modash.aggregate(orders, [
+      const groupFirst = Aggo.aggregate(orders, [
         {
           $group: {
             _id: { status: '$status', orderId: '$_id' },
@@ -410,7 +410,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
       const secondHalf = orders.slice(Math.floor(orders.length / 2));
 
       const firstHalfRevenue =
-        Modash.aggregate(firstHalf, [
+        Aggo.aggregate(firstHalf, [
           {
             $group: {
               _id: null,
@@ -420,7 +420,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         ])[0]?.total || 0;
 
       const secondHalfRevenue =
-        Modash.aggregate(secondHalf, [
+        Aggo.aggregate(secondHalf, [
           {
             $group: {
               _id: null,
@@ -430,7 +430,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
         ])[0]?.total || 0;
 
       const totalRevenue =
-        Modash.aggregate(orders, [
+        Aggo.aggregate(orders, [
           {
             $group: {
               _id: null,
@@ -447,7 +447,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
 
   describe('Complex Business Queries', () => {
     it('should calculate customer lifetime value metrics', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         {
           $group: {
             _id: '$customerId',
@@ -495,7 +495,7 @@ describe('E-commerce Orders - Query Patterns & Metamorphic Testing', () => {
     });
 
     it('should identify cross-selling opportunities', () => {
-      const result = Modash.aggregate(orders, [
+      const result = Aggo.aggregate(orders, [
         { $unwind: '$items' },
         { $unwind: '$items' },
         {

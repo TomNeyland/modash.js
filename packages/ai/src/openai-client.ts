@@ -3,7 +3,7 @@
  */
 
 import OpenAI from 'openai';
-import type { Pipeline } from 'modash';
+import type { Pipeline } from 'aggo';
 import type { SimplifiedSchema } from './schema-inference.js';
 
 export interface OpenAIOptions {

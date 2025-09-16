@@ -1,28 +1,28 @@
-# @modash/rxjs
+# @aggo/rxjs
 
-RxJS integration for modash.js - Reactive aggregation pipelines for modern web applications.
+RxJS integration for aggo.js - Reactive aggregation pipelines for modern web applications.
 
 ## Installation
 
 ```bash
-npm install modash @modash/rxjs rxjs
+npm install aggo @aggo/rxjs rxjs
 ```
 
-Note: This package requires both `modash` and `rxjs` as peer dependencies.
+Note: This package requires both `aggo` and `rxjs` as peer dependencies.
 
 ## Features
 
-- 🔄 **Reactive Aggregation**: Transform Observable streams through modash pipelines
+- 🔄 **Reactive Aggregation**: Transform Observable streams through aggo pipelines
 - 📊 **Real-time Analytics**: Build reactive dashboards with live data updates  
 - 🚀 **Streaming Processing**: Handle continuous data streams with incremental aggregation
 - 🎯 **Framework Agnostic**: Works with Angular, React + RxJS, Vue, and vanilla applications
-- 📦 **Zero Dependencies**: Only peer dependencies on modash and RxJS
+- 📦 **Zero Dependencies**: Only peer dependencies on aggo and RxJS
 
 ## Quick Start
 
 ```typescript
 import { from } from 'rxjs';
-import { aggregate } from '@modash/rxjs';
+import { aggregate } from '@aggo/rxjs';
 
 // Stream of user events
 const events$ = from([
@@ -50,7 +50,7 @@ summary$.subscribe(result => {
 
 ### `aggregate(source$, pipeline, options?)`
 
-Transform an Observable stream through a modash aggregation pipeline.
+Transform an Observable stream through a aggo aggregation pipeline.
 
 ```typescript
 const results$ = aggregate(documents$, [
@@ -94,7 +94,7 @@ const dashboard$ = reactiveAggregation(dataSubject$, [
 
 ```typescript
 import { BehaviorSubject, interval } from 'rxjs';
-import { reactiveAggregation } from '@modash/rxjs';
+import { reactiveAggregation } from '@aggo/rxjs';
 
 const salesData = new BehaviorSubject([
   { product: 'laptop', amount: 999, region: 'US' },
@@ -124,7 +124,7 @@ interval(5000).subscribe(() => {
 ```typescript
 import { Component } from '@angular/core';
 import { Observable } from 'rxjs';
-import { streamingAggregate } from '@modash/rxjs';
+import { streamingAggregate } from '@aggo/rxjs';
 
 @Component({
   template: `
@@ -156,7 +156,7 @@ export class MetricsComponent {
 
 ```typescript
 import { webSocket } from 'rxjs/webSocket';
-import { aggregate } from '@modash/rxjs';
+import { aggregate } from '@aggo/rxjs';
 
 const ws$ = webSocket('ws://localhost:8080/data');
 
@@ -197,7 +197,7 @@ interface ReactiveAggregationOptions {
 
 ```jsx
 import { useObservable } from 'rxjs-hooks';
-import { aggregate } from '@modash/rxjs';
+import { aggregate } from '@aggo/rxjs';
 
 function SalesChart({ dataStream$ }) {
   const chartData = useObservable(() => 
@@ -224,7 +224,7 @@ function SalesChart({ dataStream$ }) {
 <script setup>
 import { ref } from 'vue';
 import { useObservable } from '@vueuse/rxjs';
-import { streamingAggregate } from '@modash/rxjs';
+import { streamingAggregate } from '@aggo/rxjs';
 
 const dataStream$ = /* your observable */;
 const aggregatedData = useObservable(
@@ -244,4 +244,4 @@ const aggregatedData = useObservable(
 
 ## License
 
-MIT - Same as modash.js core
+MIT - Same as aggo.js core

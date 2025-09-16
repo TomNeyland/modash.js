@@ -5,7 +5,7 @@
  */
 
 import { expect } from 'chai';
-import Modash from '../src/aggo/index.js';
+import Aggo from '../src/aggo/index.js';
 import { getFallbackCount, resetFallbackTracking } from '../src/aggo/debug.js';
 
 describe('IVM Regression Tests', () => {
@@ -52,7 +52,7 @@ describe('IVM Regression Tests', () => {
         },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       // Verify no fallbacks occurred
       expect(getFallbackCount()).to.equal(0);
@@ -99,7 +99,7 @@ describe('IVM Regression Tests', () => {
         },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
       expect(result).to.have.lengthOf(2);
@@ -127,7 +127,7 @@ describe('IVM Regression Tests', () => {
         },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
       expect(result).to.have.lengthOf(2);
@@ -167,7 +167,7 @@ describe('IVM Regression Tests', () => {
         },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
 
@@ -203,7 +203,7 @@ describe('IVM Regression Tests', () => {
 
       const pipeline = [{ $sort: { value: -1 } }, { $limit: 10 }];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
       expect(result).to.have.lengthOf(10);
@@ -226,7 +226,7 @@ describe('IVM Regression Tests', () => {
       }));
 
       // Test simpleFilter
-      const simpleResult = Modash.aggregate(data, [
+      const simpleResult = Aggo.aggregate(data, [
         { $match: { category: 'electronics', active: true } },
       ]);
       expect(getFallbackCount()).to.equal(0);
@@ -235,7 +235,7 @@ describe('IVM Regression Tests', () => {
       resetFallbackTracking();
 
       // Test groupAndAggregate
-      const groupResult = Modash.aggregate(data, [
+      const groupResult = Aggo.aggregate(data, [
         {
           $group: {
             _id: '$category',
@@ -252,7 +252,7 @@ describe('IVM Regression Tests', () => {
       resetFallbackTracking();
 
       // Test complexPipeline
-      const complexResult = Modash.aggregate(data, [
+      const complexResult = Aggo.aggregate(data, [
         { $match: { active: true, quantity: { $gt: 0 } } },
         {
           $project: {
@@ -295,7 +295,7 @@ describe('IVM Regression Tests', () => {
         { $limit: 2 },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
       expect(result).to.have.lengthOf(2);
@@ -326,7 +326,7 @@ describe('IVM Regression Tests', () => {
         { $skip: 1 },
       ];
 
-      const result = Modash.aggregate(data, pipeline);
+      const result = Aggo.aggregate(data, pipeline);
 
       expect(getFallbackCount()).to.equal(0);
       expect(result).to.have.lengthOf(2);

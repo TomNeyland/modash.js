@@ -134,12 +134,12 @@ jobs:
         run: |
           node --import=tsx/esm -e "
           import('./tests/test-data.js').then(testData => {
-            import('./src/index.ts').then(Modash => {
+            import('./src/index.ts').then(Aggo => {
               const startTime = process.hrtime.bigint();
               const iterations = 1000;
               
               for (let i = 0; i < iterations; i++) {
-                Modash.default.aggregate(testData.default.sales, [
+                Aggo.default.aggregate(testData.default.sales, [
                   { \$match: { price: { \$gt: 10 } } },
                   { \$group: { _id: '\$item', total: { \$sum: '\$price' } } },
                   { \$sort: { total: -1 } }

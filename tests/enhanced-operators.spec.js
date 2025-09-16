@@ -1,10 +1,10 @@
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 import { createStreamingCollection } from '../src/aggo/streaming';
 
 // Helper function to compare streaming vs non-streaming results
 const compareStreamingResults = (collection, pipeline, description = '') => {
-  const nonStreamingResult = Modash.aggregate(collection, pipeline);
+  const nonStreamingResult = Aggo.aggregate(collection, pipeline);
 
   // Test with streaming collection created from same data
   const streamingCollection = createStreamingCollection(collection);
@@ -43,7 +43,7 @@ describe('Enhanced MongoDB Operators', () => {
 
   describe('Enhanced $match operators', () => {
     it('should handle $exists operator', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { tags: { $exists: true } } },
       ]);
       expect(result).to.have.length(3);
@@ -51,7 +51,7 @@ describe('Enhanced MongoDB Operators', () => {
     });
 
     it('should handle $regex operator', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { name: { $regex: 'A.*' } } },
       ]);
       expect(result).to.have.length(1);
@@ -59,7 +59,7 @@ describe('Enhanced MongoDB Operators', () => {
     });
 
     it('should handle $all operator for arrays', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { tags: { $all: ['developer'] } } },
       ]);
       expect(result).to.have.length(2);
@@ -67,7 +67,7 @@ describe('Enhanced MongoDB Operators', () => {
     });
 
     it('should handle $size operator for arrays', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { scores: { $size: 3 } } },
       ]);
       expect(result).to.have.length(1);
@@ -75,7 +75,7 @@ describe('Enhanced MongoDB Operators', () => {
     });
 
     it('should handle logical $and operator', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         {
           $match: {
             $and: [{ age: { $gte: 30 } }, { tags: { $exists: true } }],
@@ -87,7 +87,7 @@ describe('Enhanced MongoDB Operators', () => {
     });
 
     it('should handle logical $or operator', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { $or: [{ age: { $lt: 26 } }, { name: 'Alice' }] } },
       ]);
       expect(result).to.have.length(2);
@@ -104,7 +104,7 @@ describe('Enhanced MongoDB Operators', () => {
         { _id: 4, name: 'David', deptId: 'hr' },
       ];
 
-      const result = Modash.aggregate(users, [
+      const result = Aggo.aggregate(users, [
         {
           $lookup: {
             from: departments,
@@ -134,7 +134,7 @@ describe('Enhanced MongoDB Operators', () => {
       ];
 
       // Test traditional aggregation
-      const result = Modash.aggregate(testData, pipeline);
+      const result = Aggo.aggregate(testData, pipeline);
       expect(result).to.have.length(4);
       expect(result[0].averageScore).to.be.closeTo(87.67, 0.1);
       expect(result[0].isExperienced).to.be.true;
@@ -156,7 +156,7 @@ describe('Enhanced MongoDB Operators', () => {
   describe('Enhanced Array Operators', () => {
     describe('$arrayElemAt', () => {
       it('should get element at positive index', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -172,7 +172,7 @@ describe('Enhanced MongoDB Operators', () => {
       });
 
       it('should get element at negative index', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -188,7 +188,7 @@ describe('Enhanced MongoDB Operators', () => {
 
     describe('$slice', () => {
       it('should slice array from beginning', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -202,7 +202,7 @@ describe('Enhanced MongoDB Operators', () => {
       });
 
       it('should slice array with start position', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -218,7 +218,7 @@ describe('Enhanced MongoDB Operators', () => {
 
     describe('$concatArrays', () => {
       it('should concatenate arrays', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -243,7 +243,7 @@ describe('Enhanced MongoDB Operators', () => {
 
     describe('$in', () => {
       it('should check if value is in array', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -264,7 +264,7 @@ describe('Enhanced MongoDB Operators', () => {
       it('should perform math operations', () => {
         const mathData = [{ value: -3.7, pi: 3.14159 }];
 
-        const result = Modash.aggregate(mathData, [
+        const result = Aggo.aggregate(mathData, [
           {
             $project: {
               absolute: { $abs: '$value' },
@@ -286,7 +286,7 @@ describe('Enhanced MongoDB Operators', () => {
       it('should perform advanced math operations', () => {
         const mathData = [{ base: 4, exponent: 3 }];
 
-        const result = Modash.aggregate(mathData, [
+        const result = Aggo.aggregate(mathData, [
           {
             $project: {
               squareRoot: { $sqrt: '$base' },
@@ -306,7 +306,7 @@ describe('Enhanced MongoDB Operators', () => {
       it('should split strings', () => {
         const stringData = [{ fullName: 'John-Doe-Smith' }];
 
-        const result = Modash.aggregate(stringData, [
+        const result = Aggo.aggregate(stringData, [
           {
             $project: {
               nameParts: { $split: ['$fullName', '-'] },
@@ -320,7 +320,7 @@ describe('Enhanced MongoDB Operators', () => {
 
     describe('$strLen', () => {
       it('should calculate string length', () => {
-        const result = Modash.aggregate(testData, [
+        const result = Aggo.aggregate(testData, [
           {
             $project: {
               name: 1,
@@ -338,7 +338,7 @@ describe('Enhanced MongoDB Operators', () => {
       it('should trim whitespace', () => {
         const stringData = [{ text: '  hello world  ' }];
 
-        const result = Modash.aggregate(stringData, [
+        const result = Aggo.aggregate(stringData, [
           {
             $project: {
               trimmed: { $trim: '$text' },
@@ -353,7 +353,7 @@ describe('Enhanced MongoDB Operators', () => {
 
   describe('Complex Pipeline with New Operators', () => {
     it('should handle complex pipeline with sorting and new operators', () => {
-      const result = Modash.aggregate(testData, [
+      const result = Aggo.aggregate(testData, [
         { $match: { tags: { $exists: true } } },
         {
           $addFields: {

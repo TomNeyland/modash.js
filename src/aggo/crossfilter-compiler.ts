@@ -11,7 +11,15 @@ import type {
   ExecutionPlan,
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
-import type { Pipeline } from '../index';
+import type {
+  Pipeline,
+  QueryExpression,
+  ProjectStage,
+  GroupStage,
+  ComparisonOperators,
+  QueryOperators,
+  Expression,
+} from '../index';
 import { DEBUG, logPipelineExecution } from './debug';
 
 /**
@@ -20,7 +28,9 @@ import { DEBUG, logPipelineExecution } from './debug';
 export class ExpressionCompilerImpl implements ExpressionCompiler {
   private compiledCache = new Map<string, Function>();
 
-  compileMatchExpr(expr: any): (doc: Document, _rowId: RowId) => boolean {
+  compileMatchExpr(
+    expr: QueryExpression
+  ): (doc: Document, _rowId: RowId) => boolean {
     const key = `match:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -36,7 +46,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return compiled;
   }
 
-  compileProjectExpr(expr: any): (doc: Document, _rowId: RowId) => Document {
+  compileProjectExpr(
+    expr: ProjectStage['$project']
+  ): (doc: Document, _rowId: RowId) => Document {
     const key = `project:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -52,7 +64,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return compiled;
   }
 
-  compileGroupExpr(expr: any): {
+  compileGroupExpr(expr: GroupStage['$group']): {
     getGroupKey: (doc: Document, _rowId: RowId) => DocumentValue;
     accumulators: Array<{
       field: string;
@@ -90,7 +102,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return { getGroupKey, accumulators };
   }
 
-  canVectorize(expr: any): boolean {
+  canVectorize(expr: QueryExpression): boolean {
     // Simple heuristics for vectorization potential
     if (typeof expr !== 'object' || expr === null) {
       return false;
@@ -101,7 +113,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       if (field.startsWith('$')) {
         // Logical operators - check if all conditions can be vectorized
         if (field === '$and' || field === '$or') {
-          const conditions = condition as any[];
+          const conditions = condition as QueryExpression[];
           return conditions.every(cond => this.canVectorize(cond));
         }
         return false; // Other logical operators not yet vectorized
@@ -129,7 +141,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return true;
   }
 
-  createVectorizedFn(expr: any): (docs: Document[], rowIds: RowId[]) => any[] {
+  createVectorizedFn(
+    expr: QueryExpression
+  ): (docs: Document[], rowIds: RowId[]) => boolean[] {
     // For now, return a simple vectorized version
     // In a full implementation, this would generate optimized SIMD code
     const scalarFn = this.compileMatchExpr(expr);
@@ -144,7 +158,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   }
 
   private buildMatchFunction(
-    expr: any
+    expr: QueryExpression
   ): (doc: Document, _rowId: RowId) => boolean {
     if (typeof expr !== 'object' || expr === null) {
       return () => false;
@@ -158,7 +172,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         // Handle logical operators with recursive compilation
         switch (field) {
           case '$and': {
-            const subConditions = condition as any[];
+            const subConditions = condition as QueryExpression[];
             const subPredicates = subConditions.map(cond =>
               this.buildMatchFunction(cond)
             );
@@ -171,7 +185,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             break;
           }
           case '$or': {
-            const subConditions = condition as any[];
+            const subConditions = condition as QueryExpression[];
             const subPredicates = subConditions.map(cond =>
               this.buildMatchFunction(cond)
             );
@@ -184,14 +198,19 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
             break;
           }
           case '$not': {
-            const subPredicate = this.buildMatchFunction(condition);
-            predicates.push(
-              (doc: Document, _rowId: RowId) => !subPredicate(doc, _rowId)
-            );
+            // $not should contain a query expression
+            if (typeof condition === 'object' && condition !== null) {
+              const subPredicate = this.buildMatchFunction(
+                condition as QueryExpression
+              );
+              predicates.push(
+                (doc: Document, _rowId: RowId) => !subPredicate(doc, _rowId)
+              );
+            }
             break;
           }
           case '$nor': {
-            const subConditions = condition as any[];
+            const subConditions = condition as QueryExpression[];
             const subPredicates = subConditions.map(cond =>
               this.buildMatchFunction(cond)
             );
@@ -234,7 +253,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
 
   private buildFieldCondition(
     field: string,
-    condition: any
+    condition: DocumentValue | (ComparisonOperators & QueryOperators)
   ): (doc: Document, _rowId: RowId) => boolean {
     // Get field access function for efficient lookup
     const getFieldValue = (doc: Document) => this.getFieldValue(doc, field);
@@ -359,7 +378,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   }
 
   private buildProjectFunction(
-    expr: any
+    expr: ProjectStage['$project']
   ): (doc: Document, _rowId: RowId) => Document {
     // Build projection function
     const projections: string[] = [];
@@ -430,7 +449,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   }
 
   private buildGroupKeyFunction(
-    keyExpr: any
+    keyExpr: Expression | null
   ): (doc: Document, _rowId: RowId) => DocumentValue {
     if (typeof keyExpr === 'string' && keyExpr.startsWith('$')) {
       const field = keyExpr.substring(1);
@@ -473,7 +492,7 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
   }
 
   private buildAccumulatorValueFunction(
-    accField: any
+    accField: Expression
   ): (doc: Document, _rowId: RowId) => DocumentValue {
     if (accField === 1) {
       return () => 1; // Count
@@ -495,7 +514,15 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         return (doc: Document) => this.getFieldValue(doc, field);
       }
     } else {
-      return () => accField; // Literal value
+      // For complex expressions or literal values, evaluate them
+      if (typeof accField === 'object' && accField !== null) {
+        // Complex expression - need to evaluate it
+        return (doc: Document, _rowId: RowId) =>
+          this.evaluateExpression(accField, doc);
+      } else {
+        // Simple literal value
+        return () => accField as DocumentValue;
+      }
     }
   }
 

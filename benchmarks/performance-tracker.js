@@ -1,5 +1,5 @@
 /**
- * Performance tracking module for modash.js
+ * Performance tracking module for aggo.js
  * Handles recording, comparing, and analyzing performance results over time
  */
 

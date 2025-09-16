@@ -1,18 +1,23 @@
 {
-  "name": "@modash/rxjs",
-  "version": "0.1.0",
-  "description": "RxJS integration for modash.js - Observable-based aggregation pipelines",
+  "name": "aggo-rxjs",
+  "version": "0.1.2",
+  "description": "RxJS integration for aggo.js - Observable-based aggregation pipelines",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./src/index.ts",
-      "types": "./src/index.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "prepublishOnly": "npm run build"
+  },
   "keywords": [
-    "modash",
+    "aggo",
     "rxjs",
     "observable",
     "aggregation",
@@ -22,17 +27,18 @@
   "author": "Tom Neyland",
   "license": "MIT",
   "peerDependencies": {
-    "modash": "workspace:*",
     "rxjs": "^7.0.0"
   },
   "devDependencies": {
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=18"
   },
   "files": [
-    "src/",
+    "dist/",
     "README.md"
   ]
 }

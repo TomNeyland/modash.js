@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import Modash from '../src/index';
+import Aggo from '../src/index';
 
 describe('IVM Context Chaining Regression Tests', () => {
   describe('$addFields -> $project chaining', () => {
@@ -9,7 +9,7 @@ describe('IVM Context Chaining Regression Tests', () => {
         { _id: 2, values: [5, 15, 25] },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         { $addFields: { avg: { $avg: '$values' } } },
         { $project: { _id: 1, avg: 1, doubled: { $multiply: ['$avg', 2] } } },
       ]);
@@ -24,7 +24,7 @@ describe('IVM Context Chaining Regression Tests', () => {
     it('should handle complex expressions referencing added fields', () => {
       const data = [{ name: 'Bob', scores: [92, 87] }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         { $addFields: { avgScore: { $avg: '$scores' } } },
         {
           $project: {
@@ -50,7 +50,7 @@ describe('IVM Context Chaining Regression Tests', () => {
         { name: 'Charlie', scores: [78, 85], category: 'A' },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         { $addFields: { avgScore: { $avg: '$scores' } } },
         { $match: { avgScore: { $gte: 85 } } },
         { $addFields: { bonus: { $multiply: ['$avgScore', 0.1] } } },
@@ -82,7 +82,7 @@ describe('IVM Context Chaining Regression Tests', () => {
         { name: 'Charlie', scores: [78, 85] },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         { $addFields: { avgScore: { $avg: '$scores' } } },
         { $sort: { avgScore: -1 } },
         { $project: { name: 1, avgScore: 1 } },
@@ -107,7 +107,7 @@ describe('IVM Context Chaining Regression Tests', () => {
         { category: 'B', value: 40 },
       ];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         { $addFields: { doubled: { $multiply: ['$value', 2] } } },
         {
           $group: {
@@ -141,7 +141,7 @@ describe('IVM Context Chaining Regression Tests', () => {
     it('should evaluate expressions using added fields from multiple stages', () => {
       const data = [{ _id: 1, baseValue: 50, multiplier: 2 }];
 
-      const result = Modash.aggregate(data, [
+      const result = Aggo.aggregate(data, [
         {
           $addFields: {
             totalValue: { $multiply: ['$baseValue', '$multiplier'] },

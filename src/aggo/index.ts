@@ -16,7 +16,7 @@ import { $expression } from './expressions';
 import type {
   Document as PublicDocument,
   Collection as PublicCollection,
-  ModashStatic,
+  AggoStatic,
   Pipeline,
 } from '../index';
 import { createStreamingCollection, StreamingCollection } from './streaming';
@@ -72,7 +72,7 @@ const transparentAggregate = <T extends PublicDocument = PublicDocument>(
  * Now includes transparent streaming support - all aggregations automatically
  * work with both regular arrays and streaming collections.
  */
-const Modash: ModashStatic = {
+const Aggo: AggoStatic = {
   aggregate: transparentAggregate,
   aggregateStreaming: (collection: any, pipeline: Pipeline) =>
     transparentAggregate(collection as any, pipeline) as any,
@@ -96,7 +96,7 @@ const Modash: ModashStatic = {
   fromJSONL,
 };
 
-export default Modash;
+export default Aggo;
 export {
   // Export the original aggregate for backwards compatibility if needed
   originalAggregate as aggregateOriginal,
@@ -129,4 +129,4 @@ export { StreamingCollection, createStreamingCollection } from './streaming';
 export type { StreamingEvents, AggregationState } from './streaming';
 
 // Re-export complex types from main index for convenience
-export type { Pipeline, ModashStatic } from '../index';
+export type { Pipeline, AggoStatic } from '../index';

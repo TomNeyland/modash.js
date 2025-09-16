@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 describe('Phase 6: CLI Integration', function () {
   this.timeout(10000); // CLI operations can be slower
 
-  const testDataFile = '/tmp/modash-test-data.jsonl';
+  const testDataFile = '/tmp/aggo-test-data.jsonl';
   const testData = `{"name": "Alice", "age": 30, "category": "A", "score": 85}
 {"name": "Bob", "age": 25, "category": "B", "score": 92}
 {"name": "Charlie", "age": 35, "category": "A", "score": 78}
@@ -41,7 +41,7 @@ describe('Phase 6: CLI Integration', function () {
         `cd "${repoRoot}" && node --import=tsx/esm src/cli.ts --help`
       );
 
-      expect(stdout).to.include('Modash CLI');
+      expect(stdout).to.include('Aggo CLI');
       expect(stdout).to.include('Usage:');
       expect(stdout).to.include('Options:');
       expect(stdout).to.include('Examples:');

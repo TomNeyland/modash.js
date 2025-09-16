@@ -1,15 +1,15 @@
-# modash.js
+# aggo.js
 
-[![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/modash.js)
-[![Tag](https://img.shields.io/github/tag/TomNeyland/modash.js.svg?style=flat)](https://github.com/TomNeyland/modash.js)
+[![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/aggo.js)
+[![Tag](https://img.shields.io/github/tag/TomNeyland/aggo.js.svg?style=flat)](https://github.com/TomNeyland/aggo.js)
 
 **Transform your JSON data with MongoDB aggregation pipelines – right from the command line!**
 
-Ever wished you could slice, dice, and analyze JSON data with the power of MongoDB's aggregation pipeline? Now you can! Modash brings MongoDB's legendary data processing capabilities to any JSON dataset, whether it's log files, API responses, or massive datasets.
+Ever wished you could slice, dice, and analyze JSON data with the power of MongoDB's aggregation pipeline? Now you can! Aggo brings MongoDB's legendary data processing capabilities to any JSON dataset, whether it's log files, API responses, or massive datasets.
 
 ```bash
 # Transform your data in seconds ⚡
-cat sales.jsonl | modash '[
+cat sales.jsonl | aggo '[
   {"$match": {"date": {"$gte": "2024-01-01"}}},
   {"$group": {"_id": "$product", "revenue": {"$sum": {"$multiply": ["$price", "$quantity"]}}}},
   {"$sort": {"revenue": -1}},
@@ -27,11 +27,11 @@ Transform JSON data instantly with zero setup:
 
 ```bash
 # Install globally for CLI access
-npm install -g modash
+npm install -g aggo
 
 # Process any JSON data like a pro
 echo '{"name": "Alice", "score": 95, "dept": "Engineering"}' | \
-  modash '[{"$project": {"name": 1, "grade": {"$cond": {"if": {"$gte": ["$score", 90]}, "then": "A", "else": "B"}}}}]' \
+  aggo '[{"$project": {"name": 1, "grade": {"$cond": {"if": {"$gte": ["$score", 90]}, "then": "A", "else": "B"}}}}]' \
   --pretty
 
 # Result: Transformed data
@@ -46,7 +46,7 @@ echo '{"name": "Alice", "score": 95, "dept": "Engineering"}' | \
 **📊 Analyze your server logs in seconds:**
 
 ```bash
-cat access.log.jsonl | modash '[
+cat access.log.jsonl | aggo '[
   {"$match": {"status": {"$gte": 400}}},
   {"$group": {"_id": "$ip", "errors": {"$sum": 1}, "endpoints": {"$addToSet": "$path"}}},
   {"$sort": {"errors": -1}},
@@ -57,7 +57,7 @@ cat access.log.jsonl | modash '[
 **💰 E-commerce revenue insights instantly:**
 
 ```bash
-cat orders.jsonl | modash '[
+cat orders.jsonl | aggo '[
   {"$addFields": {"revenue": {"$multiply": ["$price", "$quantity"]}}},
   {"$group": {"_id": {"product": "$product", "month": {"$month": "$date"}}, "total": {"$sum": "$revenue"}}},
   {"$sort": {"total": -1}}
@@ -68,20 +68,20 @@ cat orders.jsonl | modash '[
 
 ```bash
 # Convert CSV to JSONL first, then analyze
-csv2json data.csv | modash '[
+csv2json data.csv | aggo '[
   {"$match": {"category": "premium"}},
   {"$group": {"_id": "$region", "avgValue": {"$avg": "$value"}, "count": {"$sum": 1}}}
 ]'
 ```
 
-## 🌟 Why Choose Modash
+## 🌟 Why Choose Aggo
 
 ### 🔥 Live Streaming Analytics
 
 Watch your data update in real-time as new events flow in:
 
 ```javascript
-import { createStreamingCollection } from 'modash';
+import { createStreamingCollection } from 'aggo';
 
 // Start with your existing data
 const liveMetrics = createStreamingCollection(salesData);
@@ -119,10 +119,10 @@ All your favorite MongoDB operators work exactly the same:
 
 ```bash
 # For CLI power
-npm install -g modash
+npm install -g aggo
 
 # For programmatic use
-npm install modash
+npm install aggo
 ```
 
 ### CLI Features
@@ -138,13 +138,13 @@ npm install modash
 
 ```bash
 # Chain with other CLI tools
-curl -s api.example.com/users | jq '.users[]' | modash '[{"$match":{"active":true}}]'
+curl -s api.example.com/users | jq '.users[]' | aggo '[{"$match":{"active":true}}]'
 
 # Process CSV (convert first)
-csv2json data.csv | modash '[{"$group":{"_id":"$category","total":{"$sum":"$value"}}}]'
+csv2json data.csv | aggo '[{"$group":{"_id":"$category","total":{"$sum":"$value"}}}]'
 
 # Watch files and process (with external tools)
-tail -f app.log | grep ERROR | modash '[{"$project":{"timestamp":1,"error":"$message"}}]'
+tail -f app.log | grep ERROR | aggo '[{"$project":{"timestamp":1,"error":"$message"}}]'
 ```
 
 ### Pipeline Examples That Matter 💡
@@ -152,7 +152,7 @@ tail -f app.log | grep ERROR | modash '[{"$project":{"timestamp":1,"error":"$mes
 **Find your biggest spenders:**
 
 ```bash
-cat transactions.jsonl | modash '[
+cat transactions.jsonl | aggo '[
   {"$group": {"_id": "$userId", "totalSpent": {"$sum": "$amount"}, "transactions": {"$sum": 1}}},
   {"$match": {"totalSpent": {"$gte": 1000}}},
   {"$sort": {"totalSpent": -1}},
@@ -163,7 +163,7 @@ cat transactions.jsonl | modash '[
 **Detect anomalies in your data:**
 
 ```bash
-cat metrics.jsonl | modash '[
+cat metrics.jsonl | aggo '[
   {"$group": {"_id": "$server", "avgResponseTime": {"$avg": "$responseMs"}}},
   {"$match": {"avgResponseTime": {"$gte": 500}}},
   {"$project": {"server": "$_id", "avgResponseTime": 1, "status": "SLOW"}}
@@ -173,7 +173,7 @@ cat metrics.jsonl | modash '[
 **Geographic sales analysis:**
 
 ```bash
-cat sales.jsonl | modash '[
+cat sales.jsonl | aggo '[
   {"$addFields": {"revenue": {"$multiply": ["$price", "$quantity"]}}},
   {"$group": {"_id": {"country": "$country", "product": "$product"}, "totalRevenue": {"$sum": "$revenue"}}},
   {"$sort": {"totalRevenue": -1}},
@@ -189,7 +189,7 @@ cat sales.jsonl | modash '[
 Build live dashboards that update as data flows in:
 
 ```javascript
-import { createStreamingCollection } from 'modash';
+import { createStreamingCollection } from 'aggo';
 
 const liveOrders = createStreamingCollection(orders);
 const dashboard = liveOrders.stream([
@@ -244,7 +244,7 @@ Turn raw logs into actionable insights:
 
 ```bash
 # Find error patterns in seconds
-tail -f /var/log/app.log | grep ERROR | modash '[
+tail -f /var/log/app.log | grep ERROR | aggo '[
   {"$addFields": {"hour": {"$hour": "$timestamp"}}},
   {"$group": {"_id": {"error": "$errorType", "hour": "$hour"}, "count": {"$sum": 1}}},
   {"$match": {"count": {"$gte": 5}}},
@@ -252,7 +252,7 @@ tail -f /var/log/app.log | grep ERROR | modash '[
 ]' --pretty
 
 # Monitor API performance
-cat api-metrics.jsonl | modash '[
+cat api-metrics.jsonl | aggo '[
   {"$match": {"responseTime": {"$gte": 1000}}},
   {"$group": {"_id": "$endpoint", "avgTime": {"$avg": "$responseTime"}, "requests": {"$sum": 1}}},
   {"$sort": {"avgTime": -1}}
@@ -265,7 +265,7 @@ Process transactions with bank-grade performance:
 
 ```javascript
 // Fraud detection pipeline
-const suspiciousTransactions = Modash.aggregate(transactions, [
+const suspiciousTransactions = Aggo.aggregate(transactions, [
   { $match: { amount: { $gte: 10000 } } },
   {
     $lookup: {
@@ -301,7 +301,7 @@ Customer behavior insights that drive revenue:
 
 ```javascript
 // Customer segmentation analysis
-const segments = Modash.aggregate(customers, [
+const segments = Aggo.aggregate(customers, [
   {
     $lookup: {
       from: orders,
@@ -348,7 +348,7 @@ const segments = Modash.aggregate(customers, [
 ### Zero-Config TypeScript Power 🎯
 
 ```typescript
-import Modash, { type Collection, type Document } from 'modash';
+import Aggo, { type Collection, type Document } from 'aggo';
 
 interface Sale extends Document {
   item: string;
@@ -363,7 +363,7 @@ const sales: Collection<Sale> = [
 ];
 
 // TypeScript provides full type safety and intellisense ✨
-const revenueByDate = Modash.aggregate(sales, [
+const revenueByDate = Aggo.aggregate(sales, [
   {
     $project: {
       date: { $dayOfMonth: '$date' },
@@ -384,10 +384,10 @@ const revenueByDate = Modash.aggregate(sales, [
 ### JavaScript? No Problem!
 
 ```javascript
-import Modash from 'modash';
+import Aggo from 'aggo';
 
 // Same API, zero ceremony
-const result = Modash.aggregate(data, [
+const result = Aggo.aggregate(data, [
   { $match: { active: true } },
   { $group: { _id: '$category', count: { $sum: 1 } } },
 ]);
@@ -407,7 +407,7 @@ const result = Modash.aggregate(data, [
 ### Pipeline Analysis & Optimization 🧠
 
 ```typescript
-import { explain } from 'modash';
+import { explain } from 'aggo';
 
 const analysis = explain([
   { $match: { status: 'active' } },
@@ -424,7 +424,7 @@ console.log('Optimizations:', analysis.optimizations);
 ### Performance Benchmarking 📊
 
 ```typescript
-import { benchmark } from 'modash';
+import { benchmark } from 'aggo';
 
 const metrics = await benchmark(
   largeDataset,
@@ -445,7 +445,7 @@ console.log(`Execution time: ${metrics.duration.total}ms`);
 ### Stream Processing for Large Files 📁
 
 ```typescript
-import { fromJSONL } from 'modash';
+import { fromJSONL } from 'aggo';
 import { createReadStream } from 'fs';
 
 const stream = createReadStream('large-dataset.jsonl');
@@ -455,13 +455,13 @@ for await (const doc of fromJSONL(stream, { batchSize: 1000 })) {
   documents.push(doc);
 }
 
-const results = Modash.aggregate(documents, pipeline);
+const results = Aggo.aggregate(documents, pipeline);
 ```
 
 ### User-Friendly Error Messages 💡
 
 ```bash
-$ modash '[{"$match": {"complex_regex": {"$regex": "(?=.*complex)(?=.*pattern)"}}}]'
+$ aggo '[{"$match": {"complex_regex": {"$regex": "(?=.*complex)(?=.*pattern)"}}}]'
 ❌ Error: Regex processing failed
 💡 Hint: Regex too complex → fell back to standard mode
 ```
@@ -470,12 +470,12 @@ $ modash '[{"$match": {"complex_regex": {"$regex": "(?=.*complex)(?=.*pattern)"}
 
 **Transform static data into living, breathing analytics!**
 
-Modash streaming collections automatically update your aggregation results as new data flows in. Perfect for dashboards, monitoring systems, and real-time insights.
+Aggo streaming collections automatically update your aggregation results as new data flows in. Perfect for dashboards, monitoring systems, and real-time insights.
 
 ### Live Analytics in Action ⚡
 
 ```typescript
-import { createStreamingCollection } from 'modash';
+import { createStreamingCollection } from 'aggo';
 
 // Create a live collection
 const liveOrders = createStreamingCollection([
@@ -583,12 +583,12 @@ The full MongoDB aggregation pipeline, battle-tested and optimized:
 ### RxJS Integration 🌊
 
 ```bash
-npm install @modash/rxjs rxjs
+npm install @aggo/rxjs rxjs
 ```
 
 ```typescript
 import { from } from 'rxjs';
-import { aggregate } from '@modash/rxjs';
+import { aggregate } from '@aggo/rxjs';
 
 const events$ = from(eventStream);
 const analytics$ = aggregate(events$, [
@@ -623,7 +623,7 @@ npm run build
 
 ### Pre-commit Hook Setup
 
-Modash uses **Husky v9** for Git pre-commit hooks to ensure code quality. The hooks are automatically installed when you run `npm install`.
+Aggo uses **Husky v9** for Git pre-commit hooks to ensure code quality. The hooks are automatically installed when you run `npm install`.
 
 **What the pre-commit hook does:**
 
@@ -668,13 +668,13 @@ The new v0.8.0+ is a complete modernization:
 ```javascript
 // Before (v0.7.x) - lodash mixin style
 const _ = require('lodash');
-const Modash = require('modash');
-_.mixin(Modash);
+const Aggo = require('aggo');
+_.mixin(Aggo);
 const result = _(data).aggregate([...]).value();
 
 // After (v0.8.0+) - modern ES modules
-import Modash from 'modash';
-const result = Modash.aggregate(data, [...]);
+import Aggo from 'aggo';
+const result = Aggo.aggregate(data, [...]);
 ```
 
 **Breaking Changes:**

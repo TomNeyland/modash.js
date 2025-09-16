@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 import { createCrossfilterEngine } from '../../src/aggo/crossfilter-engine';
 
 // Test data

@@ -22,8 +22,8 @@ PASSED: tests/ivm-context-chaining.spec.js (0s)
 ===== RUNNING tests/ivm-regression.spec.js =====
 PASSED: tests/ivm-regression.spec.js (0s)
 
-===== RUNNING tests/modash.spec.js =====
-PASSED: tests/modash.spec.js (1s)
+===== RUNNING tests/aggo.spec.js =====
+PASSED: tests/aggo.spec.js (1s)
 
 ===== RUNNING tests/new-operators.spec.js =====
 PASSED: tests/new-operators.spec.js (0s)

@@ -1,4 +1,4 @@
-import Modash from '../../src/aggo/index';
+import Aggo from '../../src/aggo/index';
 import { generateTestData } from '../../benchmarks/setup';
 
 // Generate 10k test data (same as CI test)
@@ -20,7 +20,7 @@ const times = [];
 
 for (let i = 0; i < iterations; i++) {
   const start = process.hrtime.bigint();
-  const result = Modash.aggregate(testData, pipeline);
+  const result = Aggo.aggregate(testData, pipeline);
   const end = process.hrtime.bigint();
   
   const timeMs = Number(end - start) / 1_000_000;
