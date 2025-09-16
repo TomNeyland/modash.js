@@ -152,8 +152,16 @@ export interface GroupState {
   // First/Last with ordering support
   firstLast: Map<string, OrderStatTree<DocumentValue>>;
 
-  addDocument(rowId: RowId, doc: Document, accumulators: Record<string, AccumulatorExpression | Expression>): void;
-  removeDocument(rowId: RowId, doc: Document, accumulators: Record<string, AccumulatorExpression | Expression>): boolean;
+  addDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): void;
+  removeDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): boolean;
   materializeResult(): Document;
 }
 

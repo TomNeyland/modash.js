@@ -450,8 +450,8 @@ function $unwind<T extends Document = Document>(
         result.push(doc);
       } else if (options.preserveNullAndEmptyArrays) {
         // Null/undefined field with preserveNullAndEmptyArrays
-        // TODO(refactor): Replace deep clone with structuredClone or field-level copy to reduce GC pressure.
-        const newDoc: any = JSON.parse(JSON.stringify(doc));
+        // Use structuredClone for better performance than JSON parse/stringify
+        const newDoc: any = structuredClone(doc);
         if (cleanPath.includes('.')) {
           // For nested paths, set the final property to null
           const parts = cleanPath.split('.');
@@ -476,8 +476,8 @@ function $unwind<T extends Document = Document>(
     if (arrayValue.length === 0) {
       if (options.preserveNullAndEmptyArrays) {
         // Empty array with preserveNullAndEmptyArrays
-        // TODO(refactor): Avoid object spread in hot paths; consider targeted field updates.
-        const newDoc: any = { ...doc };
+        // Use structuredClone for better performance than object spread in hot paths
+        const newDoc: any = structuredClone(doc);
         if (cleanPath.includes('.')) {
           const parts = cleanPath.split('.');
           let current = newDoc;
@@ -500,8 +500,8 @@ function $unwind<T extends Document = Document>(
     // Unwind the array
     arrayValue.forEach((item, index) => {
       // Deep clone the document to avoid mutations
-      // TODO(refactor): Replace deep clone with structuredClone where available.
-      const newDoc: any = JSON.parse(JSON.stringify(doc));
+      // Use structuredClone for better performance than JSON parse/stringify
+      const newDoc: any = structuredClone(doc);
 
       // Set the unwound field value - preserve nested structure
       if (cleanPath.includes('.')) {

@@ -617,7 +617,11 @@ export class GroupStateImpl implements GroupState {
     this.groupKey = groupKey;
   }
 
-  addDocument(rowId: RowId, doc: Document, accumulators: Record<string, AccumulatorExpression | Expression>): void {
+  addDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): void {
     if (this.contributingDocs.has(rowId)) return; // Already added
 
     this.contributingDocs.add(rowId);
@@ -628,7 +632,11 @@ export class GroupStateImpl implements GroupState {
     }
   }
 
-  removeDocument(rowId: RowId, doc: Document, accumulators: Record<string, AccumulatorExpression | Expression>): boolean {
+  removeDocument(
+    rowId: RowId,
+    doc: Document,
+    accumulators: Record<string, AccumulatorExpression | Expression>
+  ): boolean {
     if (!this.contributingDocs.has(rowId)) return false;
 
     this.contributingDocs.delete(rowId);

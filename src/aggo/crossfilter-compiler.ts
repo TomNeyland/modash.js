@@ -11,7 +11,15 @@ import type {
   ExecutionPlan,
 } from './crossfilter-ivm';
 import type { Document, DocumentValue } from './expressions';
-import type { Pipeline, QueryExpression, ProjectStage, GroupStage, ComparisonOperators, QueryOperators, Expression } from '../index';
+import type {
+  Pipeline,
+  QueryExpression,
+  ProjectStage,
+  GroupStage,
+  ComparisonOperators,
+  QueryOperators,
+  Expression,
+} from '../index';
 import { DEBUG, logPipelineExecution } from './debug';
 
 /**
@@ -20,7 +28,9 @@ import { DEBUG, logPipelineExecution } from './debug';
 export class ExpressionCompilerImpl implements ExpressionCompiler {
   private compiledCache = new Map<string, Function>();
 
-  compileMatchExpr(expr: QueryExpression): (doc: Document, _rowId: RowId) => boolean {
+  compileMatchExpr(
+    expr: QueryExpression
+  ): (doc: Document, _rowId: RowId) => boolean {
     const key = `match:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -36,7 +46,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return compiled;
   }
 
-  compileProjectExpr(expr: ProjectStage['$project']): (doc: Document, _rowId: RowId) => Document {
+  compileProjectExpr(
+    expr: ProjectStage['$project']
+  ): (doc: Document, _rowId: RowId) => Document {
     const key = `project:${JSON.stringify(expr)}`;
 
     if (this.compiledCache.has(key)) {
@@ -129,7 +141,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
     return true;
   }
 
-  createVectorizedFn(expr: QueryExpression): (docs: Document[], rowIds: RowId[]) => boolean[] {
+  createVectorizedFn(
+    expr: QueryExpression
+  ): (docs: Document[], rowIds: RowId[]) => boolean[] {
     // For now, return a simple vectorized version
     // In a full implementation, this would generate optimized SIMD code
     const scalarFn = this.compileMatchExpr(expr);
@@ -186,7 +200,9 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
           case '$not': {
             // $not should contain a query expression
             if (typeof condition === 'object' && condition !== null) {
-              const subPredicate = this.buildMatchFunction(condition as QueryExpression);
+              const subPredicate = this.buildMatchFunction(
+                condition as QueryExpression
+              );
               predicates.push(
                 (doc: Document, _rowId: RowId) => !subPredicate(doc, _rowId)
               );
@@ -501,7 +517,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
       // For complex expressions or literal values, evaluate them
       if (typeof accField === 'object' && accField !== null) {
         // Complex expression - need to evaluate it
-        return (doc: Document, _rowId: RowId) => this.evaluateExpression(accField, doc);
+        return (doc: Document, _rowId: RowId) =>
+          this.evaluateExpression(accField, doc);
       } else {
         // Simple literal value
         return () => accField as DocumentValue;
