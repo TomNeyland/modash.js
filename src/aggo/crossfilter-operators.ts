@@ -635,8 +635,8 @@ export class ProjectOperator implements IVMOperator {
       const doc =
         _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
         // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-        getPhysicalDocument(_store, _delta.rowId);
+        // Virtual RowIds should return null since they're not in the physical store
+        (typeof _delta.rowId === 'string' ? null : getPhysicalDocument(_store, _delta.rowId));
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, _delta.rowId);
         this.cache.set(_delta.rowId, projectedDoc);
@@ -684,8 +684,8 @@ export class ProjectOperator implements IVMOperator {
       const doc =
         _context.getEffectiveUpstreamDocument?.(rowId) ||
         // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-        getPhysicalDocument(_store, rowId);
+        // Virtual RowIds should return null since they're not in the physical store
+        (typeof rowId === 'string' ? null : getPhysicalDocument(_store, rowId));
       if (doc) {
         const projectedDoc = this.compiledExpr(doc, rowId);
         this.cache.set(rowId, projectedDoc);
@@ -818,8 +818,8 @@ export class LimitOperator implements IVMOperator {
       );
     }
     // Only physical rowIds should fall back to store
-    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
-    return upstream || getPhysicalDocument(store, rowId) || null;
+    // Virtual RowIds should return null since they're not in the physical store
+    return upstream || (typeof rowId === 'string' ? null : getPhysicalDocument(store, rowId)) || null;
   };
 
   estimateComplexity(): string {
@@ -879,10 +879,10 @@ export class SkipOperator implements IVMOperator {
     context: IVMContext
   ): Document | null => {
     // Only physical rowIds should fall back to store
-    // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+    // Virtual RowIds should return null since they're not in the physical store
     return (
       context.getEffectiveUpstreamDocument?.(rowId) ||
-      getPhysicalDocument(store, rowId)
+      (typeof rowId === 'string' ? null : getPhysicalDocument(store, rowId))
     );
   };
 
@@ -1218,7 +1218,9 @@ export class LookupOperator implements IVMOperator {
     if (isPhysicalRowId(_delta.rowId)) {
       _store.documents[_delta.rowId] = joinedDoc;
     } else {
-      // TODO(types): $lookup should only receive physical rowIds; if this occurs, investigate upstream
+      // $lookup should only receive physical rowIds
+      console.warn(`[Types] $lookup received virtual rowId: ${_delta.rowId}. This may indicate an upstream issue.`);
+      // Virtual documents can't be updated in physical store
     }
 
     return [_delta]; // Propagate the joined document
@@ -1653,8 +1655,8 @@ export class AddFieldsOperator implements IVMOperator {
     if (_delta.sign === 1) {
       const doc =
         _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-        // Only physical rowIds should fall back to store
-        // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+        // Virtual RowIds should return null since they're not in the physical store
+        (typeof _delta.rowId === 'string' ? null : getPhysicalDocument(_store, _delta.rowId));
         getPhysicalDocument(_store, _delta.rowId);
       if (doc) {
         // Compute new fields
@@ -1764,8 +1766,8 @@ export class TopKOperator implements IVMOperator {
     // Get effective document from upstream stages
     const doc =
       _context.getEffectiveUpstreamDocument?.(_delta.rowId) ||
-      // Only physical rowIds should fall back to store
-      // TODO(types): If virtual RowIds ever reach here, add explicit handlers
+      // Virtual RowIds should return null since they're not in the physical store
+      (typeof _delta.rowId === 'string' ? null : getPhysicalDocument(_store, _delta.rowId));
       getPhysicalDocument(_store, _delta.rowId);
     if (!doc) return [];
 
