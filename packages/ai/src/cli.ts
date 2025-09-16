@@ -10,6 +10,7 @@
 
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
+import { execSync } from 'child_process';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import {
@@ -20,7 +21,7 @@ import {
 } from './index.js';
 import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
 import { TerminalUIRenderer } from './terminal-ui-renderer.js';
-import type { Document } from 'aggo';
+type Document = Record<string, any>;
 
 interface CLIOptions {
   file?: string;
@@ -53,7 +54,7 @@ program
   .option(
     '--model <model>',
     'Override default OpenAI model',
-    'gpt-4-turbo-preview'
+    'gpt-5-nano'
   )
   .option('--explain', 'Include explanation of the generated pipeline')
   .option('--pretty', 'Pretty-print JSON output')
@@ -117,8 +118,6 @@ async function runAICommand(
     return;
   }
 
-  console.error(`📊 Loaded ${documents.length.toLocaleString()} documents`);
-
   // Handle schema-only mode (no OpenAI required)
   if (options.schemaOnly) {
     const schema = await withSpinner(
@@ -142,16 +141,11 @@ async function runAICommand(
   };
 
   // Test OpenAI connection with spinner
-  const isConfigValid = await withSpinner(
-    () => validateConfiguration(openaiOptions),
-    'Validating OpenAI connection',
-    {
-      successMessage: '✅ OpenAI connection verified',
-      errorMessage: '❌ OpenAI connection failed',
-    }
-  );
+  // Test OpenAI connection silently
+  const isConfigValid = await validateConfiguration(openaiOptions);
 
   if (!isConfigValid) {
+    console.error('❌ OpenAI connection failed');
     console.error(
       '💡 Hint: Check your OPENAI_API_KEY environment variable or --api-key option'
     );
@@ -167,7 +161,6 @@ async function runAICommand(
     process.exit(1);
   }
 
-  console.error(`🤖 Processing query: "${query}"`);
 
   // Handle show-pipeline mode
   if (options.showPipeline) {
@@ -178,7 +171,7 @@ async function runAICommand(
           getSchema(documents, { sampleSize: options.limitSample })
         ),
       SPINNER_PHASES.SCHEMA_INFERENCE,
-      { successMessage: '✅ Schema analyzed' }
+      { successMessage: '' }
     );
 
     // Pipeline generation with spinner
@@ -189,7 +182,7 @@ async function runAICommand(
           generateUI: !options.noUi,
         }),
       SPINNER_PHASES.OPENAI_GENERATION,
-      { successMessage: '✅ Pipeline generated' }
+      { successMessage: '' }
     );
 
     console.log('🔧 Generated Pipeline:');
@@ -234,24 +227,7 @@ async function runAICommand(
   });
   const totalTime = Date.now() - startTime;
 
-  // Show performance stats
-  if (result.performance) {
-    console.error('⚡ Performance:');
-    console.error(
-      `   Schema inference: ${result.performance.schemaInferenceMs}ms`
-    );
-    console.error(
-      `   Pipeline generation: ${result.performance.pipelineGenerationMs}ms`
-    );
-    console.error(`   Execution: ${result.performance.executionMs}ms`);
-    console.error(`   Total: ${totalTime}ms`);
-  }
-
-  if (result.tokensUsed) {
-    console.error(
-      `💰 Tokens used: ${result.tokensUsed.total} (prompt: ${result.tokensUsed.prompt}, completion: ${result.tokensUsed.completion})`
-    );
-  }
+  // Don't show stats unless explicitly requested
 
   // Show explanation if requested and not using UI
   if (result.explanation && (options.rawOutput || options.noUi)) {
@@ -299,7 +275,7 @@ async function executeAIQueryWithUI(
     schema = getSchema(documents, { sampleSize: options.sampleSize });
 
     await new Promise(resolve => setTimeout(resolve, 100));
-    schemaSpinner.stop('✅ Schema analysis completed');
+    schemaSpinner.stop('');  // Clear the spinner without message
   } catch (error) {
     schemaSpinner.stop('❌ Schema analysis failed', 'red');
     throw error;
@@ -327,7 +303,7 @@ async function executeAIQueryWithUI(
       generateUI: options.generateUI,
     });
 
-    pipelineSpinner.stop('✅ Pipeline and UI generated successfully');
+    pipelineSpinner.stop('');  // Clear the spinner without message
   } catch (error) {
     pipelineSpinner.stop('❌ Generation failed', 'red');
     throw error;
@@ -336,12 +312,37 @@ async function executeAIQueryWithUI(
   // Phase 3: Execution
   const executionResult = await withSpinner(
     async () => {
-      // Dynamic import to avoid circular dependency
-      const Aggo = await import('aggo');
-      return Aggo.default.aggregate(documents, generationResult.pipeline);
+      // Convert documents to JSONL format
+      const jsonlData = documents.map(doc => JSON.stringify(doc)).join('\n');
+
+      // Execute aggo CLI with the pipeline
+      const pipelineStr = JSON.stringify(generationResult.pipeline);
+
+      try {
+        // Run aggo CLI and pass data via stdin
+        // Use node to run the aggo CLI script
+        const output = execSync(`node ../aggo/dist/cli.js '${pipelineStr}'`, {
+          input: jsonlData,
+          encoding: 'utf8',
+          maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large results
+        });
+
+        // Parse the JSONL output back to array
+        const results = output
+          .split('\n')
+          .filter(line => line.trim())
+          .map(line => JSON.parse(line));
+
+        return results;
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new Error(`Aggo execution failed: ${error.message}`);
+        }
+        throw error;
+      }
     },
     SPINNER_PHASES.EXECUTION,
-    { successMessage: '✅ Query executed successfully' }
+    { successMessage: '' }  // Clear spinner without message
   );
 
   return {
@@ -361,8 +362,8 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
   if (options.file) {
     return withSpinner(
       () => readJSONLFromFile(options.file!),
-      'Loading data from file',
-      { successMessage: '✅ Data loaded successfully' }
+      'Loading data',
+      { successMessage: '' }
     );
   } else {
     // Check if stdin has data
@@ -375,8 +376,8 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
       );
       process.exit(1);
     }
-    return withSpinner(() => readJSONLFromStdin(), 'Reading data from stdin', {
-      successMessage: '✅ Data loaded successfully',
+    return withSpinner(() => readJSONLFromStdin(), 'Reading data', {
+      successMessage: '',
     });
   }
 }

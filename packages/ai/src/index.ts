@@ -5,7 +5,10 @@
  * with automatic schema inference and optimized execution via aggo.
  */
 
-import { type Document } from 'aggo';
+import { execSync } from 'child_process';
+
+export type Document = Record<string, any>;
+export type Pipeline = Array<Record<string, any>>;
 import {
   inferSchema,
   getSampleDocuments,
@@ -46,7 +49,6 @@ export type {
   OpenAIOptions,
   PipelineGenerationResult,
 } from './openai-client.js';
-export type { Pipeline, Document } from 'aggo';
 
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */
@@ -128,12 +130,32 @@ export async function aiQuery(
 
   // Step 4: Execute pipeline
   const executionStart = Date.now();
-  // Dynamic import to avoid circular dependency
-  const Aggo = await import('aggo');
-  const results = Aggo.default.aggregate(
-    documents,
-    generationResult.pipeline
-  );
+
+  // Convert documents to JSONL format
+  const jsonlData = documents.map(doc => JSON.stringify(doc)).join('\n');
+
+  // Execute aggo CLI with the pipeline
+  const pipelineStr = JSON.stringify(generationResult.pipeline);
+
+  let results: Document[];
+  try {
+    // Run aggo CLI and pass data via stdin
+    // Use node to run the aggo CLI script
+    const output = execSync(`node ../aggo/dist/cli.js '${pipelineStr}'`, {
+      input: jsonlData,
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large results
+    });
+
+    // Parse the JSONL output back to array
+    results = output
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => JSON.parse(line));
+  } catch (error) {
+    throw new Error(`Aggo execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
   const executionMs = Date.now() - executionStart;
 
   const totalMs = Date.now() - startTime;
@@ -243,7 +265,11 @@ export async function validateConfiguration(
   try {
     const client = new OpenAIClient(options);
     return await client.testConnection();
-  } catch {
+  } catch (error) {
+    // Log initialization errors (e.g., missing API key)
+    if (error instanceof Error) {
+      console.error(`❌ OpenAI initialization failed: ${error.message}`);
+    }
     return false;
   }
 }

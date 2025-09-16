@@ -4,8 +4,9 @@
  */
 
 import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
-import type { Pipeline } from 'aggo';
+import { zodTextFormat } from 'openai/helpers/zod';
+import { z } from 'zod';
+type Pipeline = Array<Record<string, any>>;
 import type { SimplifiedSchema } from './schema-inference.js';
 import { StructuredOutputSchema, type StructuredOutput } from './ui-schemas.js';
 
@@ -53,7 +54,7 @@ export class OpenAIClient {
     }
 
     this.client = new OpenAI({ apiKey });
-    this.model = options.model || 'gpt-4-turbo-preview';
+    this.model = options.model || 'gpt-5-nano';
     this.maxTokens = options.maxTokens || 1000;
     this.temperature = options.temperature || 0.1; // Low temperature for consistent results
   }
@@ -86,10 +87,10 @@ export class OpenAIClient {
 
     try {
       if (shouldGenerateUI) {
-        // Use structured output with Zod schema for UI generation
-        const completion = await this.client.beta.chat.completions.parse({
+        // Use new responses.parse API
+        const completion = await this.client.responses.parse({
           model: this.model,
-          messages: [
+          input: [
             {
               role: 'system',
               content: this.getSystemPromptWithUI(),
@@ -99,32 +100,43 @@ export class OpenAIClient {
               content: prompt,
             },
           ],
-          max_tokens: this.maxTokens,
-          temperature: this.temperature,
-          response_format: zodResponseFormat(StructuredOutputSchema, 'structured_query_response'),
+          text: {
+            format: zodTextFormat(StructuredOutputSchema, 'structured_query_response'),
+          },
         });
 
-        const parsedResponse = completion.choices[0]?.message?.parsed;
+        const parsedResponse = completion.output_parsed;
         if (!parsedResponse) {
           throw new Error('No structured response from OpenAI');
         }
 
-        return {
-          pipeline: parsedResponse.pipeline,
-          explanation: parsedResponse.explanation,
-          uiInstructions: parsedResponse.ui,
-          uiReasoning: parsedResponse.reasoning,
-          tokensUsed: {
-            prompt: completion.usage?.prompt_tokens || 0,
-            completion: completion.usage?.completion_tokens || 0,
-            total: completion.usage?.total_tokens || 0,
-          },
-        };
+
+        try {
+          const pipelineArray = JSON.parse(parsedResponse.pipeline);
+          return {
+            pipeline: pipelineArray,
+            explanation: parsedResponse.explanation,
+            uiInstructions: parsedResponse.ui,
+            uiReasoning: parsedResponse.reasoning,
+            tokensUsed: {
+              prompt: 0, // New API may not provide token counts
+              completion: 0,
+              total: 0,
+            },
+          };
+        } catch (parseError) {
+          throw new Error(`Failed to parse pipeline JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}\nPipeline string was: ${parsedResponse.pipeline}`);
+        }
       } else {
-        // Fallback to original JSON response format
-        const completion = await this.client.chat.completions.create({
+        // Use new API for non-UI pipeline generation
+        const PipelineSchema = z.object({
+          pipeline: z.string().describe('MongoDB aggregation pipeline as JSON string'),
+          explanation: z.string().nullable(),
+        });
+
+        const completion = await this.client.responses.parse({
           model: this.model,
-          messages: [
+          input: [
             {
               role: 'system',
               content: this.getSystemPrompt(),
@@ -134,25 +146,23 @@ export class OpenAIClient {
               content: prompt,
             },
           ],
-          max_tokens: this.maxTokens,
-          temperature: this.temperature,
-          response_format: { type: 'json_object' },
+          text: {
+            format: zodTextFormat(PipelineSchema, 'pipeline_response'),
+          },
         });
 
-        const response = completion.choices[0]?.message?.content;
-        if (!response) {
+        const parsedResponse = completion.output_parsed;
+        if (!parsedResponse) {
           throw new Error('No response from OpenAI');
         }
 
-        const result = this.parseResponse(response);
-
         return {
-          pipeline: result.pipeline,
-          explanation: result.explanation,
+          pipeline: JSON.parse(parsedResponse.pipeline),
+          explanation: parsedResponse.explanation,
           tokensUsed: {
-            prompt: completion.usage?.prompt_tokens || 0,
-            completion: completion.usage?.completion_tokens || 0,
-            total: completion.usage?.total_tokens || 0,
+            prompt: 0,
+            completion: 0,
+            total: 0,
           },
         };
       }
@@ -192,7 +202,7 @@ SAMPLE DOCUMENTS:
 ${samplesStr}
 
 Your response must include:
-1. A MongoDB aggregation pipeline that answers the query
+1. A MongoDB aggregation pipeline AS A JSON STRING (e.g., '[{"$match":{"status":"active"}},{"$group":{"_id":"$category","total":{"$sum":1}}}]')
 2. Terminal UI instructions that present the data beautifully
 
 Consider the data structure and query type to choose the best visualization:
@@ -245,7 +255,8 @@ Example response format:
 2. Design beautiful, adaptive terminal UI presentations for the query results
 
 For the MongoDB pipeline:
-- Always return valid aggregation syntax
+- Always return a valid JSON STRING containing the pipeline array
+- The pipeline field must be a string that can be parsed as JSON, not a direct array
 - Use proper MongoDB aggregation operators
 - Field references must use "$fieldName" format
 - Group operations should use appropriate accumulators
@@ -278,7 +289,7 @@ Color guidelines:
 - Use red sparingly for warnings or negative values
 - Maintain good contrast and readability
 
-Always respond with a valid structured output that includes both the pipeline and UI instructions.`;
+Always respond with a valid structured output that includes both the pipeline (as a JSON string) and UI instructions.`;
   }
 
   /**
@@ -288,7 +299,8 @@ Always respond with a valid structured output that includes both the pipeline an
     return `You are an expert MongoDB aggregation pipeline generator. Your task is to convert natural language queries into valid MongoDB aggregation pipelines.
 
 Key guidelines:
-- Always return valid JSON with a "pipeline" field
+- Always return the pipeline as a JSON STRING that can be parsed
+- The pipeline field must contain a stringified array like '[{"$match":{"field":"value"}}]'
 - Use proper MongoDB aggregation syntax
 - Field references must use "$fieldName" format
 - Group operations should use appropriate accumulators
@@ -298,8 +310,8 @@ Key guidelines:
 - Handle edge cases gracefully
 - Optimize pipeline stages for performance when possible
 
-Common patterns:
-- "sum X where Y": [{"$match": {...}}, {"$group": {"_id": null, "total": {"$sum": "$X"}}}]
+Common patterns (remember to return as JSON STRING):
+- "sum X where Y": '[{"$match": {...}}, {"$group": {"_id": null, "total": {"$sum": "$X"}}}]'
 - "average X by Y": [{"$group": {"_id": "$Y", "avg": {"$avg": "$X"}}}]
 - "count records where X": [{"$match": {...}}, {"$count": "total"}]
 - "top N by X": [{"$sort": {"X": -1}}, {"$limit": N}]`;
@@ -350,13 +362,26 @@ Common patterns:
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.client.chat.completions.create({
+      const TestSchema = z.object({
+        response: z.string(),
+      });
+
+      await this.client.responses.parse({
         model: this.model,
-        messages: [{ role: 'user', content: 'Hello' }],
-        max_tokens: 5,
+        input: [{ role: 'user', content: 'Hello' }],
+        text: {
+          format: zodTextFormat(TestSchema, 'test'),
+        },
       });
       return true;
-    } catch {
+    } catch (error) {
+      // Log the actual error for debugging
+      if (error instanceof Error) {
+        console.error(`❌ OpenAI connection test failed: ${error.message}`);
+        if (error.message.includes('model')) {
+          console.error(`💡 Model '${this.model}' may not be available. Try using a valid model like 'gpt-5-nano'`);
+        }
+      }
       return false;
     }
   }
