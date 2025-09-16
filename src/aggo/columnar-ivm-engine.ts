@@ -565,6 +565,27 @@ export class ColumnarIvmEngine {
           operators.push(new ColumnarLimitOperator(stageSpec));
           compiledCount++;
           break;
+        case '$group':
+          if (process.env.AGGO_ENABLE_COLUMNAR_GROUP === '1') {
+            try {
+              const {
+                ColumnarHashGroupOperator,
+              } = require('./columnar-operators');
+              operators.push(new ColumnarHashGroupOperator(stageSpec));
+              compiledCount++;
+              break;
+            } catch (_e) {
+              console.warn(
+                `Columnar operator not implemented for $group, using fallback code=NOT_IMPLEMENTED`
+              );
+              return { operators, compiledCount };
+            }
+          } else {
+            console.warn(
+              `Columnar operator not implemented for $group, using fallback code=FEATURE_OFF`
+            );
+            return { operators, compiledCount };
+          }
         // Add more operators as needed
         default:
           console.warn(

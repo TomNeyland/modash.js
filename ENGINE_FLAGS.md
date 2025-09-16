@@ -19,7 +19,7 @@ Conventions
 - `AGGO_ENABLE_COLUMNAR_GROUP`
   - Default: off (unset)
   - Values: `'1'` to enable planner selection of `HashGroupExec` in explain/plan; falling back at runtime until the group kernel lands.
-  - Effect: Controls whether the columnar planner will consider `$group` for the columnar path. When off, explain will show `FallbackGroup` with `reasonCode: FEATURE_OFF`.
+  - Effect: Controls whether the columnar planner will consider `$group` for the columnar path. When off, explain will show `FallbackGroup` with `reasonCode: FEATURE_OFF`. When enabled, planner selects `HashGroupExec`; unsupported accumulators trigger `UNSUPPORTED_ACCUM` at compile‑time, and capacity issues throw `CAPACITY` at runtime (caught by hot‑path fallback).
   - Used in: `src/aggo/hot-path-aggregation.ts`, `src/aggo/api-enhancements.ts`
 
 - `AGGO_ENABLE_COLUMNAR_UNWIND`
