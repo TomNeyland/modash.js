@@ -121,7 +121,7 @@ export class NumericKernels {
 
     // Null-aware path
     this.stats.nullPathHits++;
-    nullCount = this.nullAwareBinaryPath(a, b, result, resultNulls, op, aNulls, bNulls, length);
+    nullCount = this.nullAwareBinaryPath(a, b, result, resultNulls, op, length, aNulls, bNulls);
 
     return {
       values: result,
@@ -185,9 +185,9 @@ export class NumericKernels {
     result: number[], 
     resultNulls: NullMask,
     op: (x: number, y: number) => number,
+    length: number,
     aNulls?: NullMask, 
-    bNulls?: NullMask,
-    length: number
+    bNulls?: NullMask
   ): number {
     let nullCount = 0;
 

@@ -234,7 +234,7 @@ export class TrigramIndex {
       trigrams.push(trigram);
     }
     
-    return [...new Set(trigrams)]; // Remove duplicates
+    return Array.from(new Set(trigrams)); // Remove duplicates
   }
 
   /**
@@ -275,7 +275,7 @@ export class TrigramIndex {
     
     const result = new Set<number>();
     
-    for (const item of smaller) {
+    for (const item of Array.from(smaller)) {
       if (larger.has(item)) {
         result.add(item);
       }
@@ -303,7 +303,7 @@ export class TrigramIndex {
   private updateMemoryUsage(): void {
     let bytes = 0;
     
-    for (const entry of this.index.values()) {
+    for (const entry of Array.from(this.index.values())) {
       bytes += entry.trigram.length * 2; // String storage
       bytes += entry.documentIds.size * 4; // Set of numbers
       bytes += 50; // Object overhead
@@ -320,7 +320,7 @@ export class TrigramIndex {
   cleanup(): void {
     const beforeSize = this.index.size;
     
-    for (const [trigram, entry] of this.index.entries()) {
+    for (const [trigram, entry] of Array.from(this.index.entries())) {
       if (entry.frequency < this.config.minFrequencyThreshold) {
         this.index.delete(trigram);
       }
@@ -440,7 +440,7 @@ export class TrigramManager {
   getAllStats(): Map<string, TrigramStats> {
     const stats = new Map<string, TrigramStats>();
     
-    for (const [sessionId, index] of this.indexes) {
+    for (const [sessionId, index] of Array.from(this.indexes)) {
       stats.set(sessionId, index.getStats());
     }
     
@@ -457,7 +457,7 @@ export class TrigramManager {
     
     const expiredSessions: string[] = [];
     
-    for (const [sessionId, index] of this.indexes) {
+    for (const [sessionId, index] of Array.from(this.indexes)) {
       if (index.isExpired()) {
         expiredSessions.push(sessionId);
       } else {
@@ -482,7 +482,7 @@ export class TrigramManager {
    * Force cleanup of all indexes
    */
   cleanup(): void {
-    for (const index of this.indexes.values()) {
+    for (const index of Array.from(this.indexes.values())) {
       index.cleanup();
     }
   }
@@ -501,7 +501,7 @@ export class TrigramManager {
   getTotalMemoryUsage(): number {
     let totalBytes = 0;
     
-    for (const index of this.indexes.values()) {
+    for (const index of Array.from(this.indexes.values())) {
       totalBytes += index.getStats().memoryUsageBytes;
     }
     

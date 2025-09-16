@@ -225,7 +225,7 @@ export class PaddedCounter {
 /**
  * Memory chunk with alignment and size constraints
  */
-export class MemoryChunk {
+export class MemoryChunk implements Poolable {
   private buffer: AlignedBuffer;
   private _isInUse: boolean = false;
   private _id: number;
@@ -248,7 +248,7 @@ export class MemoryChunk {
     return this.buffer.arrayBuffer;
   }
 
-  get isInUse(): boolean {
+  isInUse(): boolean {
     return this._isInUse;
   }
 

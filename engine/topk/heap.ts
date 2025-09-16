@@ -363,7 +363,7 @@ export class GroupedTopKHeap {
    */
   getAllResults(): Map<string, HeapItem[]> {
     const results = new Map<string, HeapItem[]>();
-    for (const [groupKey, heap] of this.heaps) {
+    for (const [groupKey, heap] of Array.from(this.heaps)) {
       results.set(groupKey, heap.extractSorted());
     }
     return results;
@@ -380,7 +380,7 @@ export class GroupedTopKHeap {
       materialized: 0
     };
 
-    for (const heap of this.heaps.values()) {
+    for (const heap of Array.from(this.heaps.values())) {
       const stats = heap.getStats();
       combined.totalInsertions += stats.totalInsertions;
       combined.heapRebalances += stats.heapRebalances;

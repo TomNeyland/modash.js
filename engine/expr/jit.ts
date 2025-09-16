@@ -331,7 +331,7 @@ export class ExpressionJIT {
     };
     
     extract(ast);
-    return [...new Set(paths)]; // Remove duplicates
+    return Array.from(new Set(paths)); // Remove duplicates
   }
 
   /**

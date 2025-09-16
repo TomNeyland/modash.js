@@ -30,7 +30,7 @@ export class BitVector {
     if (index >= this._length) return;
     const wordIndex = Math.floor(index / 64);
     const bitIndex = index % 64;
-    this.words[wordIndex] |= (1n << BigInt(bitIndex));
+    this.words[wordIndex] |= (BigInt(1) << BigInt(bitIndex));
   }
 
   /**
@@ -40,7 +40,7 @@ export class BitVector {
     if (index >= this._length) return;
     const wordIndex = Math.floor(index / 64);
     const bitIndex = index % 64;
-    this.words[wordIndex] &= ~(1n << BigInt(bitIndex));
+    this.words[wordIndex] &= ~(BigInt(1) << BigInt(bitIndex));
   }
 
   /**
@@ -50,7 +50,7 @@ export class BitVector {
     if (index >= this._length) return false;
     const wordIndex = Math.floor(index / 64);
     const bitIndex = index % 64;
-    return (this.words[wordIndex] & (1n << BigInt(bitIndex))) !== 0n;
+    return (this.words[wordIndex] & (BigInt(1) << BigInt(bitIndex))) !== BigInt(0);
   }
 
   /**
@@ -68,14 +68,14 @@ export class BitVector {
    * Set all bits to false
    */
   clearAll(): void {
-    this.words.fill(0n);
+    this.words.fill(BigInt(0));
   }
 
   /**
    * Set all bits to true
    */
   setAll(): void {
-    this.words.fill(0xFFFFFFFFFFFFFFFFn);
+    this.words.fill(BigInt('0xFFFFFFFFFFFFFFFF'));
     
     // Clear bits beyond length in the last word
     const bitsInLastWord = this._length % 64;
@@ -102,9 +102,9 @@ export class BitVector {
    */
   private popcountWord(word: bigint): number {
     let count = 0;
-    while (word !== 0n) {
+    while (word !== BigInt(0)) {
       count++;
-      word &= word - 1n; // Clear the lowest set bit
+      word &= word - BigInt(1); // Clear the lowest set bit
     }
     return count;
   }
@@ -115,12 +115,12 @@ export class BitVector {
   firstSetBit(): number {
     for (let wordIndex = 0; wordIndex < this.words.length; wordIndex++) {
       const word = this.words[wordIndex];
-      if (word !== 0n) {
+      if (word !== BigInt(0)) {
         // Find first bit in this word
         let bitIndex = 0;
         let temp = word;
-        while ((temp & 1n) === 0n) {
-          temp >>= 1n;
+        while ((temp & BigInt(1)) === BigInt(0)) {
+          temp >>= BigInt(1);
           bitIndex++;
         }
         return wordIndex * 64 + bitIndex;
@@ -240,7 +240,7 @@ export class BitmapKernels {
       const bitsInLastWord = length % 64;
       if (bitsInLastWord > 0) {
         const lastWordIndex = resultWords.length - 1;
-        const mask = (1n << BigInt(bitsInLastWord)) - 1n;
+        const mask = (BigInt(1) << BigInt(bitsInLastWord)) - BigInt(1);
         resultWords[lastWordIndex] &= mask;
       }
       
@@ -309,7 +309,7 @@ export class BitmapKernels {
       const bitsInLastWord = length % 64;
       if (bitsInLastWord > 0 && wordCount > 0) {
         const lastWordIndex = wordCount - 1;
-        const mask = (1n << BigInt(bitsInLastWord)) - 1n;
+        const mask = (BigInt(1) << BigInt(bitsInLastWord)) - BigInt(1);
         resultWords[lastWordIndex] &= mask;
       }
       

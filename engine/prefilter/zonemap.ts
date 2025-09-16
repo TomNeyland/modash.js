@@ -105,7 +105,7 @@ export class ZoneMap {
     // Extract all column names from documents
     const columns = this.extractColumns(documents);
     
-    for (const columnName of columns) {
+    for (const columnName of Array.from(columns)) {
       this.updateColumnChunk(columnName, chunkId, documents);
     }
     
@@ -313,14 +313,14 @@ export class ZoneMap {
     const allChunkIds = new Set<number>();
     
     // Get all chunk IDs
-    for (const key of this.entries.keys()) {
+    for (const key of Array.from(this.entries.keys())) {
       const chunkId = parseInt(key.split(':')[1]);
       allChunkIds.add(chunkId);
     }
     
     const chunksToScan: number[] = [];
     
-    for (const chunkId of allChunkIds) {
+    for (const chunkId of Array.from(allChunkIds)) {
       const result = this.shouldScanChunkMultiple(chunkId, predicates);
       if (result.shouldScan) {
         chunksToScan.push(chunkId);
@@ -456,7 +456,7 @@ export class ZoneMap {
     const chunkIds = new Set<number>();
     const columns = new Set<string>();
     
-    for (const entry of this.entries.values()) {
+    for (const entry of Array.from(this.entries.values())) {
       chunkIds.add(entry.chunkId);
       columns.add(entry.columnName);
     }
@@ -466,7 +466,7 @@ export class ZoneMap {
     
     // Estimate memory usage
     let memoryBytes = 0;
-    for (const entry of this.entries.values()) {
+    for (const entry of Array.from(this.entries.values())) {
       memoryBytes += 200; // Rough estimate per entry
       memoryBytes += this.estimateValueSize(entry.minValue);
       memoryBytes += this.estimateValueSize(entry.maxValue);
