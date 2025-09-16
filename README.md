@@ -1,4 +1,4 @@
-# aggo.js
+# aggo
 
 [![License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](https://github.com/TomNeyland/aggo.js)
 [![Tag](https://img.shields.io/github/tag/TomNeyland/aggo.js.svg?style=flat)](https://github.com/TomNeyland/aggo.js)
