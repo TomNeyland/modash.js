@@ -6,6 +6,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import OpenAI from 'openai';
+import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { Plan, type PlanType } from '../specs/Plan.js';
 import { type OpenAIOptions } from '../openai-client.js';
@@ -67,35 +68,22 @@ Generate a complete plan with both MongoDB pipeline AND terminal UI specificatio
     `.trim();
 
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await this.client.responses.parse({
         model: this.model,
-        messages: [
+        input: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.1, // Low temperature for consistent output
-        response_format: { type: 'json_object' }
+        text: {
+          format: zodTextFormat(Plan, "plan"),
+        },
       });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response content from OpenAI');
-      }
-
-      // Parse and validate the response
-      let parsedResponse: any;
-      try {
-        parsedResponse = JSON.parse(content);
-      } catch (error) {
-        throw new Error(`Invalid JSON response: ${error}`);
-      }
-
-      // Validate against Zod schema
-      const plan = Plan.parse(parsedResponse);
+      const plan = response.output_parsed;
 
       return {
         plan,
-        rawResponse: content,
+        rawResponse: JSON.stringify(plan, null, 2),
         usage: response.usage ? {
           promptTokens: response.usage.prompt_tokens,
           completionTokens: response.usage.completion_tokens,
@@ -183,10 +171,17 @@ Generate a complete plan with both MongoDB pipeline AND terminal UI specificatio
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.client.chat.completions.create({
+      // Use a simple schema for testing
+      const TestSchema = z.object({
+        status: z.string()
+      });
+      
+      await this.client.responses.parse({
         model: this.model,
-        messages: [{ role: 'user', content: 'Test connection' }],
-        max_tokens: 1
+        input: [{ role: 'user', content: 'Respond with status: "ok"' }],
+        text: {
+          format: zodTextFormat(TestSchema, "test"),
+        },
       });
       return true;
     } catch {
