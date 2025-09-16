@@ -110,6 +110,7 @@
   },
   "homepage": "https://github.com/TomNeyland/modash.js",
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
     "@faker-js/faker": "^10.0.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@microsoft/eslint-formatter-sarif": "^3.1.0",
