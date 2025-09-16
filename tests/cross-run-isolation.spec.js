@@ -50,9 +50,7 @@ describe('Cross-Run State Leakage Prevention', function () {
       );
 
       // Second run: $unwind pipeline that should NOT return grouped results
-      const unwindResults = Aggo.aggregate(documents, [
-        { $unwind: '$items' },
-      ]);
+      const unwindResults = Aggo.aggregate(documents, [{ $unwind: '$items' }]);
 
       // Critical test: unwind should return 4 documents (2+1+1), not grouped results
       expect(unwindResults).to.have.lengthOf(4);

@@ -46,6 +46,9 @@
   "engines": {
     "node": ">=18"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "test": "npm run test:units && npm run test:performance",
     "test:fast": "mocha --import=tsx/esm --exit tests/*.spec.js",

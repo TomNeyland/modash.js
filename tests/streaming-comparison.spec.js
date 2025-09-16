@@ -342,10 +342,7 @@ describe('Streaming vs Non-Streaming Equivalence Tests', () => {
       // Warm array/hot-path
       Aggo.aggregate(largeDataset, complexPipeline);
       const startNonStreaming = performance.now();
-      const nonStreamingResult = Aggo.aggregate(
-        largeDataset,
-        complexPipeline
-      );
+      const nonStreamingResult = Aggo.aggregate(largeDataset, complexPipeline);
       const endNonStreaming = performance.now();
 
       const streamingCollection = createStreamingCollection(largeDataset);

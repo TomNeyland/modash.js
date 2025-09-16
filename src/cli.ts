@@ -217,16 +217,12 @@ async function main() {
           throw new Error('Plugin not found');
         });
         console.error('🤖 AI plugin not yet integrated with main CLI');
-        console.error(
-          '💡 For now, use: npx @aggo/plugin-ai <query> [options]'
-        );
+        console.error('💡 For now, use: npx @aggo/plugin-ai <query> [options]');
         process.exit(1);
       } catch (_error) {
         console.error('❌ Error: @aggo/plugin-ai is not installed');
         console.error('💡 Install it with: npm install @aggo/plugin-ai');
-        console.error(
-          '💡 Then use: cat data.jsonl | npx aggo ai "your query"'
-        );
+        console.error('💡 Then use: cat data.jsonl | npx aggo ai "your query"');
         process.exit(1);
       }
     }
