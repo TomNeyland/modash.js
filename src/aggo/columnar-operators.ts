@@ -5,7 +5,11 @@
  * Implements vectorized operations on columnar batches with selection vectors
  */
 
-import { ColumnarBatch, SelectionVector, ColumnarSchema } from './columnar-vectors';
+import {
+  ColumnarBatch,
+  SelectionVector,
+  ColumnarSchema,
+} from './columnar-vectors';
 import { DocumentValue } from './expressions';
 
 /**
@@ -92,7 +96,7 @@ export abstract class BaseColumnarOperator implements ColumnarOperator {
     totalRowsOutput: 0,
     totalProcessingTimeMs: 0,
     averageSelectivity: 1.0,
-    peakMemoryUsage: 0
+    peakMemoryUsage: 0,
   };
 
   init(schema: ColumnarSchema, hints: OperatorHints): void {
@@ -115,14 +119,19 @@ export abstract class BaseColumnarOperator implements ColumnarOperator {
     return { ...this.stats };
   }
 
-  protected updateStats(rowsProcessed: number, rowsOutput: number, timeMs: number): void {
+  protected updateStats(
+    rowsProcessed: number,
+    rowsOutput: number,
+    timeMs: number
+  ): void {
     this.stats.totalBatchesProcessed++;
     this.stats.totalRowsProcessed += rowsProcessed;
     this.stats.totalRowsOutput += rowsOutput;
     this.stats.totalProcessingTimeMs += timeMs;
-    
+
     if (this.stats.totalRowsProcessed > 0) {
-      this.stats.averageSelectivity = this.stats.totalRowsOutput / this.stats.totalRowsProcessed;
+      this.stats.averageSelectivity =
+        this.stats.totalRowsOutput / this.stats.totalRowsProcessed;
     }
   }
 
@@ -135,7 +144,10 @@ export abstract class BaseColumnarOperator implements ColumnarOperator {
  */
 export class ColumnarMatchOperator extends BaseColumnarOperator {
   private predicate: (row: Map<string, DocumentValue>) => boolean = () => true;
-  private compiledPredicate?: (batch: ColumnarBatch, selection: SelectionVector) => SelectionVector;
+  private compiledPredicate?: (
+    batch: ColumnarBatch,
+    selection: SelectionVector
+  ) => SelectionVector;
 
   constructor(private matchExpression: any) {
     super();
@@ -168,7 +180,11 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
     }
 
     const endTime = performance.now();
-    this.updateStats(inputSelection.length, outputSelection.length, endTime - startTime);
+    this.updateStats(
+      inputSelection.length,
+      outputSelection.length,
+      endTime - startTime
+    );
 
     return {
       outputBatch: batch,
@@ -176,44 +192,55 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
       metadata: {
         rowsProcessed: inputSelection.length,
         rowsOutput: outputSelection.length,
-        selectivity: inputSelection.length > 0 ? outputSelection.length / inputSelection.length : 0,
-        processingTimeMs: endTime - startTime
-      }
+        selectivity:
+          inputSelection.length > 0
+            ? outputSelection.length / inputSelection.length
+            : 0,
+        processingTimeMs: endTime - startTime,
+      },
     };
   }
 
-  private processRowByRow(batch: ColumnarBatch, input: SelectionVector, output: SelectionVector): void {
+  private processRowByRow(
+    batch: ColumnarBatch,
+    input: SelectionVector,
+    output: SelectionVector
+  ): void {
     const fields = batch.getFields();
-    
+
     for (let i = 0; i < input.length; i++) {
       const rowId = input.get(i);
       const row = new Map<string, DocumentValue>();
-      
+
       // Materialize row for predicate evaluation
       for (const field of fields) {
         row.set(field, batch.getValue(rowId, field));
       }
-      
+
       if (this.predicate(row)) {
         output.push(rowId);
       }
     }
   }
 
-  private compilePredicate(expression: any): ((batch: ColumnarBatch, selection: SelectionVector) => SelectionVector) | undefined {
+  private compilePredicate(
+    expression: any
+  ):
+    | ((batch: ColumnarBatch, selection: SelectionVector) => SelectionVector)
+    | undefined {
     // Simple compilation for common cases
     if (expression && typeof expression === 'object') {
       const keys = Object.keys(expression);
-      
+
       // Handle simple equality: { field: value }
       if (keys.length === 1 && typeof expression[keys[0]] !== 'object') {
         const field = keys[0];
         const value = expression[field];
-        
+
         return (batch: ColumnarBatch, selection: SelectionVector) => {
           const result = new SelectionVector(batch.batchSize);
           const vector = batch.getVector(field);
-          
+
           if (vector) {
             for (let i = 0; i < selection.length; i++) {
               const rowId = selection.get(i);
@@ -222,7 +249,7 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
               }
             }
           }
-          
+
           return result;
         };
       }
@@ -231,24 +258,24 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
       if (keys.length === 1 && typeof expression[keys[0]] === 'object') {
         const field = keys[0];
         const condition = expression[field];
-        
+
         if (condition && typeof condition === 'object') {
           const operators = Object.keys(condition);
-          
+
           // Handle single comparison operator
           if (operators.length === 1) {
             const op = operators[0];
             const value = condition[op];
-            
+
             return (batch: ColumnarBatch, selection: SelectionVector) => {
               const result = new SelectionVector(batch.batchSize);
               const vector = batch.getVector(field);
-              
+
               if (vector) {
                 for (let i = 0; i < selection.length; i++) {
                   const rowId = selection.get(i);
                   const docValue = vector.get(rowId);
-                  
+
                   let matches = false;
                   switch (op) {
                     case '$eq':
@@ -258,31 +285,33 @@ export class ColumnarMatchOperator extends BaseColumnarOperator {
                       matches = docValue !== value;
                       break;
                     case '$lt':
-                      matches = docValue != null && docValue < value;
+                      matches = docValue !== null && docValue < value;
                       break;
                     case '$lte':
-                      matches = docValue != null && docValue <= value;
+                      matches = docValue !== null && docValue <= value;
                       break;
                     case '$gt':
-                      matches = docValue != null && docValue > value;
+                      matches = docValue !== null && docValue > value;
                       break;
                     case '$gte':
-                      matches = docValue != null && docValue >= value;
+                      matches = docValue !== null && docValue >= value;
                       break;
                     case '$in':
-                      matches = Array.isArray(value) && value.includes(docValue);
+                      matches =
+                        Array.isArray(value) && value.includes(docValue);
                       break;
                     case '$nin':
-                      matches = Array.isArray(value) && !value.includes(docValue);
+                      matches =
+                        Array.isArray(value) && !value.includes(docValue);
                       break;
                   }
-                  
+
                   if (matches) {
                     result.push(rowId);
                   }
                 }
               }
-              
+
               return result;
             };
           }
@@ -338,7 +367,11 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
     }
 
     const endTime = performance.now();
-    this.updateStats(inputSelection.length, outputSelection.length, endTime - startTime);
+    this.updateStats(
+      inputSelection.length,
+      outputSelection.length,
+      endTime - startTime
+    );
 
     return {
       outputBatch: this.outputBatch,
@@ -347,12 +380,17 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
         rowsProcessed: inputSelection.length,
         rowsOutput: outputSelection.length,
         selectivity: 1.0, // Project doesn't filter
-        processingTimeMs: endTime - startTime
-      }
+        processingTimeMs: endTime - startTime,
+      },
     };
   }
 
-  private projectRow(inputBatch: ColumnarBatch, inputRowId: number, outputBatch: ColumnarBatch, outputRowId: number): void {
+  private projectRow(
+    inputBatch: ColumnarBatch,
+    inputRowId: number,
+    outputBatch: ColumnarBatch,
+    outputRowId: number
+  ): void {
     for (const [field, spec] of this.projection) {
       let value: DocumentValue;
 
@@ -371,7 +409,11 @@ export class ColumnarProjectOperator extends BaseColumnarOperator {
     }
   }
 
-  private evaluateExpression(expression: any, batch: ColumnarBatch, rowId: number): DocumentValue {
+  private evaluateExpression(
+    expression: any,
+    batch: ColumnarBatch,
+    rowId: number
+  ): DocumentValue {
     // Simplified expression evaluation
     if (typeof expression === 'string' && expression.startsWith('$')) {
       // Field reference
@@ -419,14 +461,14 @@ export class VirtualRowIdManager {
    */
   generateVirtualRowIds(originalRowId: number, arrayLength: number): number[] {
     const virtualIds: number[] = [];
-    
+
     for (let i = 0; i < arrayLength; i++) {
       const virtualId = this.nextVirtualId++;
       this.virtualToOriginal.set(virtualId, originalRowId);
       this.virtualToArrayIndex.set(virtualId, i);
       virtualIds.push(virtualId);
     }
-    
+
     return virtualIds;
   }
 
@@ -475,12 +517,15 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
 
   protected initializeOperator(): void {
     if (typeof this.unwindSpec === 'string') {
-      this.unwindField = this.unwindSpec.startsWith('$') ? this.unwindSpec.substring(1) : this.unwindSpec;
+      this.unwindField = this.unwindSpec.startsWith('$')
+        ? this.unwindSpec.substring(1)
+        : this.unwindSpec;
     } else if (typeof this.unwindSpec === 'object') {
-      this.unwindField = this.unwindSpec.path?.startsWith('$') 
-        ? this.unwindSpec.path.substring(1) 
+      this.unwindField = this.unwindSpec.path?.startsWith('$')
+        ? this.unwindSpec.path.substring(1)
         : this.unwindSpec.path;
-      this.preserveNullAndEmptyArrays = this.unwindSpec.preserveNullAndEmptyArrays || false;
+      this.preserveNullAndEmptyArrays =
+        this.unwindSpec.preserveNullAndEmptyArrays || false;
     }
   }
 
@@ -492,13 +537,13 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
     const startTime = performance.now();
     const inputSelection = batch.getSelection();
     const outputSelection = new SelectionVector(batch.batchSize * 4); // Estimate expansion
-    
+
     const unwindVector = batch.getVector(this.unwindField);
     if (!unwindVector) {
       // Field doesn't exist, return empty or preserve based on settings
       const endTime = performance.now();
       this.updateStats(inputSelection.length, 0, endTime - startTime);
-      
+
       return {
         outputBatch: batch,
         selection: new SelectionVector(),
@@ -506,8 +551,8 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
           rowsProcessed: inputSelection.length,
           rowsOutput: 0,
           selectivity: 0,
-          processingTimeMs: endTime - startTime
-        }
+          processingTimeMs: endTime - startTime,
+        },
       };
     }
 
@@ -518,8 +563,11 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
 
       if (Array.isArray(value) && value.length > 0) {
         // Generate virtual row IDs for array elements
-        const virtualIds = this.virtualRowManager.generateVirtualRowIds(rowId, value.length);
-        
+        const virtualIds = this.virtualRowManager.generateVirtualRowIds(
+          rowId,
+          value.length
+        );
+
         for (const virtualId of virtualIds) {
           outputSelection.push(virtualId);
         }
@@ -530,7 +578,11 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
     }
 
     const endTime = performance.now();
-    this.updateStats(inputSelection.length, outputSelection.length, endTime - startTime);
+    this.updateStats(
+      inputSelection.length,
+      outputSelection.length,
+      endTime - startTime
+    );
 
     return {
       outputBatch: batch, // Same batch, but with virtual row IDs
@@ -538,9 +590,12 @@ export class ColumnarUnwindOperator extends BaseColumnarOperator {
       metadata: {
         rowsProcessed: inputSelection.length,
         rowsOutput: outputSelection.length,
-        selectivity: inputSelection.length > 0 ? outputSelection.length / inputSelection.length : 0,
-        processingTimeMs: endTime - startTime
-      }
+        selectivity:
+          inputSelection.length > 0
+            ? outputSelection.length / inputSelection.length
+            : 0,
+        processingTimeMs: endTime - startTime,
+      },
     };
   }
 }
@@ -567,7 +622,7 @@ export class ColumnarPipelineExecutor {
    */
   init(schema: ColumnarSchema, hints: OperatorHints): void {
     this._schema = schema;
-    
+
     for (const operator of this.operators) {
       operator.init(schema, hints);
     }
@@ -584,7 +639,7 @@ export class ColumnarPipelineExecutor {
     for (const operator of this.operators) {
       // Set selection on current batch
       currentBatch.getSelection().copyFrom(currentSelection);
-      
+
       const result = operator.push(currentBatch);
       currentBatch = result.outputBatch;
       currentSelection = result.selection;
@@ -600,7 +655,7 @@ export class ColumnarPipelineExecutor {
    */
   flush(): ColumnarBatch[] {
     const results: ColumnarBatch[] = [];
-    
+
     for (const operator of this.operators) {
       const result = operator.flush();
       if (result && result.outputBatch) {
@@ -608,7 +663,7 @@ export class ColumnarPipelineExecutor {
         results.push(result.outputBatch);
       }
     }
-    
+
     return results;
   }
 
@@ -626,14 +681,22 @@ export class ColumnarPipelineExecutor {
    */
   getStats(): { operatorStats: OperatorStats[]; pipelineStats: OperatorStats } {
     const operatorStats = this.operators.map(op => op.getStats());
-    
+
     const pipelineStats: OperatorStats = {
-      totalBatchesProcessed: Math.max(...operatorStats.map(s => s.totalBatchesProcessed)),
+      totalBatchesProcessed: Math.max(
+        ...operatorStats.map(s => s.totalBatchesProcessed)
+      ),
       totalRowsProcessed: operatorStats[0]?.totalRowsProcessed || 0,
-      totalRowsOutput: operatorStats[operatorStats.length - 1]?.totalRowsOutput || 0,
-      totalProcessingTimeMs: operatorStats.reduce((sum, s) => sum + s.totalProcessingTimeMs, 0),
-      averageSelectivity: operatorStats.reduce((sum, s) => sum + s.averageSelectivity, 0) / Math.max(operatorStats.length, 1),
-      peakMemoryUsage: Math.max(...operatorStats.map(s => s.peakMemoryUsage))
+      totalRowsOutput:
+        operatorStats[operatorStats.length - 1]?.totalRowsOutput || 0,
+      totalProcessingTimeMs: operatorStats.reduce(
+        (sum, s) => sum + s.totalProcessingTimeMs,
+        0
+      ),
+      averageSelectivity:
+        operatorStats.reduce((sum, s) => sum + s.averageSelectivity, 0) /
+        Math.max(operatorStats.length, 1),
+      peakMemoryUsage: Math.max(...operatorStats.map(s => s.peakMemoryUsage)),
     };
 
     return { operatorStats, pipelineStats };

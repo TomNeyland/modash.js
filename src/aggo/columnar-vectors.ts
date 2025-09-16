@@ -3,7 +3,7 @@
  *
  * Implements Structure-of-Arrays (SoA) vectors for cache-efficient data processing:
  * - Int32/Int64 vectors for integer data
- * - Float64 vectors for numeric data  
+ * - Float64 vectors for numeric data
  * - BigInt64 vectors for large integers
  * - Bool vectors using packed bitmasks
  * - Utf8 vectors using dictionary encoding + string pool
@@ -24,12 +24,12 @@ export interface ColumnarSchema {
 
 export enum FieldType {
   INT32 = 'int32',
-  INT64 = 'int64', 
+  INT64 = 'int64',
   FLOAT64 = 'float64',
   BIGINT64 = 'bigint64',
   BOOL = 'bool',
   UTF8 = 'utf8',
-  MIXED = 'mixed' // Fallback for complex types
+  MIXED = 'mixed', // Fallback for complex types
 }
 export interface ColumnarVector {
   readonly length: number;
@@ -136,16 +136,16 @@ export class ValidityBitmap {
     if (index >= this.capacity) {
       this.resize(Math.max(this.capacity * 2, index + 1));
     }
-    
+
     const wordIndex = Math.floor(index / 32);
     const bitIndex = index % 32;
-    
+
     if (valid) {
-      this.data[wordIndex] |= (1 << bitIndex);
+      this.data[wordIndex] |= 1 << bitIndex;
     } else {
       this.data[wordIndex] &= ~(1 << bitIndex);
     }
-    
+
     if (index >= this._length) {
       this._length = index + 1;
     }
@@ -206,7 +206,10 @@ export class Int32Vector implements ColumnarVector {
     if (value === null || value === undefined) {
       this.validity.setValid(index, false);
     } else {
-      const intValue = typeof value === 'number' ? Math.floor(value) : parseInt(String(value), 10);
+      const intValue =
+        typeof value === 'number'
+          ? Math.floor(value)
+          : parseInt(String(value), 10);
       if (!isNaN(intValue)) {
         this.data[index] = intValue;
         this.validity.setValid(index, true);
@@ -284,7 +287,8 @@ export class Int64Vector implements ColumnarVector {
     if (value === null || value === undefined) {
       this.validity.setValid(index, false);
     } else {
-      const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+      const numValue =
+        typeof value === 'number' ? value : parseFloat(String(value));
       if (!isNaN(numValue) && Number.isSafeInteger(numValue)) {
         this.data[index] = numValue;
         this.validity.setValid(index, true);
@@ -349,7 +353,8 @@ export class Float64Vector implements ColumnarVector {
     if (value === null || value === undefined) {
       this.validity.setValid(index, false);
     } else {
-      const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+      const numValue =
+        typeof value === 'number' ? value : parseFloat(String(value));
       if (!isNaN(numValue)) {
         this.data[index] = numValue;
         this.validity.setValid(index, true);
@@ -432,10 +437,11 @@ export class BigInt64Vector implements ColumnarVector {
       this.validity.setValid(index, false);
     } else {
       try {
-        const bigIntValue = typeof value === 'bigint' ? value : BigInt(String(value));
+        const bigIntValue =
+          typeof value === 'bigint' ? value : BigInt(String(value));
         this.data[index] = bigIntValue;
         this.validity.setValid(index, true);
-      } catch (e) {
+      } catch (_e) {
         this.validity.setValid(index, false);
       }
     }
@@ -501,13 +507,13 @@ export class BoolVector implements ColumnarVector {
       const boolValue = Boolean(value);
       const wordIndex = Math.floor(index / 32);
       const bitIndex = index % 32;
-      
+
       if (boolValue) {
-        this.data[wordIndex] |= (1 << bitIndex);
+        this.data[wordIndex] |= 1 << bitIndex;
       } else {
         this.data[wordIndex] &= ~(1 << bitIndex);
       }
-      
+
       this.validity.setValid(index, true);
     }
 
@@ -581,14 +587,14 @@ export class Utf8Vector implements ColumnarVector {
     } else {
       const strValue = String(value);
       let dictId = this.stringToId.get(strValue);
-      
+
       if (dictId === undefined) {
         // Add new string to pool
         dictId = this.stringPool.length;
         this.stringPool.push(strValue);
         this.stringToId.set(strValue, dictId);
       }
-      
+
       this.dictIds[index] = dictId;
       this.validity.setValid(index, true);
     }
@@ -614,16 +620,24 @@ export class Utf8Vector implements ColumnarVector {
   }
 
   /** Get dictionary statistics */
-  getDictStats(): { uniqueStrings: number; totalLength: number; compressionRatio: number } {
+  getDictStats(): {
+    uniqueStrings: number;
+    totalLength: number;
+    compressionRatio: number;
+  } {
     const uniqueStrings = this.stringPool.length;
-    const totalLength = this.stringPool.reduce((sum, str) => sum + str.length, 0);
-    const uncompressedSize = this._length * (totalLength / Math.max(uniqueStrings, 1));
+    const totalLength = this.stringPool.reduce(
+      (sum, str) => sum + str.length,
+      0
+    );
+    const uncompressedSize =
+      this._length * (totalLength / Math.max(uniqueStrings, 1));
     const compressedSize = this._length * 4 + totalLength; // 4 bytes per dict ID + string pool
-    
+
     return {
       uniqueStrings,
       totalLength,
-      compressionRatio: uncompressedSize / Math.max(compressedSize, 1)
+      compressionRatio: uncompressedSize / Math.max(compressedSize, 1),
     };
   }
 
@@ -646,7 +660,7 @@ export class ColumnarBatch {
   private vectors: Map<string, ColumnarVector> = new Map();
   private selection: SelectionVector;
   private _length: number = 0;
-  
+
   readonly batchSize: number;
 
   constructor(batchSize: number = 1024) {

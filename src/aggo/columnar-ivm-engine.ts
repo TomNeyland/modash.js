@@ -3,7 +3,7 @@
  *
  * End-to-end columnar, zero-alloc IVM engine featuring:
  * - SoA vectors with selection+validity
- * - RowID space management  
+ * - RowID space management
  * - Robin Hood hash state for aggregations
  * - Virtual RowIDs for $unwind
  * - Late materialization (objects only created at final emit)
@@ -20,7 +20,7 @@ import {
   BoolVector,
   Utf8Vector,
   ColumnarSchema,
-  FieldType
+  FieldType,
 } from './columnar-vectors';
 
 import {
@@ -30,7 +30,7 @@ import {
   ColumnarProjectOperator,
   ColumnarUnwindOperator,
   VirtualRowIdManager,
-  OperatorHints
+  OperatorHints,
 } from './columnar-operators';
 
 import { RobinHoodHashTable } from './robin-hood-hash';
@@ -52,13 +52,13 @@ export class RowIdSpace {
    */
   allocate(document: Document): number {
     let rowId: number;
-    
+
     if (this.freedRowIds.length > 0) {
       rowId = this.freedRowIds.pop()!;
     } else {
       rowId = this.nextRowId++;
     }
-    
+
     this.activeRowIds.add(rowId);
     this.rowToDocument.set(rowId, document);
     return rowId;
@@ -84,13 +84,13 @@ export class RowIdSpace {
       const originalRowId = this.virtualRowManager.getOriginalRowId(rowId);
       const arrayIndex = this.virtualRowManager.getArrayIndex(rowId);
       const originalDoc = this.rowToDocument.get(originalRowId);
-      
+
       if (originalDoc) {
         // Create virtual document with unwound array element
         return this.createVirtualDocument(originalDoc, arrayIndex, rowId);
       }
     }
-    
+
     return this.rowToDocument.get(rowId);
   }
 
@@ -105,7 +105,10 @@ export class RowIdSpace {
    * Check if row ID is active
    */
   isActive(rowId: number): boolean {
-    return this.activeRowIds.has(rowId) || this.virtualRowManager.isVirtualRowId(rowId);
+    return (
+      this.activeRowIds.has(rowId) ||
+      this.virtualRowManager.isVirtualRowId(rowId)
+    );
   }
 
   /**
@@ -126,9 +129,17 @@ export class RowIdSpace {
     this.virtualRowManager.clear();
   }
 
-  private createVirtualDocument(originalDoc: Document, arrayIndex: number, virtualRowId: number): Document {
+  private createVirtualDocument(
+    originalDoc: Document,
+    arrayIndex: number,
+    virtualRowId: number
+  ): Document {
     // This is a simplified implementation - in practice would need more sophisticated unwinding logic
-    return { ...originalDoc, _virtualRowId: virtualRowId, _arrayIndex: arrayIndex };
+    return {
+      ...originalDoc,
+      _virtualRowId: virtualRowId,
+      _arrayIndex: arrayIndex,
+    };
   }
 }
 
@@ -143,7 +154,11 @@ export class LateMaterializationContext {
   /**
    * Set transformed field value for a row
    */
-  setTransformedField(rowId: number, field: string, value: DocumentValue): void {
+  setTransformedField(
+    rowId: number,
+    field: string,
+    value: DocumentValue
+  ): void {
     let rowView = this.transformedViews.get(rowId);
     if (!rowView) {
       rowView = new Map();
@@ -162,7 +177,11 @@ export class LateMaterializationContext {
   /**
    * Cache projected document
    */
-  cacheProjectedDocument(projectionKey: string, rowId: number, document: Document): void {
+  cacheProjectedDocument(
+    projectionKey: string,
+    rowId: number,
+    document: Document
+  ): void {
     let cache = this.projectionCache.get(projectionKey);
     if (!cache) {
       cache = new Map();
@@ -174,14 +193,21 @@ export class LateMaterializationContext {
   /**
    * Get cached projected document
    */
-  getCachedProjectedDocument(projectionKey: string, rowId: number): Document | undefined {
+  getCachedProjectedDocument(
+    projectionKey: string,
+    rowId: number
+  ): Document | undefined {
     return this.projectionCache.get(projectionKey)?.get(rowId);
   }
 
   /**
    * Materialize final document from row ID
    */
-  materializeDocument(rowId: number, baseDocument: Document, projectionKey?: string): Document {
+  materializeDocument(
+    rowId: number,
+    baseDocument: Document,
+    projectionKey?: string
+  ): Document {
     // Check cache first
     if (projectionKey) {
       const cached = this.getCachedProjectedDocument(projectionKey, rowId);
@@ -195,11 +221,11 @@ export class LateMaterializationContext {
       for (const [field, value] of transformedView) {
         (materialized as any)[field] = value;
       }
-      
+
       if (projectionKey) {
         this.cacheProjectedDocument(projectionKey, rowId, materialized);
       }
-      
+
       return materialized;
     }
 
@@ -240,13 +266,18 @@ export class MicroPathProcessor {
   ): Document[] {
     // For micro batches, use simplified row-by-row processing
     // This avoids the overhead of columnar vectorization for small data
-    
+
     let currentDocs = documents;
-    
+
     for (const stage of pipeline) {
-      currentDocs = this.processMicroStage(currentDocs, stage, _rowIdSpace, _materializationContext);
+      currentDocs = this.processMicroStage(
+        currentDocs,
+        stage,
+        _rowIdSpace,
+        _materializationContext
+      );
     }
-    
+
     return currentDocs;
   }
 
@@ -262,23 +293,28 @@ export class MicroPathProcessor {
     switch (stageType) {
       case '$match':
         return docs.filter(doc => this.evaluateMatchCondition(doc, stageSpec));
-      
+
       case '$project':
-        return docs.map(doc => this.evaluateProjection(doc, stageSpec, _materializationContext));
-      
+        return docs.map(doc =>
+          this.evaluateProjection(doc, stageSpec, _materializationContext)
+        );
+
       case '$limit':
         return docs.slice(0, stageSpec);
-      
+
       case '$skip':
         return docs.slice(stageSpec);
-      
+
       default:
         // Fall back to regular processing for complex stages
         return docs;
     }
   }
 
-  private static evaluateMatchCondition(doc: Document, condition: any): boolean {
+  private static evaluateMatchCondition(
+    doc: Document,
+    condition: any
+  ): boolean {
     // Simplified match evaluation for micro-path
     for (const [field, value] of Object.entries(condition)) {
       if ((doc as any)[field] !== value) {
@@ -294,7 +330,7 @@ export class MicroPathProcessor {
     _materializationContext: LateMaterializationContext
   ): Document {
     const result: any = {};
-    
+
     for (const [field, spec] of Object.entries(projection)) {
       if (spec === 1 || spec === true) {
         result[field] = (doc as any)[field];
@@ -303,11 +339,14 @@ export class MicroPathProcessor {
         result[field] = this.evaluateSimpleExpression(spec, doc);
       }
     }
-    
+
     return result;
   }
 
-  private static evaluateSimpleExpression(expression: any, doc: Document): DocumentValue {
+  private static evaluateSimpleExpression(
+    expression: any,
+    doc: Document
+  ): DocumentValue {
     if (typeof expression === 'string' && expression.startsWith('$')) {
       return (doc as any)[expression.substring(1)];
     }
@@ -323,15 +362,17 @@ export class ColumnarIvmEngine {
   private materializationContext = new LateMaterializationContext();
   private pipelineExecutor = new ColumnarPipelineExecutor();
   private hashTables = new Map<string, RobinHoodHashTable>();
-  
+
   // Configuration
   private readonly defaultBatchSize: number;
   private readonly enableMicroPath: boolean;
 
-  constructor(options: {
-    batchSize?: number;
-    enableMicroPath?: boolean;
-  } = {}) {
+  constructor(
+    options: {
+      batchSize?: number;
+      enableMicroPath?: boolean;
+    } = {}
+  ) {
     this.defaultBatchSize = options.batchSize || 1024;
     this.enableMicroPath = options.enableMicroPath ?? true;
   }
@@ -345,7 +386,10 @@ export class ColumnarIvmEngine {
       this.reset();
 
       // Micro-path optimization for small collections
-      if (this.enableMicroPath && MicroPathProcessor.shouldUseMicroPath(documents.length)) {
+      if (
+        this.enableMicroPath &&
+        MicroPathProcessor.shouldUseMicroPath(documents.length)
+      ) {
         return MicroPathProcessor.processMicroBatch(
           documents as Document[],
           pipeline,
@@ -387,10 +431,10 @@ export class ColumnarIvmEngine {
 
   private analyzeSchema(documents: Document[]): ColumnarSchema {
     const fields = new Map<string, FieldType>();
-    
+
     // Sample first few documents to infer schema
     const sampleSize = Math.min(documents.length, 100);
-    
+
     for (let i = 0; i < sampleSize; i++) {
       const doc = documents[i];
       for (const [field, value] of Object.entries(doc)) {
@@ -402,31 +446,39 @@ export class ColumnarIvmEngine {
 
     return {
       fields,
-      estimatedRowCount: documents.length
+      estimatedRowCount: documents.length,
     };
   }
 
   private inferFieldType(value: DocumentValue): FieldType {
     if (value === null || value === undefined) return FieldType.MIXED;
-    
+
     const type = typeof value;
     switch (type) {
-      case 'boolean': return FieldType.BOOL;
-      case 'number': 
+      case 'boolean':
+        return FieldType.BOOL;
+      case 'number':
         return Number.isInteger(value) ? FieldType.INT32 : FieldType.FLOAT64;
-      case 'string': return FieldType.UTF8;
-      case 'bigint': return FieldType.BIGINT64;
-      default: return FieldType.MIXED;
+      case 'string':
+        return FieldType.UTF8;
+      case 'bigint':
+        return FieldType.BIGINT64;
+      default:
+        return FieldType.MIXED;
     }
   }
 
-  private createColumnarBatch(documents: Document[], schema: ColumnarSchema, rowIds: number[]): ColumnarBatch {
+  private createColumnarBatch(
+    documents: Document[],
+    schema: ColumnarSchema,
+    rowIds: number[]
+  ): ColumnarBatch {
     const batch = new ColumnarBatch(this.defaultBatchSize);
-    
+
     // Create appropriate vectors for each field
     for (const [field, fieldType] of schema.fields) {
       let vector;
-      
+
       switch (fieldType) {
         case FieldType.INT32:
           vector = new Int32Vector(documents.length);
@@ -449,7 +501,7 @@ export class ColumnarIvmEngine {
         default:
           vector = new Utf8Vector(documents.length); // Fallback to string representation
       }
-      
+
       batch.addVector(field, vector);
     }
 
@@ -457,11 +509,11 @@ export class ColumnarIvmEngine {
     for (let i = 0; i < documents.length; i++) {
       const doc = documents[i];
       const rowId = rowIds[i];
-      
+
       for (const [field, value] of Object.entries(doc)) {
         batch.setValue(i, field, value);
       }
-      
+
       batch.getSelection().push(rowId);
     }
 
@@ -470,11 +522,11 @@ export class ColumnarIvmEngine {
 
   private compilePipeline(pipeline: any[]): ColumnarOperator[] {
     const operators: ColumnarOperator[] = [];
-    
+
     for (const stage of pipeline) {
       const stageType = Object.keys(stage)[0];
       const stageSpec = stage[stageType];
-      
+
       switch (stageType) {
         case '$match':
           operators.push(new ColumnarMatchOperator(stageSpec));
@@ -487,28 +539,33 @@ export class ColumnarIvmEngine {
           break;
         // Add more operators as needed
         default:
-          console.warn(`Columnar operator not implemented for ${stageType}, using fallback`);
+          console.warn(
+            `Columnar operator not implemented for ${stageType}, using fallback`
+          );
       }
     }
-    
+
     return operators;
   }
 
-  private setupPipelineExecutor(operators: ColumnarOperator[], schema: ColumnarSchema): void {
+  private setupPipelineExecutor(
+    operators: ColumnarOperator[],
+    schema: ColumnarSchema
+  ): void {
     // Clear previous operators
     this.pipelineExecutor = new ColumnarPipelineExecutor();
-    
+
     // Add operators to executor
     for (const operator of operators) {
       this.pipelineExecutor.addOperator(operator);
     }
-    
+
     // Initialize with schema and hints
     const hints: OperatorHints = {
       expectedBatchSize: this.defaultBatchSize,
-      isStreamingMode: false
+      isStreamingMode: false,
     };
-    
+
     this.pipelineExecutor.init(schema, hints);
   }
 
@@ -518,35 +575,40 @@ export class ColumnarIvmEngine {
     if (batches.length === 0) {
       return new ColumnarBatch();
     }
-    
+
     let resultBatch = batches[0];
-    
+
     // Execute pipeline
     resultBatch = this.pipelineExecutor.execute(resultBatch);
-    
+
     // Flush any buffered results
     const flushedBatches = this.pipelineExecutor.flush();
-    
+
     // For simplicity, return the first result batch
     // In practice, might need to merge multiple batches
-    return flushedBatches.length > 0 ? flushedBatches[flushedBatches.length - 1] : resultBatch;
+    return flushedBatches.length > 0
+      ? flushedBatches[flushedBatches.length - 1]
+      : resultBatch;
   }
 
   private materializeFinalResults(batch: ColumnarBatch): Document[] {
     const results: Document[] = [];
     const selection = batch.getSelection();
     const fields = batch.getFields();
-    
+
     // Late materialization: create documents only at the end
     for (let i = 0; i < selection.length; i++) {
       const rowId = selection.get(i);
-      
+
       // Try to get base document from row ID space
       const baseDoc = this.rowIdSpace.getDocument(rowId);
-      
+
       if (baseDoc) {
         // Materialize with any transformations from the pipeline
-        const materializedDoc = this.materializationContext.materializeDocument(rowId, baseDoc);
+        const materializedDoc = this.materializationContext.materializeDocument(
+          rowId,
+          baseDoc
+        );
         results.push(materializedDoc);
       } else {
         // Fallback: construct document from columnar vectors
@@ -560,7 +622,7 @@ export class ColumnarIvmEngine {
         results.push(doc);
       }
     }
-    
+
     return results;
   }
 
@@ -579,15 +641,15 @@ export class ColumnarIvmEngine {
    */
   getStats() {
     const pipelineStats = this.pipelineExecutor.getStats();
-    
+
     return {
       rowIdSpace: {
-        activeRows: this.rowIdSpace.getActiveRowIds().length
+        activeRows: this.rowIdSpace.getActiveRowIds().length,
       },
       materialization: {
         // Add materialization stats if needed
       },
-      pipeline: pipelineStats
+      pipeline: pipelineStats,
     };
   }
 
