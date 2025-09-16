@@ -86,7 +86,7 @@ Usage:
   cat data.jsonl | npx aggo ai "sum revenue by category"
 
 Commands:
-  ai <query>       Natural language query using AI (requires @aggo/plugin-ai)
+  ai <query>       Natural language query using AI (requires aggo-ai)
 
 Options:
   --file <path>    Read data from file instead of stdin
@@ -106,7 +106,7 @@ Examples:
   # Complex pipeline with explanation
   npx aggo '[{"$match":{"active":true}},{"$project":{"name":1,"score":1}}]' --explain --stats
   
-  # AI-powered natural language query (requires @aggo/plugin-ai)
+  # AI-powered natural language query (requires aggo-ai)
   cat sales.jsonl | npx aggo ai "average order value by product category"
   npx aggo ai "top 10 customers by total spent" --file orders.jsonl
 
@@ -212,16 +212,16 @@ async function main() {
     if (subcommand === 'ai') {
       try {
         // Try to dynamically import the AI plugin
-        const pluginName = '@aggo/plugin-ai';
+        const pluginName = 'aggo-ai';
         await import(pluginName).catch(() => {
           throw new Error('Plugin not found');
         });
         console.error('🤖 AI plugin not yet integrated with main CLI');
-        console.error('💡 For now, use: npx @aggo/plugin-ai <query> [options]');
+        console.error('💡 For now, use: npx aggo-ai <query> [options]');
         process.exit(1);
       } catch (_error) {
-        console.error('❌ Error: @aggo/plugin-ai is not installed');
-        console.error('💡 Install it with: npm install @aggo/plugin-ai');
+        console.error('❌ Error: aggo-ai is not installed');
+        console.error('💡 Install it with: npm install aggo-ai');
         console.error('💡 Then use: cat data.jsonl | npx aggo ai "your query"');
         process.exit(1);
       }
@@ -314,8 +314,6 @@ async function main() {
 }
 
 // Make this module executable
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}
+main();
 
 export { main as cliMain };
