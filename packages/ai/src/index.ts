@@ -3,6 +3,8 @@
  *
  * Converts natural language queries into MongoDB aggregation pipelines using OpenAI,
  * with automatic schema inference and optimized execution via aggo.
+ * 
+ * NEW: AI TUI 3 - Also generates rich terminal UIs that adapt to query results!
  */
 
 import { type Document } from 'aggo';
@@ -33,6 +35,70 @@ export type {
 } from './openai-client.js';
 export type { Pipeline, Document } from 'aggo';
 
+// NEW: Export TUI functionality
+export {
+  tuiQuery,
+  renderTUI,
+  aiTUI,
+  validatePlan,
+  type TUIQueryOptions,
+  type TUIQueryResult,
+  type PlanType
+} from './tui.js';
+
+// Export TUI planning functionality
+export {
+  TUIPlanner,
+  createTUIPlanner,
+  type TUIPlannergResult
+} from './planner/tui-planner.js';
+
+// Export schemas and specs
+export {
+  Plan,
+  UISpec,
+  QuerySpec,
+  type PlanType as PlanSchema,
+  type UISpecType,
+  type QuerySpecType,
+  type ComponentType,
+  type JsonPathType
+} from './specs/Plan.js';
+
+// Export compiler functionality
+export {
+  compileToInk,
+  validateUISpec,
+  TUIApp,
+  ComponentRenderer
+} from './compiler/index.js';
+
+// Export theme system
+export {
+  Theme,
+  createTheme,
+  defaultTheme,
+  type ThemeConfig
+} from './runtime/theme.js';
+
+// Export data binding utilities
+export {
+  evaluateJSONPath,
+  extractArrayItems,
+  interpolateTemplate,
+  isValidJSONPath,
+  cachedEvaluateJSONPath,
+  type JSONPathExpression
+} from './runtime/data-binding.js';
+
+export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
+  /** Include explanation of the generated pipeline */
+  includeExplanation?: boolean;
+  /** Number of sample documents to include in LLM context */
+  sampleDocuments?: number;
+}
+
+// ORIGINAL AI FUNCTIONS (backwards compatibility)
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */
   includeExplanation?: boolean;
@@ -58,26 +124,6 @@ export interface AIQueryResult extends PipelineGenerationResult {
 
 /**
  * Main AI query function - converts natural language to MongoDB pipeline and executes it
- *
- * @param documents - Input documents to query
- * @param query - Natural language query
- * @param options - Configuration options
- * @returns Query results with generated pipeline and execution data
- *
- * @example
- * ```typescript
- * import { aiQuery } from '@aggo/plugin-ai';
- *
- * const data = [
- *   { name: 'Alice', age: 30, department: 'Engineering' },
- *   { name: 'Bob', age: 25, department: 'Marketing' },
- *   { name: 'Carol', age: 35, department: 'Engineering' }
- * ];
- *
- * const result = await aiQuery(data, 'average age by department');
- * console.log(result.results);
- * console.log(result.explanation);
- * ```
  */
 export async function aiQuery(
   documents: Document[],
@@ -132,21 +178,6 @@ export async function aiQuery(
   };
 }
 
-/**
- * Infers and returns the schema of input documents without executing a query
- *
- * @param documents - Input documents to analyze
- * @param options - Schema inference options
- * @returns Simplified schema object
- *
- * @example
- * ```typescript
- * import { getSchema } from '@aggo/plugin-ai';
- *
- * const schema = getSchema(documents);
- * console.log(JSON.stringify(schema, null, 2));
- * ```
- */
 export function getSchema(
   documents: Document[],
   options: SchemaInferenceOptions = {}
@@ -154,24 +185,6 @@ export function getSchema(
   return inferSchema(documents, options);
 }
 
-/**
- * Generates a MongoDB pipeline from natural language without executing it
- *
- * @param query - Natural language query
- * @param schema - Data schema (or documents to infer from)
- * @param sampleDocuments - Sample documents for context
- * @param options - OpenAI options
- * @returns Generated pipeline and metadata
- *
- * @example
- * ```typescript
- * import { generatePipeline, getSchema } from '@aggo/plugin-ai';
- *
- * const schema = getSchema(documents);
- * const result = await generatePipeline('top 5 users by score', schema);
- * console.log(result.pipeline);
- * ```
- */
 export async function generatePipeline(
   query: string,
   schema: SimplifiedSchema | Document[],
@@ -187,15 +200,6 @@ export async function generatePipeline(
   return client.generatePipeline(query, actualSchema, samples);
 }
 
-/**
- * Explains a natural language query by generating the pipeline and showing the mapping
- *
- * @param query - Natural language query
- * @param schema - Data schema (or documents to infer from)
- * @param sampleDocuments - Sample documents for context
- * @param options - OpenAI options
- * @returns Pipeline with detailed explanation
- */
 export async function explainQuery(
   query: string,
   schema: SimplifiedSchema | Document[],
@@ -208,12 +212,6 @@ export async function explainQuery(
   } as any);
 }
 
-/**
- * Validates that the AI plugin is properly configured
- *
- * @param options - OpenAI options to test
- * @returns True if configuration is valid
- */
 export async function validateConfiguration(
   options: OpenAIOptions = {}
 ): Promise<boolean> {
@@ -225,23 +223,10 @@ export async function validateConfiguration(
   }
 }
 
-/**
- * Utility function to format schema for display
- *
- * @param schema - Schema object to format
- * @returns Formatted string representation
- */
 export function formatSchema(schema: SimplifiedSchema): string {
   return JSON.stringify(schema, null, 2);
 }
 
-/**
- * Utility function to format sample documents for display
- *
- * @param documents - Documents to format
- * @param limit - Maximum number of documents to show
- * @returns Formatted string representation
- */
 export function formatSamples(
   documents: Document[],
   limit: number = 3
