@@ -1,10 +1,13 @@
 {
-  "name": "aggo-rxjs",
-  "version": "0.1.2",
-  "description": "RxJS integration for aggo.js - Observable-based aggregation pipelines",
+  "name": "aggo",
+  "version": "0.8.1",
+  "description": "Modern MongoDB-inspired aggregation library for TypeScript",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "aggo": "dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -18,29 +21,24 @@
   },
   "keywords": [
     "aggo",
-    "rxjs",
-    "observable",
+    "mongodb",
     "aggregation",
-    "streaming",
-    "reactive"
+    "pipeline",
+    "typescript",
+    "streaming"
   ],
   "author": "Tom Neyland",
   "license": "MIT",
-  "peerDependencies": {
-    "rxjs": "^7.0.0",
-    "aggo": ">=0.8.1"
-  },
-  "devDependencies": {
-    "rxjs": "^7.8.1",
-    "aggo": "workspace:*",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.2"
-  },
   "engines": {
     "node": ">=18"
   },
   "files": [
     "dist/",
     "README.md"
-  ]
+  ],
+  "peerDependencies": {},
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
 }

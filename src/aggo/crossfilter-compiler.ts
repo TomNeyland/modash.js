@@ -486,8 +486,8 @@ export class ExpressionCompilerImpl implements ExpressionCompiler {
         return (doc: Document) => this.evaluateExpression(keyExpr, doc);
       }
     } else {
-      // Literal value
-      return () => keyExpr;
+      // Literal value (number, string, boolean, Date, null)
+      return () => keyExpr as DocumentValue;
     }
   }
 

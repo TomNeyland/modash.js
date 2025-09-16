@@ -245,9 +245,9 @@ function $subtract(
 }
 
 function $multiply(...values: EvaluatableValue[]): number {
-  const result = values
-    .map(evaluate)
-    .reduce((product: number, n) => product * (n as number), 1);
+  const result: number = values
+    .map(v => Number(evaluate(v)) || 0)
+    .reduce((product: number, n: number) => product * n, 1);
   // Normalize floating point noise for stable equality in tests
   return Math.round(result * 1e12) / 1e12;
 }

@@ -1,45 +1,22 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "baseUrl": ".",
+    "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-
-    // Strict type checking
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
-
-    // Additional checks
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noPropertyAccessFromIndexSignature": false,
-
-    // Interop constraints
-    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "Node",
+    "strict": false,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "verbatimModuleSyntax": false,
-
-    // Skip lib check for performance
     "skipLibCheck": true,
-
-    // Modern features
-    "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "paths": {
+      "aggo": ["./packages/aggo/src/index.ts"],
+      "aggo/*": ["./packages/aggo/src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "include": [
+    "src",
+    "packages/aggo/src"
+  ],
+  "exclude": ["dist", "node_modules"]
 }

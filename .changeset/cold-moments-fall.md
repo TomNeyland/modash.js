@@ -1,0 +1,5 @@
+---
+'aggo': major
+---
+
+first release
