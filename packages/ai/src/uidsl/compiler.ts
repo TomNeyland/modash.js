@@ -10,7 +10,7 @@ import { Box, Text } from 'ink';
 import type { UIAst, UIComponent, UIProps } from './parser.js';
 import type { Document } from 'aggo';
 
-// Import UI renderers (will be created next)
+// Import UI renderers
 import { TableRenderer } from '../ui/renderers/table.js';
 import { ListRenderer } from '../ui/renderers/list.js';
 import { TreeRenderer } from '../ui/renderers/tree.js';
