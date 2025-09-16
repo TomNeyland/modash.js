@@ -21,7 +21,7 @@ This document provides a comprehensive handoff of the **Phase 9 Columnar IVM Cor
 The system implements a sophisticated routing strategy with three tiers:
 
 1. **Columnar Engine** - Large datasets (>100 rows) with vectorizable operations
-2. **Zero-alloc Engine** - Medium datasets with hot-path compatible operations  
+2. **Zero-alloc Engine** - Medium datasets with hot-path compatible operations
 3. **Traditional Engine** - Complex operations requiring full MongoDB compatibility
 
 ### Key Components
@@ -45,6 +45,7 @@ tests/
 **Purpose**: Cache-friendly data layout with typed columnar storage
 
 **Key Classes**:
+
 - `SelectionVector` - Uint32Array for active row tracking
 - `ValidityBitmap` - Packed bits for null/undefined handling
 - `Int32Vector`, `Int64Vector`, `Float64Vector` - Numeric vectors
@@ -53,6 +54,7 @@ tests/
 - `ColumnarBatch` - Container managing multiple typed vectors
 
 **Design Principles**:
+
 - Zero steady-state allocations in hot paths
 - Fixed-size batching (default 1024 rows)
 - Vectorized operations where possible
@@ -63,6 +65,7 @@ tests/
 **Purpose**: Standardized operator lifecycle with init/push/flush/close pattern
 
 **Key Interfaces**:
+
 ```typescript
 interface ColumnarOperator {
   init(schema: ColumnarSchema, hints: OperatorHints): void;
@@ -73,12 +76,14 @@ interface ColumnarOperator {
 ```
 
 **Implemented Operators**:
+
 - `ColumnarMatchOperator` - Vectorized filtering with comparison operators ($eq, $lt, $gte, etc.)
 - `ColumnarProjectOperator` - Field selection and basic transformations
 - `ColumnarUnwindOperator` - Array unwinding with virtual RowID generation
 - `ColumnarPipelineExecutor` - Multi-operator coordination with statistics
 
 **Virtual RowID System**:
+
 - `VirtualRowIdManager` handles $unwind array element expansion
 - High-bit flag (0x80000000) distinguishes virtual from real row IDs
 - Maintains original row mapping and array index tracking
@@ -88,12 +93,14 @@ interface ColumnarOperator {
 **Purpose**: End-to-end execution with late materialization and micro-path optimization
 
 **Key Classes**:
+
 - `ColumnarIvmEngine` - Main engine with multi-tier routing
 - `RowIdSpace` - Row ID allocation and lifecycle management
 - `LateMaterializationContext` - Deferred object creation until final emit
 - `MicroPathProcessor` - Fast path for small datasets (<64 rows)
 
 **Execution Flow**:
+
 1. Schema analysis and vector type inference
 2. Document ingestion into RowID space
 3. Columnar batch creation with typed vectors
@@ -106,6 +113,7 @@ interface ColumnarOperator {
 **Purpose**: Seamless integration with existing hot-path optimization system
 
 **Routing Logic**:
+
 ```typescript
 if (shouldUseColumnar(collection, pipeline)) {
   // Route to columnar engine
@@ -144,7 +152,7 @@ if (shouldUseColumnar(collection, pipeline)) {
    - Validity bitmap packed bit operations
    - Dictionary encoding and compression ratios
 
-2. **Operator Tests** (7 tests)  
+2. **Operator Tests** (7 tests)
    - Virtual RowID generation and management
    - Vectorized predicate compilation
    - Pipeline coordination and statistics
@@ -170,7 +178,7 @@ if (shouldUseColumnar(collection, pipeline)) {
 # Run all columnar tests
 npx mocha --import=tsx/esm --exit tests/columnar-*.spec.js
 
-# Run core regression tests  
+# Run core regression tests
 npm run test:core
 
 # Run linting and formatting
@@ -182,12 +190,14 @@ npm run lint && npm run format:check
 ### Current Operator Support
 
 **✅ Fully Supported**:
+
 - `$match` with comparison operators ($eq, $ne, $lt, $lte, $gt, $gte, $in, $nin)
 - `$project` with field selection and basic expressions
 - `$unwind` with virtual RowID generation
 - `$limit`, `$skip` (via micro-path)
 
 **⚠️ Partial Support** (Falls back to traditional):
+
 - Complex multi-field `$match` conditions
 - Advanced `$project` expressions
 - `$group` aggregations (not yet vectorized)
@@ -281,6 +291,7 @@ Columnar Module Structure:
 ### Debug Strategies
 
 1. **Enable debug logging**:
+
    ```typescript
    const engine = new ColumnarIvmEngine({ enableMicroPath: false });
    // Forces columnar path for debugging

@@ -132,7 +132,7 @@ describe('Phase 9: Columnar Performance Demo', () => {
     expect(results.length).to.be.greaterThan(0);
     // Note: The test may fall back to traditional aggregation for complex operations
     // which is the intended behavior for unsupported operations
-    const activeDocuments = results.filter((doc) => doc.status === 'active');
+    const activeDocuments = results.filter(doc => doc.status === 'active');
     expect(activeDocuments.length).to.be.greaterThan(0);
 
     // Should be efficient with repeated strings
@@ -174,7 +174,7 @@ describe('Phase 9: Columnar Performance Demo', () => {
     // Verify correctness - handle both columnar and fallback results
     expect(results.length).to.be.greaterThan(0);
     // Check that at least some results meet the filter criteria
-    const filteredDocuments = results.filter((doc) => doc.temperature >= 25);
+    const filteredDocuments = results.filter(doc => doc.temperature >= 25);
     expect(filteredDocuments.length).to.be.greaterThan(0);
 
     // Should handle large numeric datasets efficiently
