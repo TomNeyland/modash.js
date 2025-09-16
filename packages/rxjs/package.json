@@ -27,7 +27,6 @@
   "author": "Tom Neyland",
   "license": "MIT",
   "peerDependencies": {
-    "aggo": "^0.8.1",
     "rxjs": "^7.0.0"
   },
   "devDependencies": {
