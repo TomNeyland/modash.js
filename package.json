@@ -82,7 +82,7 @@
     "pack:audit": "node scripts/pack-audit.mjs",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "npm run build && node scripts/publish-with-npm.js",
+    "release": "npm run build && changeset publish",
     "quality": "npm run format:check && npm run lint && npm run type-check && npm run test:coverage",
     "quality:fix": "npm run format && npm run lint:fix",
     "type-check": "tsc --noEmit",
