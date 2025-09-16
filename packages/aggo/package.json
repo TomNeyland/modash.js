@@ -1,6 +1,6 @@
 {
   "name": "aggo",
-  "version": "0.8.1",
+  "version": "1.0.0",
   "description": "Modern MongoDB-inspired aggregation library for TypeScript",
   "type": "module",
   "main": "dist/index.js",
