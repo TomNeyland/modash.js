@@ -1,6 +1,6 @@
 /**
  * Phase 10: Adaptive Batching Scheduler
- * 
+ *
  * Manages delta micro-batching with:
  * - Adaptive batch sizing based on operation latency and queue depth
  * - Backpressure management with pause/resume logic
@@ -8,7 +8,20 @@
  * - Performance monitoring and statistics
  */
 
-import { SPSCRingBuffer, DeltaBatch, Delta, AdaptiveBatchBuilder } from '../io/ring_buffer';
+import {
+  SPSCRingBuffer,
+  DeltaBatch,
+  Delta,
+  AdaptiveBatchBuilder,
+} from '../io/ring_buffer';
+
+// Re-export for convenience
+export {
+  SPSCRingBuffer,
+  DeltaBatch,
+  Delta,
+  AdaptiveBatchBuilder,
+} from '../io/ring_buffer';
 
 export interface BatchingConfig {
   initialBatchSize?: number;
@@ -39,16 +52,16 @@ export class DeltaBatchingScheduler {
   private readonly config: Required<BatchingConfig>;
   private readonly ringBuffer: SPSCRingBuffer;
   private readonly batchBuilder: AdaptiveBatchBuilder;
-  
+
   private isBackpressureActive: boolean = false;
   private lastEmitTime: number = 0;
   private totalBatchesProcessed: number = 0;
   private totalDeltasProcessed: number = 0;
   private backpressureEvents: number = 0;
   private processingLatencies: number[] = [];
-  
+
   private readonly processingLatencyWindow: number = 100;
-  
+
   constructor(config: BatchingConfig = {}) {
     this.config = {
       initialBatchSize: config.initialBatchSize ?? 256,
@@ -59,15 +72,15 @@ export class DeltaBatchingScheduler {
       resumeThreshold: config.resumeThreshold ?? 0.4,
       ringBufferCapacity: config.ringBufferCapacity ?? 1024,
     };
-    
+
     this.ringBuffer = new SPSCRingBuffer(
       this.config.ringBufferCapacity,
       this.config.maxBatchSize
     );
-    
+
     this.batchBuilder = new AdaptiveBatchBuilder();
   }
-  
+
   /**
    * Submit a batch of deltas for processing
    * Returns false if backpressure is active
@@ -81,53 +94,56 @@ export class DeltaBatchingScheduler {
       }
       return false; // Apply backpressure
     }
-    
+
     // Resume from backpressure if threshold is met
-    if (this.isBackpressureActive && this.ringBuffer.canResumeAfterBackpressure()) {
+    if (
+      this.isBackpressureActive &&
+      this.ringBuffer.canResumeAfterBackpressure()
+    ) {
       this.isBackpressureActive = false;
     }
-    
+
     // Create batch
     const batch: DeltaBatch = {
       deltas: deltas.slice(), // Copy deltas
       size: deltas.length,
       capacity: deltas.length,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
+
     // Try to produce batch
     const success = this.ringBuffer.produce(batch);
     if (success) {
       this.totalDeltasProcessed += deltas.length;
     }
-    
+
     return success;
   }
-  
+
   /**
    * Process next available batch
    * Returns null if no batch is ready or emit cadence not met
    */
   processNextBatch(): DeltaBatch | null {
     const now = Date.now();
-    
+
     // Enforce minimum emit cadence
     if (now - this.lastEmitTime < this.config.minEmitCadenceMs) {
       return null;
     }
-    
+
     // Consume batch from ring buffer
     const batch = this.ringBuffer.consume();
     if (!batch) {
       return null;
     }
-    
+
     this.lastEmitTime = now;
     this.totalBatchesProcessed++;
-    
+
     return batch;
   }
-  
+
   /**
    * Report processing completion with latency for adaptive sizing
    */
@@ -137,31 +153,34 @@ export class DeltaBatchingScheduler {
     if (this.processingLatencies.length > this.processingLatencyWindow) {
       this.processingLatencies.shift();
     }
-    
+
     // Update adaptive batch sizing
     const queueDepth = this.ringBuffer.getUtilization();
     this.batchBuilder.adaptBatchSize(processingLatencyMs, queueDepth);
   }
-  
+
   /**
    * Get recommended batch size for next submission
    */
   getRecommendedBatchSize(): number {
     return this.batchBuilder.getCurrentBatchSize();
   }
-  
+
   /**
    * Get comprehensive batching statistics
    */
   getStats(): BatchingStats {
-    const avgProcessingLatency = this.processingLatencies.length > 0
-      ? this.processingLatencies.reduce((a, b) => a + b, 0) / this.processingLatencies.length
-      : 0;
-    
-    const avgBatchSize = this.totalBatchesProcessed > 0
-      ? this.totalDeltasProcessed / this.totalBatchesProcessed
-      : 0;
-    
+    const avgProcessingLatency =
+      this.processingLatencies.length > 0
+        ? this.processingLatencies.reduce((a, b) => a + b, 0) /
+          this.processingLatencies.length
+        : 0;
+
+    const avgBatchSize =
+      this.totalBatchesProcessed > 0
+        ? this.totalDeltasProcessed / this.totalBatchesProcessed
+        : 0;
+
     return {
       totalBatchesProcessed: this.totalBatchesProcessed,
       totalDeltasProcessed: this.totalDeltasProcessed,
@@ -173,7 +192,7 @@ export class DeltaBatchingScheduler {
       isBackpressureActive: this.isBackpressureActive,
     };
   }
-  
+
   /**
    * Get detailed performance metrics
    */
@@ -185,7 +204,7 @@ export class DeltaBatchingScheduler {
       config: this.config,
     };
   }
-  
+
   /**
    * Reset statistics (useful for benchmarking)
    */
@@ -197,14 +216,14 @@ export class DeltaBatchingScheduler {
     this.isBackpressureActive = false;
     this.lastEmitTime = 0;
   }
-  
+
   /**
    * Check if scheduler can accept more deltas
    */
   canAcceptMore(): boolean {
     return !this.isBackpressureActive;
   }
-  
+
   /**
    * Get current queue depth (0.0 to 1.0)
    */
@@ -221,59 +240,62 @@ export class DeltaThroughputMonitor {
   private deltasPerSecondSamples: number[] = [];
   private readonly sampleWindow: number = 20;
   private readonly sampleIntervalMs: number = 1000;
-  
+
   private lastSampleTime: number = 0;
   private lastDeltaCount: number = 0;
   private totalDeltas: number = 0;
-  
+
   /**
    * Update delta count and calculate throughput
    */
   updateDeltaCount(deltaCount: number) {
     this.totalDeltas = deltaCount;
     const now = Date.now();
-    
+
     if (now - this.lastSampleTime >= this.sampleIntervalMs) {
       const deltasSinceLastSample = deltaCount - this.lastDeltaCount;
       const timeElapsed = (now - this.lastSampleTime) / 1000;
       const deltasPerSecond = deltasSinceLastSample / timeElapsed;
-      
+
       this.deltasPerSecondSamples.push(deltasPerSecond);
       if (this.deltasPerSecondSamples.length > this.sampleWindow) {
         this.deltasPerSecondSamples.shift();
       }
-      
+
       this.lastSampleTime = now;
       this.lastDeltaCount = deltaCount;
     }
   }
-  
+
   /**
    * Get current throughput in deltas per second
    */
   getCurrentThroughput(): number {
     if (this.deltasPerSecondSamples.length === 0) return 0;
-    
+
     const recentSamples = this.deltasPerSecondSamples.slice(-5);
     return recentSamples.reduce((a, b) => a + b, 0) / recentSamples.length;
   }
-  
+
   /**
    * Get average throughput over the sample window
    */
   getAverageThroughput(): number {
     if (this.deltasPerSecondSamples.length === 0) return 0;
-    
-    return this.deltasPerSecondSamples.reduce((a, b) => a + b, 0) / this.deltasPerSecondSamples.length;
+
+    return (
+      this.deltasPerSecondSamples.reduce((a, b) => a + b, 0) /
+      this.deltasPerSecondSamples.length
+    );
   }
-  
+
   /**
    * Check if target throughput is being met
    */
   isMeetingTargetThroughput(targetDeltasPerSecond: number): boolean {
     return this.getCurrentThroughput() >= targetDeltasPerSecond;
   }
-  
+
   /**
    * Get throughput statistics
    */

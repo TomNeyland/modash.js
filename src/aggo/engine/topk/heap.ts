@@ -1,6 +1,6 @@
 /**
  * Phase 10: Top-K Heap Implementation
- * 
+ *
  * Stable binary heap for Top-K operations:
  * - O(n log k) complexity replacing sort+limit
  * - Compare on keys only with late materialization for payloads
@@ -39,7 +39,7 @@ export class InsertionOrderTieBreaker implements TieBreaker {
  */
 export class PayloadTieBreaker implements TieBreaker {
   constructor(private payloadComparer: (a: any, b: any) => number) {}
-  
+
   compare(a: TopKItem<any>, b: TopKItem<any>): number {
     return this.payloadComparer(a.payload, b.payload);
   }
@@ -54,53 +54,53 @@ export class TopKHeap<T> {
   private readonly isMaxHeap: boolean;
   private readonly tieBreaker: TieBreaker;
   private insertionCounter: number = 0;
-  
+
   private stats: TopKStats = {
     insertsProcessed: 0,
     heapResizes: 0,
     comparisons: 0,
-    tieBreaksUsed: 0
+    tieBreaksUsed: 0,
   };
-  
+
   constructor(k: number, isMaxHeap: boolean = false, tieBreaker?: TieBreaker) {
     this.k = k;
     this.isMaxHeap = isMaxHeap;
     this.tieBreaker = tieBreaker || new InsertionOrderTieBreaker();
   }
-  
+
   /**
    * Insert item into Top-K heap
    * Returns true if item was inserted, false if rejected
    */
   insert(key: any, payload: T): boolean {
     this.stats.insertsProcessed++;
-    
+
     const item: TopKItem<T> = {
       key,
       payload,
-      insertionOrder: this.insertionCounter++
+      insertionOrder: this.insertionCounter++,
     };
-    
+
     // If heap is not full, always insert
     if (this.heap.length < this.k) {
       this.heap.push(item);
       this.heapifyUp(this.heap.length - 1);
       return true;
     }
-    
+
     // Check if new item should replace the root
     const rootItem = this.heap[0];
     const comparison = this.compareItems(item, rootItem);
-    
+
     if (this.shouldReplace(comparison)) {
       this.heap[0] = item;
       this.heapifyDown(0);
       return true;
     }
-    
+
     return false;
   }
-  
+
   /**
    * Get all items in sorted order (materialized)
    */
@@ -108,7 +108,7 @@ export class TopKHeap<T> {
     // Create a copy of the heap for sorting
     const heapCopy = [...this.heap];
     const result: T[] = [];
-    
+
     // Extract all items in order
     while (heapCopy.length > 0) {
       const min = this.extractMinFromArray(heapCopy);
@@ -118,10 +118,10 @@ export class TopKHeap<T> {
         result.push(min.payload); // For min heap, insert at end
       }
     }
-    
+
     return result;
   }
-  
+
   /**
    * Get top K items without materializing payloads (keys only)
    */
@@ -129,28 +129,28 @@ export class TopKHeap<T> {
     const sorted = this.getSortedItems();
     return sorted.map(item => item.key);
   }
-  
+
   /**
    * Get current size of heap
    */
   size(): number {
     return this.heap.length;
   }
-  
+
   /**
    * Check if heap is full
    */
   isFull(): boolean {
     return this.heap.length >= this.k;
   }
-  
+
   /**
    * Get the threshold value (root of heap)
    */
   getThreshold(): any {
     return this.heap.length > 0 ? this.heap[0].key : null;
   }
-  
+
   /**
    * Clear the heap
    */
@@ -158,11 +158,11 @@ export class TopKHeap<T> {
     this.heap.length = 0;
     this.insertionCounter = 0;
   }
-  
+
   private getSortedItems(): TopKItem<T>[] {
     const heapCopy = [...this.heap];
     const result: TopKItem<T>[] = [];
-    
+
     while (heapCopy.length > 0) {
       const min = this.extractMinFromArray(heapCopy);
       if (this.isMaxHeap) {
@@ -171,27 +171,27 @@ export class TopKHeap<T> {
         result.push(min);
       }
     }
-    
+
     return result;
   }
-  
+
   private extractMinFromArray(arr: TopKItem<T>[]): TopKItem<T> {
     if (arr.length === 0) throw new Error('Empty heap');
-    
+
     const min = arr[0];
     const last = arr.pop()!;
-    
+
     if (arr.length > 0) {
       arr[0] = last;
       this.heapifyDownArray(arr, 0);
     }
-    
+
     return min;
   }
-  
+
   private compareItems(a: TopKItem<T>, b: TopKItem<T>): number {
     this.stats.comparisons++;
-    
+
     // Primary comparison on keys
     let result: number;
     if (a.key < b.key) {
@@ -203,24 +203,24 @@ export class TopKHeap<T> {
       this.stats.tieBreaksUsed++;
       result = this.tieBreaker.compare(a, b);
     }
-    
+
     // Invert for max heap
     return this.isMaxHeap ? -result : result;
   }
-  
+
   private shouldReplace(comparison: number): boolean {
     // For min heap: replace if new item is larger than root
     // For max heap: replace if new item is smaller than root
     return comparison > 0;
   }
-  
+
   private heapifyUp(index: number) {
     if (index === 0) return;
-    
+
     const parentIndex = Math.floor((index - 1) / 2);
     const parentItem = this.heap[parentIndex];
     const currentItem = this.heap[index];
-    
+
     if (this.compareItems(currentItem, parentItem) < 0) {
       // Swap with parent
       this.heap[parentIndex] = currentItem;
@@ -228,45 +228,55 @@ export class TopKHeap<T> {
       this.heapifyUp(parentIndex);
     }
   }
-  
+
   private heapifyDown(index: number) {
     this.heapifyDownArray(this.heap, index);
   }
-  
+
   private heapifyDownArray(arr: TopKItem<T>[], index: number) {
     const leftChild = 2 * index + 1;
     const rightChild = 2 * index + 2;
     let smallest = index;
-    
-    if (leftChild < arr.length && this.compareItemsInArray(arr, leftChild, smallest) < 0) {
+
+    if (
+      leftChild < arr.length &&
+      this.compareItemsInArray(arr, leftChild, smallest) < 0
+    ) {
       smallest = leftChild;
     }
-    
-    if (rightChild < arr.length && this.compareItemsInArray(arr, rightChild, smallest) < 0) {
+
+    if (
+      rightChild < arr.length &&
+      this.compareItemsInArray(arr, rightChild, smallest) < 0
+    ) {
       smallest = rightChild;
     }
-    
+
     if (smallest !== index) {
       // Swap
       const temp = arr[index];
       arr[index] = arr[smallest];
       arr[smallest] = temp;
-      
+
       this.heapifyDownArray(arr, smallest);
     }
   }
-  
-  private compareItemsInArray(arr: TopKItem<T>[], indexA: number, indexB: number): number {
+
+  private compareItemsInArray(
+    arr: TopKItem<T>[],
+    indexA: number,
+    indexB: number
+  ): number {
     return this.compareItems(arr[indexA], arr[indexB]);
   }
-  
+
   /**
    * Get heap statistics
    */
   getStats(): TopKStats {
     return { ...this.stats };
   }
-  
+
   /**
    * Reset statistics
    */
@@ -275,7 +285,7 @@ export class TopKHeap<T> {
       insertsProcessed: 0,
       heapResizes: 0,
       comparisons: 0,
-      tieBreaksUsed: 0
+      tieBreaksUsed: 0,
     };
   }
 }
@@ -289,27 +299,27 @@ export class GroupedTopKManager<T> {
   private readonly k: number;
   private readonly isMaxHeap: boolean;
   private readonly tieBreaker?: TieBreaker;
-  
+
   constructor(k: number, isMaxHeap: boolean = false, tieBreaker?: TieBreaker) {
     this.k = k;
     this.isMaxHeap = isMaxHeap;
     this.tieBreaker = tieBreaker;
   }
-  
+
   /**
    * Insert item into specific group's Top-K heap
    */
   insert(groupKey: string, key: any, payload: T): boolean {
     let heap = this.groups.get(groupKey);
-    
+
     if (!heap) {
       heap = new TopKHeap<T>(this.k, this.isMaxHeap, this.tieBreaker);
       this.groups.set(groupKey, heap);
     }
-    
+
     return heap.insert(key, payload);
   }
-  
+
   /**
    * Get Top-K results for specific group
    */
@@ -317,27 +327,27 @@ export class GroupedTopKManager<T> {
     const heap = this.groups.get(groupKey);
     return heap ? heap.getSorted() : [];
   }
-  
+
   /**
    * Get all group results
    */
   getAllResults(): Map<string, T[]> {
     const results = new Map<string, T[]>();
-    
+
     for (const [groupKey, heap] of this.groups) {
       results.set(groupKey, heap.getSorted());
     }
-    
+
     return results;
   }
-  
+
   /**
    * Get total number of groups
    */
   getGroupCount(): number {
     return this.groups.size;
   }
-  
+
   /**
    * Get combined statistics across all groups
    */
@@ -346,9 +356,9 @@ export class GroupedTopKManager<T> {
       insertsProcessed: 0,
       heapResizes: 0,
       comparisons: 0,
-      tieBreaksUsed: 0
+      tieBreaksUsed: 0,
     };
-    
+
     for (const heap of this.groups.values()) {
       const stats = heap.getStats();
       combined.insertsProcessed += stats.insertsProcessed;
@@ -356,17 +366,17 @@ export class GroupedTopKManager<T> {
       combined.comparisons += stats.comparisons;
       combined.tieBreaksUsed += stats.tieBreaksUsed;
     }
-    
+
     return combined;
   }
-  
+
   /**
    * Clear all groups
    */
   clear() {
     this.groups.clear();
   }
-  
+
   /**
    * Clear specific group
    */
@@ -390,15 +400,15 @@ export class TopKOperations {
     tieBreaker?: TieBreaker
   ): T[] {
     const heap = new TopKHeap<T>(k, isMaxHeap, tieBreaker);
-    
+
     for (const item of items) {
       const key = keyExtractor(item);
       heap.insert(key, item);
     }
-    
+
     return heap.getSorted();
   }
-  
+
   /**
    * Extract Top-K with custom comparison function
    */
@@ -408,15 +418,15 @@ export class TopKOperations {
     compareFn: (a: T, b: T) => number
   ): T[] {
     const heap = new TopKHeap<T>(k, false, new PayloadTieBreaker(compareFn));
-    
+
     for (const item of items) {
       // Use the item itself as the key for custom comparison
       heap.insert(item, item);
     }
-    
+
     return heap.getSorted();
   }
-  
+
   /**
    * Merge multiple Top-K heaps into single Top-K result
    */
@@ -426,14 +436,14 @@ export class TopKOperations {
     isMaxHeap: boolean = false
   ): T[] {
     const mergedHeap = new TopKHeap<T>(k, isMaxHeap);
-    
+
     for (const heap of heaps) {
       const items = heap.getSortedItems();
       for (const item of items) {
         mergedHeap.insert(item.key, item.payload);
       }
     }
-    
+
     return mergedHeap.getSorted();
   }
 }
