@@ -178,8 +178,8 @@ export class Spinner {
     if (this.stream.isTTY) {
       this.stream.write('\r\x1b[K');
 
-      // Show final message if provided
-      if (finalMessage) {
+      // Show final message if provided and not empty
+      if (finalMessage && finalMessage.trim()) {
         const colorCode = finalColor ? COLORS[finalColor] : '';
         const resetCode = colorCode ? COLORS.reset : '';
         this.stream.write(`${colorCode}${finalMessage}${resetCode}\n`);
@@ -256,7 +256,7 @@ export async function withSpinner<T>(
   try {
     spinner.start(phase);
     const result = await operation();
-    spinner.stop(options.successMessage || '✅ Completed', 'green');
+    spinner.stop(options.successMessage, 'green');
     return result;
   } catch (error) {
     spinner.stop(

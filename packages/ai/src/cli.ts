@@ -10,7 +10,9 @@
 
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
+import { execSync } from 'child_process';
 import { Command } from 'commander';
+import chalk from 'chalk';
 import {
   getSchema,
   generatePipeline,
@@ -18,7 +20,8 @@ import {
   formatSchema,
 } from './index.js';
 import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
-import type { Document } from 'aggo';
+import { TerminalUIRenderer } from './terminal-ui-renderer.js';
+type Document = Record<string, any>;
 
 interface CLIOptions {
   file?: string;
@@ -29,6 +32,8 @@ interface CLIOptions {
   explain?: boolean;
   pretty?: boolean;
   apiKey?: string;
+  noUi?: boolean;
+  rawOutput?: boolean;
 }
 
 const program = new Command();
@@ -49,11 +54,13 @@ program
   .option(
     '--model <model>',
     'Override default OpenAI model',
-    'gpt-4-turbo-preview'
+    'gpt-5-nano'
   )
   .option('--explain', 'Include explanation of the generated pipeline')
   .option('--pretty', 'Pretty-print JSON output')
   .option('--api-key <key>', 'OpenAI API key (or use OPENAI_API_KEY env var)')
+  .option('--no-ui', 'Disable automatic UI generation (use raw JSON output)')
+  .option('--raw-output', 'Output raw JSON without terminal UI formatting')
   .action(async (query: string | undefined, options: CLIOptions) => {
     try {
       await runAICommand(query, options);
@@ -82,8 +89,14 @@ Examples:
   # Use specific OpenAI model
   cat logs.jsonl | aggo ai "error count by service" --model gpt-4
   
-  # Get detailed explanation
+  # Get detailed explanation with beautiful UI
   aggo ai "top 10 customers by order value" --file orders.jsonl --explain
+
+  # Disable automatic UI for raw JSON output
+  cat data.jsonl | aggo ai "sum revenue by category" --no-ui --pretty
+
+  # Show just the pipeline without execution
+  aggo ai "average rating by genre" --file movies.jsonl --show-pipeline
 
 Environment Variables:
   OPENAI_API_KEY    OpenAI API key for pipeline generation (required)
@@ -104,8 +117,6 @@ async function runAICommand(
     console.error('⚠️  No documents found in input');
     return;
   }
-
-  console.error(`📊 Loaded ${documents.length.toLocaleString()} documents`);
 
   // Handle schema-only mode (no OpenAI required)
   if (options.schemaOnly) {
@@ -130,16 +141,11 @@ async function runAICommand(
   };
 
   // Test OpenAI connection with spinner
-  const isConfigValid = await withSpinner(
-    () => validateConfiguration(openaiOptions),
-    'Validating OpenAI connection',
-    {
-      successMessage: '✅ OpenAI connection verified',
-      errorMessage: '❌ OpenAI connection failed',
-    }
-  );
+  // Test OpenAI connection silently
+  const isConfigValid = await validateConfiguration(openaiOptions);
 
   if (!isConfigValid) {
+    console.error('❌ OpenAI connection failed');
     console.error(
       '💡 Hint: Check your OPENAI_API_KEY environment variable or --api-key option'
     );
@@ -155,7 +161,6 @@ async function runAICommand(
     process.exit(1);
   }
 
-  console.error(`🤖 Processing query: "${query}"`);
 
   // Handle show-pipeline mode
   if (options.showPipeline) {
@@ -166,20 +171,35 @@ async function runAICommand(
           getSchema(documents, { sampleSize: options.limitSample })
         ),
       SPINNER_PHASES.SCHEMA_INFERENCE,
-      { successMessage: '✅ Schema analyzed' }
+      { successMessage: '' }
     );
 
     // Pipeline generation with spinner
     const result = await withSpinner(
       () =>
-        generatePipeline(query, schema, documents.slice(0, 3), openaiOptions),
+        generatePipeline(query, schema, documents.slice(0, 3), {
+          ...openaiOptions,
+          generateUI: !options.noUi,
+        }),
       SPINNER_PHASES.OPENAI_GENERATION,
-      { successMessage: '✅ Pipeline generated' }
+      { successMessage: '' }
     );
 
     console.log('🔧 Generated Pipeline:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(JSON.stringify(result.pipeline, null, 2));
+
+    if (result.uiInstructions && !options.noUi) {
+      console.log('\n🎨 UI Instructions:');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(JSON.stringify(result.uiInstructions, null, 2));
+      
+      if (result.uiReasoning) {
+        console.log('\n🧠 UI Design Reasoning:');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(result.uiReasoning);
+      }
+    }
 
     if (result.explanation) {
       console.log('\n💡 Explanation:');
@@ -196,36 +216,21 @@ async function runAICommand(
     return;
   }
 
-  // Execute full AI query with enhanced spinner experience
+  // Execute full AI query with enhanced UI
   const startTime = Date.now();
-  const result = await executeAIQueryWithSpinners(documents, query, {
+  const result = await executeAIQueryWithUI(documents, query, {
     ...openaiOptions,
     sampleSize: options.limitSample,
     includeExplanation: options.explain,
+    generateUI: !options.noUi,
+    rawOutput: options.rawOutput,
   });
   const totalTime = Date.now() - startTime;
 
-  // Show performance stats
-  if (result.performance) {
-    console.error('⚡ Performance:');
-    console.error(
-      `   Schema inference: ${result.performance.schemaInferenceMs}ms`
-    );
-    console.error(
-      `   Pipeline generation: ${result.performance.pipelineGenerationMs}ms`
-    );
-    console.error(`   Execution: ${result.performance.executionMs}ms`);
-    console.error(`   Total: ${totalTime}ms`);
-  }
+  // Don't show stats unless explicitly requested
 
-  if (result.tokensUsed) {
-    console.error(
-      `💰 Tokens used: ${result.tokensUsed.total} (prompt: ${result.tokensUsed.prompt}, completion: ${result.tokensUsed.completion})`
-    );
-  }
-
-  // Show explanation if requested
-  if (result.explanation) {
+  // Show explanation if requested and not using UI
+  if (result.explanation && (options.rawOutput || options.noUi)) {
     console.error('\n💡 Explanation:');
     console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.error(result.explanation);
@@ -233,13 +238,27 @@ async function runAICommand(
   }
 
   // Output results
-  console.log(formatOutput(result.results, options.pretty || false));
+  if (options.rawOutput || options.noUi || !result.uiInstructions) {
+    // Use traditional JSON output
+    console.log(formatOutput(result.results, options.pretty || false));
+  } else {
+    // Use beautiful terminal UI
+    const renderer = new TerminalUIRenderer(result.uiInstructions);
+    await renderer.render(result.results);
+    
+    // Show UI reasoning if available and explain was requested
+    if (result.uiReasoning && options.explain) {
+      console.error(chalk.gray('\n🎨 UI Design Reasoning:'));
+      console.error(chalk.gray('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+      console.error(chalk.gray(result.uiReasoning));
+    }
+  }
 }
 
 /**
- * Execute AI query with enhanced spinner UX for each phase
+ * Execute AI query with enhanced UI experience
  */
-async function executeAIQueryWithSpinners(
+async function executeAIQueryWithUI(
   documents: Document[],
   query: string,
   options: any
@@ -250,27 +269,25 @@ async function executeAIQueryWithSpinners(
 
   let schema;
   try {
-    // Simulate some processing time and show different phrases
     await new Promise(resolve => setTimeout(resolve, 200));
     schemaSpinner.nextPhrase();
 
     schema = getSchema(documents, { sampleSize: options.sampleSize });
 
     await new Promise(resolve => setTimeout(resolve, 100));
-    schemaSpinner.stop('✅ Schema analysis completed');
+    schemaSpinner.stop('');  // Clear the spinner without message
   } catch (error) {
     schemaSpinner.stop('❌ Schema analysis failed', 'red');
     throw error;
   }
 
-  // Phase 2: Pipeline Generation
+  // Phase 2: Pipeline and UI Generation
   const samples = documents.slice(0, 3);
   const pipelineSpinner = createPhaseSpinner('OPENAI_GENERATION');
   pipelineSpinner.start(SPINNER_PHASES.OPENAI_GENERATION);
 
   let generationResult;
   try {
-    // Show variety in OpenAI communication
     await new Promise(resolve => setTimeout(resolve, 300));
     pipelineSpinner.nextPhrase();
 
@@ -283,23 +300,54 @@ async function executeAIQueryWithSpinners(
 
     generationResult = await client.generatePipeline(query, schema, samples, {
       includeExplanation: options.includeExplanation,
+      generateUI: options.generateUI,
     });
 
-    pipelineSpinner.stop('✅ Pipeline generated successfully');
+    pipelineSpinner.stop('');  // Clear the spinner without message
   } catch (error) {
-    pipelineSpinner.stop('❌ Pipeline generation failed', 'red');
+    pipelineSpinner.stop('❌ Generation failed', 'red');
     throw error;
   }
 
   // Phase 3: Execution
   const executionResult = await withSpinner(
     async () => {
-      // Dynamic import to avoid circular dependency
-      const Aggo = await import('aggo');
-      return Aggo.default.aggregate(documents, generationResult.pipeline);
+      // Convert documents to JSONL format
+      const jsonlData = documents.map(doc => JSON.stringify(doc)).join('\n');
+
+      // Execute aggo CLI with the pipeline
+      const pipelineStr = JSON.stringify(generationResult.pipeline);
+
+      try {
+        // Run aggo CLI and pass data via stdin
+        // Use node to run the aggo CLI script
+        const output = execSync(`node ../aggo/dist/cli.js '${pipelineStr}'`, {
+          input: jsonlData,
+          encoding: 'utf8',
+          maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large results
+        });
+
+        // Parse the JSONL output back to array
+        const results = output
+          .split('\n')
+          .filter(line => line.trim())
+          .map(line => JSON.parse(line));
+
+        // Deduplicate results (aggo CLI bug workaround)
+        const uniqueResults = Array.from(
+          new Map(results.map(item => [JSON.stringify(item), item])).values()
+        );
+
+        return uniqueResults;
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new Error(`Aggo execution failed: ${error.message}`);
+        }
+        throw error;
+      }
     },
     SPINNER_PHASES.EXECUTION,
-    { successMessage: '✅ Query executed successfully' }
+    { successMessage: '' }  // Clear spinner without message
   );
 
   return {
@@ -319,8 +367,8 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
   if (options.file) {
     return withSpinner(
       () => readJSONLFromFile(options.file!),
-      'Loading data from file',
-      { successMessage: '✅ Data loaded successfully' }
+      'Loading data',
+      { successMessage: '' }
     );
   } else {
     // Check if stdin has data
@@ -333,8 +381,8 @@ async function readInputDocuments(options: CLIOptions): Promise<Document[]> {
       );
       process.exit(1);
     }
-    return withSpinner(() => readJSONLFromStdin(), 'Reading data from stdin', {
-      successMessage: '✅ Data loaded successfully',
+    return withSpinner(() => readJSONLFromStdin(), 'Reading data', {
+      successMessage: '',
     });
   }
 }

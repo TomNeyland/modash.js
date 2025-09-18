@@ -5,7 +5,10 @@
  * with automatic schema inference and optimized execution via aggo.
  */
 
-import { type Document } from 'aggo';
+import { execSync } from 'child_process';
+
+export type Document = Record<string, any>;
+export type Pipeline = Array<Record<string, any>>;
 import {
   inferSchema,
   getSampleDocuments,
@@ -22,6 +25,21 @@ import {
   type PipelineGenerationResult,
 } from './openai-client.js';
 
+// Re-export UI components
+export { TerminalUIRenderer } from './terminal-ui-renderer.js';
+export type {
+  UIInstructions,
+  StructuredOutput,
+  Color,
+  Layout,
+  Alignment,
+  Format,
+  Column,
+  Summary,
+  Styling,
+  Chart,
+} from './ui-schemas.js';
+
 // Re-export types for convenience
 export type {
   SimplifiedSchema,
@@ -31,13 +49,14 @@ export type {
   OpenAIOptions,
   PipelineGenerationResult,
 } from './openai-client.js';
-export type { Pipeline, Document } from 'aggo';
 
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */
   includeExplanation?: boolean;
   /** Number of sample documents to include in LLM context */
   sampleDocuments?: number;
+  /** Generate UI instructions for terminal display */
+  generateUI?: boolean;
 }
 
 export interface AIQueryResult extends PipelineGenerationResult {
@@ -102,18 +121,46 @@ export async function aiQuery(
     query,
     schema,
     samples,
-    { includeExplanation: options.includeExplanation }
+    { 
+      includeExplanation: options.includeExplanation,
+      generateUI: options.generateUI 
+    }
   );
   const pipelineGenerationMs = Date.now() - pipelineStart;
 
   // Step 4: Execute pipeline
   const executionStart = Date.now();
-  // Dynamic import to avoid circular dependency
-  const Aggo = await import('aggo');
-  const results = Aggo.default.aggregate(
-    documents,
-    generationResult.pipeline
-  );
+
+  // Convert documents to JSONL format
+  const jsonlData = documents.map(doc => JSON.stringify(doc)).join('\n');
+
+  // Execute aggo CLI with the pipeline
+  const pipelineStr = JSON.stringify(generationResult.pipeline);
+
+  let results: Document[];
+  try {
+    // Run aggo CLI and pass data via stdin
+    // Use node to run the aggo CLI script
+    const output = execSync(`node ../aggo/dist/cli.js '${pipelineStr}'`, {
+      input: jsonlData,
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large results
+    });
+
+    // Parse the JSONL output back to array
+    const rawResults = output
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => JSON.parse(line));
+
+    // Deduplicate results (aggo CLI bug workaround)
+    results = Array.from(
+      new Map(rawResults.map(item => [JSON.stringify(item), item])).values()
+    );
+  } catch (error) {
+    throw new Error(`Aggo execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
   const executionMs = Date.now() - executionStart;
 
   const totalMs = Date.now() - startTime;
@@ -176,7 +223,7 @@ export async function generatePipeline(
   query: string,
   schema: SimplifiedSchema | Document[],
   sampleDocuments: Document[] = [],
-  options: OpenAIOptions = {}
+  options: OpenAIOptions & { generateUI?: boolean } = {}
 ): Promise<PipelineGenerationResult> {
   const actualSchema = Array.isArray(schema) ? inferSchema(schema) : schema;
   const samples = Array.isArray(schema)
@@ -184,7 +231,9 @@ export async function generatePipeline(
     : sampleDocuments;
 
   const client = new OpenAIClient(options);
-  return client.generatePipeline(query, actualSchema, samples);
+  return client.generatePipeline(query, actualSchema, samples, {
+    generateUI: options.generateUI
+  });
 }
 
 /**
@@ -200,11 +249,12 @@ export async function explainQuery(
   query: string,
   schema: SimplifiedSchema | Document[],
   sampleDocuments: Document[] = [],
-  options: OpenAIOptions = {}
+  options: OpenAIOptions & { generateUI?: boolean } = {}
 ): Promise<PipelineGenerationResult> {
   return generatePipeline(query, schema, sampleDocuments, {
     ...options,
     includeExplanation: true,
+    generateUI: options.generateUI,
   } as any);
 }
 
@@ -220,7 +270,11 @@ export async function validateConfiguration(
   try {
     const client = new OpenAIClient(options);
     return await client.testConnection();
-  } catch {
+  } catch (error) {
+    // Log initialization errors (e.g., missing API key)
+    if (error instanceof Error) {
+      console.error(`❌ OpenAI initialization failed: ${error.message}`);
+    }
     return false;
   }
 }
