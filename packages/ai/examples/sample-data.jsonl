@@ -1,0 +1,10 @@
+{"name": "Alice", "age": 30, "department": "Engineering", "salary": 75000, "active": true, "projects": 5}
+{"name": "Bob", "age": 25, "department": "Marketing", "salary": 65000, "active": true, "projects": 3}
+{"name": "Carol", "age": 35, "department": "Engineering", "salary": 85000, "active": false, "projects": 8}
+{"name": "David", "age": 28, "department": "Sales", "salary": 70000, "active": true, "projects": 4}
+{"name": "Eva", "age": 32, "department": "Marketing", "salary": 72000, "active": true, "projects": 6}
+{"name": "Frank", "age": 29, "department": "Engineering", "salary": 78000, "active": true, "projects": 7}
+{"name": "Grace", "age": 27, "department": "Sales", "salary": 68000, "active": true, "projects": 3}
+{"name": "Henry", "age": 33, "department": "Engineering", "salary": 82000, "active": false, "projects": 9}
+{"name": "Irene", "age": 26, "department": "Marketing", "salary": 67000, "active": true, "projects": 4}
+{"name": "Jack", "age": 31, "department": "Sales", "salary": 71000, "active": true, "projects": 5}

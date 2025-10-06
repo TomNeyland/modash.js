@@ -29,6 +29,8 @@ interface CLIOptions {
   explain?: boolean;
   pretty?: boolean;
   apiKey?: string;
+  tui?: boolean;
+  performance?: boolean;
 }
 
 const program = new Command();
@@ -54,6 +56,8 @@ program
   .option('--explain', 'Include explanation of the generated pipeline')
   .option('--pretty', 'Pretty-print JSON output')
   .option('--api-key <key>', 'OpenAI API key (or use OPENAI_API_KEY env var)')
+  .option('--tui', 'Enable rich terminal UI mode (NEW!)')
+  .option('--performance', 'Show detailed performance metrics')
   .action(async (query: string | undefined, options: CLIOptions) => {
     try {
       await runAICommand(query, options);
@@ -84,6 +88,10 @@ Examples:
   
   # Get detailed explanation
   aggo ai "top 10 customers by order value" --file orders.jsonl --explain
+  
+  # NEW: Rich Terminal UI mode
+  cat sales.jsonl | aggo ai "revenue trends by quarter" --tui
+  aggo ai "error breakdown by service" --file logs.jsonl --tui --performance
 
 Environment Variables:
   OPENAI_API_KEY    OpenAI API key for pipeline generation (required)
@@ -198,6 +206,25 @@ async function runAICommand(
 
   // Execute full AI query with enhanced spinner experience
   const startTime = Date.now();
+  
+  if (options.tui) {
+    // NEW: TUI Mode
+    console.error('🚀 Entering TUI mode...');
+    
+    const { aiTUI } = await import('./tui.js');
+    await aiTUI(documents, query, {
+      ...openaiOptions,
+      sampleSize: options.limitSample,
+      includeExplanation: options.explain,
+      includePerformance: options.performance,
+      onExit: () => {
+        console.error('👋 Exited TUI mode');
+        process.exit(0);
+      }
+    });
+    return;
+  }
+  
   const result = await executeAIQueryWithSpinners(documents, query, {
     ...openaiOptions,
     sampleSize: options.limitSample,
