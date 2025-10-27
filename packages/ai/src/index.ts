@@ -3,6 +3,8 @@
  *
  * Converts natural language queries into MongoDB aggregation pipelines using OpenAI,
  * with automatic schema inference and optimized execution via aggo.
+ * 
+ * New in v0.2.0: Structured output with UIDSL for rich Terminal UIs
  */
 
 import { type Document } from 'aggo';
@@ -32,6 +34,37 @@ export type {
   PipelineGenerationResult,
 } from './openai-client.js';
 export type { Pipeline, Document } from 'aggo';
+
+// New structured output exports
+export type {
+  PlanType,
+  StructuredPlan,
+  WindowingConfig
+} from './plan.zod.js';
+export type {
+  StructuredOpenAIOptions,
+  StructuredGenerationResult
+} from './structured-client.js';
+export { Plan } from './plan.zod.js';
+export { StructuredOpenAIClient } from './structured-client.js';
+
+// UIDSL exports
+export type {
+  UIComponent,
+  UIAst,
+  UIProps,
+  UIComponentType
+} from './uidsl/parser.js';
+export { parseUIDSL, parseUIDSLSafe } from './uidsl/parser.js';
+export { compileUIDSL, getTerminalDimensions } from './uidsl/compiler.js';
+
+// Pipeline execution
+export type { PipelineExecutionResult } from './engine/run_pipeline.js';
+export { executePipelineString, attemptJsonFix } from './engine/run_pipeline.js';
+
+// TUI App
+export type { TUIAppProps } from './tui-app.js';
+export { TUIApp, renderTUIApp } from './tui-app.js';
 
 export interface AIQueryOptions extends OpenAIOptions, SchemaInferenceOptions {
   /** Include explanation of the generated pipeline */

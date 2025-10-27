@@ -17,6 +17,9 @@ import {
   validateConfiguration,
   formatSchema,
 } from './index.js';
+import { StructuredOpenAIClient } from './structured-client.js';
+import { executePipelineString } from './engine/run_pipeline.js';
+import { renderTUIApp } from './tui-app.js';
 import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
 import type { Document } from 'aggo';
 
@@ -24,6 +27,11 @@ interface CLIOptions {
   file?: string;
   schemaOnly?: boolean;
   showPipeline?: boolean;
+  structured?: boolean;
+  tui?: boolean;
+  streaming?: boolean;
+  emitMs?: number;
+  maxDocs?: number;
   limitSample?: number;
   model?: string;
   explain?: boolean;
@@ -36,11 +44,16 @@ const program = new Command();
 program
   .name('aggo-ai')
   .description('AI-powered natural language queries for JSON data using aggo')
-  .version('0.1.0')
+  .version('0.2.0')
   .argument('[query]', 'Natural language query')
   .option('-f, --file <path>', 'Read data from file instead of stdin')
   .option('--schema-only', 'Show inferred schema without querying')
   .option('--show-pipeline', "Print generated pipeline but don't run it")
+  .option('--structured', 'Use structured output mode (pipeline + UIDSL)')
+  .option('--tui', 'Launch interactive TUI (implies --structured)')
+  .option('--streaming', 'Enable streaming mode for live updates')
+  .option('--emit-ms <ms>', 'Streaming update interval in milliseconds', parseInt)
+  .option('--max-docs <n>', 'Maximum documents to process', parseInt)
   .option(
     '--limit-sample <n>',
     'Control rows sampled for schema inference',
@@ -49,7 +62,7 @@ program
   .option(
     '--model <model>',
     'Override default OpenAI model',
-    'gpt-4-turbo-preview'
+    'gpt-4o-2024-08-06'
   )
   .option('--explain', 'Include explanation of the generated pipeline')
   .option('--pretty', 'Pretty-print JSON output')
@@ -70,26 +83,33 @@ program.addHelpText(
   'after',
   `
 Examples:
+  # Structured output mode with TUI
+  cat sales.jsonl | aggo-ai "revenue by category" --tui
+  
+  # Streaming dashboard
+  tail -f logs.jsonl | aggo-ai "error count by service" --tui --streaming
+  
   # Basic natural language query
-  cat sales.jsonl | aggo ai "total revenue by product category"
+  cat sales.jsonl | aggo-ai "total revenue by product category"
   
   # Show inferred schema
-  cat data.jsonl | aggo ai --schema-only
+  cat data.jsonl | aggo-ai --schema-only
   
   # Generate pipeline without executing
-  aggo ai "average rating by genre" --file movies.jsonl --show-pipeline
+  aggo-ai "average rating by genre" --file movies.jsonl --show-pipeline
   
   # Use specific OpenAI model
-  cat logs.jsonl | aggo ai "error count by service" --model gpt-4
+  cat logs.jsonl | aggo-ai "error count by service" --model gpt-4
   
   # Get detailed explanation
-  aggo ai "top 10 customers by order value" --file orders.jsonl --explain
+  aggo-ai "top 10 customers by order value" --file orders.jsonl --explain
 
 Environment Variables:
   OPENAI_API_KEY    OpenAI API key for pipeline generation (required)
 
 Note: This command requires an OpenAI API key to convert natural language
-queries into MongoDB aggregation pipelines.
+queries into MongoDB aggregation pipelines. Use --tui for interactive
+terminal interfaces with tables, charts, and real-time updates.
 `
 );
 
@@ -193,6 +213,12 @@ async function runAICommand(
       );
     }
 
+    return;
+  }
+
+  // Handle structured output / TUI mode
+  if (options.structured || options.tui) {
+    await runStructuredMode(query, documents, options);
     return;
   }
 
@@ -379,6 +405,84 @@ function formatOutput(result: ReadonlyArray<unknown>, pretty: boolean): string {
     return JSON.stringify(result, null, 2);
   } else {
     return result.map(doc => JSON.stringify(doc)).join('\n');
+  }
+}
+
+async function runStructuredMode(
+  query: string,
+  documents: Document[],
+  options: CLIOptions
+): Promise<void> {
+  console.error('🚀 Entering structured output mode...');
+  
+  // Schema inference
+  const schema = await withSpinner(
+    () => Promise.resolve(getSchema(documents, { sampleSize: options.limitSample })),
+    SPINNER_PHASES.SCHEMA_INFERENCE,
+    { successMessage: '✅ Schema analyzed' }
+  );
+
+  // Create structured client
+  const client = new StructuredOpenAIClient({
+    apiKey: options.apiKey,
+    model: options.model || 'gpt-4o-2024-08-06',
+    temperature: 0.1
+  });
+
+  // Generate structured plan
+  console.error('🤖 Generating structured plan...');
+  const result = await withSpinner(
+    () => client.generateStructuredPlan(query, schema, documents.slice(0, 3)),
+    SPINNER_PHASES.OPENAI_GENERATION,
+    { successMessage: '✅ Structured plan generated' }
+  );
+
+  const { plan, pipelineJson, uidsl } = result;
+
+  // Add windowing configuration if streaming enabled
+  if (options.streaming) {
+    plan.w = {
+      mode: 'u',
+      emitMs: options.emitMs || 1000,
+      maxDocs: options.maxDocs
+    };
+  }
+
+  console.error(`📊 Pipeline: ${pipelineJson.slice(0, 80)}...`);
+  console.error(`🎨 UI DSL: ${uidsl}`);
+
+  if (options.showPipeline) {
+    console.log('Generated Pipeline:');
+    console.log(JSON.stringify(JSON.parse(pipelineJson), null, 2));
+    console.log('\nGenerated UIDSL:');
+    console.log(uidsl);
+    return;
+  }
+
+  if (options.tui) {
+    // Launch TUI
+    console.error('🎨 Launching interactive TUI...');
+    
+    // Clear screen and hide cursor
+    process.stdout.write('\x1b[2J\x1b[0;0H\x1b[?25l');
+    
+    try {
+      renderTUIApp(plan, documents);
+    } finally {
+      // Restore cursor on exit
+      process.stdout.write('\x1b[?25h');
+    }
+  } else {
+    // Structured JSON output
+    const output = {
+      plan,
+      schema,
+      query,
+      tokensUsed: result.tokensUsed,
+      inputDocuments: documents.length
+    };
+
+    console.log(JSON.stringify(output, null, options.pretty ? 2 : undefined));
   }
 }
 
