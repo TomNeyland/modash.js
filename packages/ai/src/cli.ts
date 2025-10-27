@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * AI CLI for aggo - Natural language query interface
+ * AI CLI for aggo - Natural language query interface with Terminal UI
  *
  * Usage:
  *   cat data.jsonl | aggo ai "average score by category"
- *   aggo ai "sum total where status is active" --file data.jsonl
+ *   aggo ai "sum total where status is active" --file data.jsonl --tui
  */
 
 import { createReadStream } from 'fs';
@@ -17,6 +17,7 @@ import {
   validateConfiguration,
   formatSchema,
 } from './index.js';
+import { renderAITUI, validateTUIConfig, getAvailableThemes } from './tui-integration.js';
 import { SPINNER_PHASES, withSpinner, createPhaseSpinner } from './spinner.js';
 import type { Document } from 'aggo';
 
@@ -29,6 +30,10 @@ interface CLIOptions {
   explain?: boolean;
   pretty?: boolean;
   apiKey?: string;
+  tui?: boolean;
+  fallback?: boolean;
+  streaming?: boolean;
+  theme?: string;
 }
 
 const program = new Command();
@@ -36,7 +41,7 @@ const program = new Command();
 program
   .name('aggo-ai')
   .description('AI-powered natural language queries for JSON data using aggo')
-  .version('0.1.0')
+  .version('0.1.2')
   .argument('[query]', 'Natural language query')
   .option('-f, --file <path>', 'Read data from file instead of stdin')
   .option('--schema-only', 'Show inferred schema without querying')
@@ -54,6 +59,10 @@ program
   .option('--explain', 'Include explanation of the generated pipeline')
   .option('--pretty', 'Pretty-print JSON output')
   .option('--api-key <key>', 'OpenAI API key (or use OPENAI_API_KEY env var)')
+  .option('--tui', 'Enable Terminal UI mode (default: auto-detect)')
+  .option('--fallback', 'Force fallback to table view (disable TUI)')
+  .option('--streaming', 'Enable streaming updates (experimental)')
+  .option('--theme <theme>', `UI theme (${getAvailableThemes().join(', ')})`, 'auto')
   .action(async (query: string | undefined, options: CLIOptions) => {
     try {
       await runAICommand(query, options);
@@ -70,8 +79,8 @@ program.addHelpText(
   'after',
   `
 Examples:
-  # Basic natural language query
-  cat sales.jsonl | aggo ai "total revenue by product category"
+  # Basic natural language query with TUI
+  cat sales.jsonl | aggo ai "total revenue by product category" --tui
   
   # Show inferred schema
   cat data.jsonl | aggo ai --schema-only
@@ -79,17 +88,23 @@ Examples:
   # Generate pipeline without executing
   aggo ai "average rating by genre" --file movies.jsonl --show-pipeline
   
-  # Use specific OpenAI model
-  cat logs.jsonl | aggo ai "error count by service" --model gpt-4
+  # Use Terminal UI with custom theme
+  cat logs.jsonl | aggo ai "error count by service" --tui --theme dark
   
-  # Get detailed explanation
-  aggo ai "top 10 customers by order value" --file orders.jsonl --explain
+  # Force table fallback
+  aggo ai "top 10 customers by order value" --file orders.jsonl --fallback
+  
+  # Enable streaming mode (experimental)
+  cat live-data.jsonl | aggo ai "active users by region" --tui --streaming
 
 Environment Variables:
   OPENAI_API_KEY    OpenAI API key for pipeline generation (required)
+  NO_COLOR          Disable colored output
+  NO_UNICODE        Disable Unicode characters in TUI
 
 Note: This command requires an OpenAI API key to convert natural language
-queries into MongoDB aggregation pipelines.
+queries into MongoDB aggregation pipelines. The Terminal UI provides an
+interactive visualization of query results.
 `
 );
 
@@ -123,6 +138,59 @@ async function runAICommand(
     return;
   }
 
+  // Validate query is provided for non-schema modes
+  if (!query) {
+    console.error('❌ Error: Query is required');
+    console.error(
+      '💡 Use --schema-only to see the data schema, or provide a natural language query'
+    );
+    process.exit(1);
+  }
+
+  // Check TUI configuration
+  const tuiOptions = {
+    apiKey: options.apiKey,
+    model: options.model,
+    enableTUI: options.tui !== false && !options.fallback,
+    forceFallback: options.fallback,
+    streaming: options.streaming,
+    includeExplanation: options.explain,
+    sampleSize: options.limitSample,
+  };
+
+  const tuiConfig = validateTUIConfig(tuiOptions);
+  if (!tuiConfig.valid) {
+    console.error('❌ TUI Configuration Error:');
+    tuiConfig.warnings.forEach(warning => console.error(`   ${warning}`));
+    process.exit(1);
+  }
+
+  // Show warnings but continue
+  if (tuiConfig.warnings.length > 0) {
+    tuiConfig.warnings.forEach(warning => console.error(`⚠️  ${warning}`));
+  }
+
+  // Handle TUI mode or show-pipeline mode
+  if (options.tui && !options.showPipeline) {
+    console.error(`🤖 Processing query: "${query}"`);
+    console.error('🖥️  Launching Terminal UI mode...');
+    
+    await renderAITUI(documents, query, tuiOptions);
+    return;
+  }
+
+  // Legacy modes (show-pipeline and non-TUI)
+  await runLegacyMode(documents, query, options);
+}
+
+/**
+ * Legacy mode for non-TUI operations (show-pipeline and traditional output)
+ */
+async function runLegacyMode(
+  documents: Document[],
+  query: string,
+  options: CLIOptions
+): Promise<void> {
   // Validate OpenAI configuration for modes that need it
   const openaiOptions = {
     apiKey: options.apiKey,
@@ -142,15 +210,6 @@ async function runAICommand(
   if (!isConfigValid) {
     console.error(
       '💡 Hint: Check your OPENAI_API_KEY environment variable or --api-key option'
-    );
-    process.exit(1);
-  }
-
-  // Validate query is provided for non-schema modes
-  if (!query) {
-    console.error('❌ Error: Query is required');
-    console.error(
-      '💡 Use --schema-only to see the data schema, or provide a natural language query'
     );
     process.exit(1);
   }
