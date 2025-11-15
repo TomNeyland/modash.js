@@ -6,7 +6,9 @@ export default defineConfig([
       index: 'src/index.ts',
       'openai-client': 'src/openai-client.ts',
       'schema-inference': 'src/schema-inference.ts',
-      'spinner': 'src/spinner.ts'
+      'spinner': 'src/spinner.ts',
+      'ui-schemas': 'src/ui-schemas.ts',
+      'terminal-ui-renderer': 'src/terminal-ui-renderer.ts'
     },
     format: ['esm'],
     platform: 'node',
@@ -17,7 +19,7 @@ export default defineConfig([
     bundle: false,  // Don't bundle dependencies for library
     splitting: false,
     treeshake: true,
-    external: ['aggo', 'openai', 'commander'],  // Mark peer/external deps
+    external: ['aggo', 'openai', 'commander', 'chalk', 'boxen', 'cli-table3', 'figlet', 'zod'],  // Mark peer/external deps
   },
   {
     entry: { cli: 'src/cli.ts' },
